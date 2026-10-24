@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { fetchAll } from '../../lib/fetchAll'
 import { supabase } from '../../lib/supabaseClient'
 import { useProfile, useUserId } from '../auth/useAuth'
 import type { WellnessItems } from '../wellness/items'
@@ -32,19 +33,27 @@ export function useReference() {
   }), Infinity))
 }
 
-export function useAllLogs(from: string, to: string) {
+// playerId : une seule personne (fiche joueur sur la saison) ; sinon tout l'effectif (à garder sur une courte période)
+export function useAllLogs(from: string, to: string, playerId?: string) {
   return useQuery({
-    ...query(['staff', 'logs', from, to], async (): Promise<Log[]> => check(await supabase.from('session_logs')
-      .select('player_id, session_date, activity_type_id, duration_min, rpe, srpe, source, created_at')
-      .gte('session_date', from).lte('session_date', to))),
+    ...query(['staff', 'logs', from, to, playerId ?? 'all'], (): Promise<Log[]> => fetchAll((a, b) => {
+      let q = supabase.from('session_logs').select('player_id, session_date, activity_type_id, duration_min, rpe, srpe, source, created_at')
+        .gte('session_date', from).lte('session_date', to)
+      if (playerId) q = q.eq('player_id', playerId)
+      return q.order('id').range(a, b)
+    })),
     enabled: !!from && !!to, // pas de semaine choisie : rien à charger
   })
 }
 
-export function useAllWellness(from: string, to: string) {
-  return useQuery(query(['staff', 'wellness', from, to], async () => check(await supabase.from('wellness_entries')
-    .select('player_id, entry_date, sleep_quality, fatigue, soreness, soreness_upper, soreness_lower, stress, mood, score')
-    .gte('entry_date', from).lte('entry_date', to))))
+export function useAllWellness(from: string, to: string, playerId?: string) {
+  return useQuery({ enabled: !!from && !!to, ...query(['staff', 'wellness', from, to, playerId ?? 'all'], () => fetchAll((a, b) => {
+    let q = supabase.from('wellness_entries')
+      .select('player_id, entry_date, sleep_quality, fatigue, soreness, soreness_upper, soreness_lower, stress, mood, score, source')
+      .gte('entry_date', from).lte('entry_date', to)
+    if (playerId) q = q.eq('player_id', playerId)
+    return q.order('id').range(a, b)
+  })) })
 }
 
 export function useAllPlan(from: string, to: string) {
@@ -93,7 +102,7 @@ export function useStaffSaveWellness() {
   return useMutation({
     mutationFn: async (w: { playerId: string; date: string; items: WellnessItems }) => {
       check(await supabase.from('wellness_entries')
-        .upsert({ player_id: w.playerId, entry_date: w.date, ...w.items }, { onConflict: 'player_id,entry_date' }).select())
+        .upsert({ player_id: w.playerId, entry_date: w.date, ...w.items, source: 'staff' }, { onConflict: 'player_id,entry_date' }).select())
     },
     onSuccess: () => invalidateStaff(qc),
   })

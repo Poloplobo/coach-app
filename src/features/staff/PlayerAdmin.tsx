@@ -5,7 +5,7 @@ import { ScalePicker } from '../../components/ui/ScalePicker'
 import { addDays } from '../../lib/week'
 import { RPE_LABELS } from '../rpe/activities'
 import { WELLNESS_ITEMS, type WellnessItems } from '../wellness/items'
-import type { ActivityType, Player } from './load'
+import type { ActivityType, Log, Player } from './load'
 import { useAvailabilityDetail, useSetAvailability, useStaffSaveLog, useStaffSaveWellness } from './useStaff'
 
 const field = 'rounded-lg bg-app border border-line px-3 py-2 text-base'
@@ -44,7 +44,13 @@ export function AvailabilityPanel({ player, today }: { player: Player; today: st
 }
 
 // Oubli ou erreur d'un joueur : le staff saisit à sa place, sur n'importe quel jour passé (« saisi par le staff »)
-export function CorrectionPanel({ player, types, today }: { player: Player; types: ActivityType[]; today: string }) {
+const BY = { app: 'le joueur', staff: 'le staff', import_form: 'le formulaire' } as Record<string, string>
+
+export function CorrectionPanel({ player, types, today, logs, wellness }: {
+  player: Player; types: ActivityType[]; today: string
+  logs: Pick<Log, 'session_date' | 'activity_type_id' | 'duration_min' | 'rpe' | 'source'>[]
+  wellness: { entry_date: string; score: number | null; source: string }[]
+}) {
   const saveLog = useStaffSaveLog()
   const saveWellness = useStaffSaveWellness()
   const [date, setDate] = useState(addDays(today, -1))
@@ -56,6 +62,9 @@ export function CorrectionPanel({ player, types, today }: { player: Player; type
   const minutes = Number(duration)
   const logReady = activity && Number.isInteger(minutes) && minutes > 0 && minutes <= 300 && (!activity.requires_rpe || rpe !== null)
   const wellnessReady = WELLNESS_ITEMS.every(i => items[i.key] !== undefined)
+  // Ce qui existe déjà ce jour-là : montré avant d'être remplacé
+  const existingLog = logs.find(l => l.session_date === date && l.activity_type_id === activityId)
+  const existingWellness = wellness.find(w => w.entry_date === date)
 
   return (
     <Card title={`Corriger une saisie de ${player.first_name}`}>
@@ -83,7 +92,11 @@ export function CorrectionPanel({ player, types, today }: { player: Player; type
           {activity?.requires_rpe && (
             <ScalePicker label="RPE" min={0} max={10} low="Repos" high="Maximal" value={rpe} onChange={setRpe} hint={rpe !== null ? RPE_LABELS[rpe] : undefined} />
           )}
-          <p className="text-xs text-ink/60">Si le joueur avait déjà déclaré cette activité ce jour-là, sa saisie est remplacée.</p>
+          {existingLog ? (
+            <p className="rounded-lg border border-gold px-3 py-2 text-sm">
+              Déjà déclaré par {BY[existingLog.source] ?? existingLog.source} : {existingLog.rpe !== null ? `RPE ${existingLog.rpe}, ` : ''}{existingLog.duration_min} min. Enregistrer le remplacera.
+            </p>
+          ) : activityId && <p className="text-xs text-ink/60">Rien de déclaré pour cette activité ce jour-là.</p>}
           <Button disabled={!logReady || saveLog.isPending} onClick={() => saveLog.mutate({
             playerId: player.id, date, activityTypeId: activityId, durationMin: minutes, rpe: activity?.requires_rpe ? rpe : null,
           })}>Enregistrer l'activité</Button>
@@ -94,6 +107,11 @@ export function CorrectionPanel({ player, types, today }: { player: Player; type
       <details className="border-t border-line pt-3">
         <summary className="cursor-pointer font-semibold text-sm">État de forme</summary>
         <div className="mt-3 flex flex-col gap-3">
+          {existingWellness && (
+            <p className="rounded-lg border border-gold px-3 py-2 text-sm">
+              Déjà rempli par {BY[existingWellness.source] ?? existingWellness.source} ({existingWellness.score}/30). Enregistrer le remplacera.
+            </p>
+          )}
           {WELLNESS_ITEMS.map(i => (
             <ScalePicker key={i.key} label={i.label} min={1} max={5} low={i.low} high={i.high}
               value={items[i.key] ?? null} onChange={v => setItems({ ...items, [i.key]: v })} />

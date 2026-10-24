@@ -857,6 +857,7 @@ export type Database = {
           soreness: number | null
           soreness_lower: number | null
           soreness_upper: number | null
+          source: string
           stress: number
         }
         Insert: {
@@ -873,6 +874,7 @@ export type Database = {
           soreness?: number | null
           soreness_lower?: number | null
           soreness_upper?: number | null
+          source?: string
           stress: number
         }
         Update: {
@@ -889,6 +891,7 @@ export type Database = {
           soreness?: number | null
           soreness_lower?: number | null
           soreness_upper?: number | null
+          source?: string
           stress?: number
         }
         Relationships: [

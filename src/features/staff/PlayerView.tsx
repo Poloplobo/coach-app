@@ -29,22 +29,24 @@ export function PlayerView() {
   const weeks = ref.data?.weeks ?? []
   const week = weeks.find(w => w.code === code) ?? weekOf(weeks, today)
   const seasonStart = weeks[0]?.start_date ?? addDays(today, -60)
-  // Toute la saison d'un coup : courbes, ratio sur 28 jours et semaine choisie viennent des mêmes lignes
-  const logs = useAllLogs(addDays(seasonStart, -28), today)
-  const wellness = useAllWellness(seasonStart, today)
+  const selectedId = playerId ?? roster.data?.[0]?.id
+  // Saison du seul joueur choisi (courbes, ratio sur 28 jours) ; semaine de tout l'effectif (moyenne du groupe)
+  const own = useAllLogs(selectedId ? addDays(seasonStart, -28) : '', today, selectedId)
+  const wellness = useAllWellness(selectedId ? seasonStart : '', today, selectedId)
+  const weekLogs = useAllLogs(week?.start_date ?? '', week ? addDays(week.start_date, 6) : '')
 
-  if (ref.isPending || roster.isPending || logs.isPending || wellness.isPending) return <p className="text-ink/60">Chargement…</p>
-  if (ref.isError || roster.isError || logs.isError || wellness.isError) return <p>Impossible de charger la fiche joueur.</p>
-
-  const player = roster.data.find(p => p.id === playerId) ?? roster.data[0]
+  if (ref.isPending || roster.isPending) return <p className="text-ink/60">Chargement…</p>
+  if (ref.isError || roster.isError || own.isError || wellness.isError || weekLogs.isError) return <p>Impossible de charger la fiche joueur.</p>
+  const player = roster.data.find(p => p.id === selectedId)
   if (!player) return <p>Aucun joueur.</p>
+  if (own.isPending || wellness.isPending || (week && weekLogs.isPending)) return <p className="text-ink/60">Chargement…</p>
+
   const wt = week ? ref.data.weekTypes.find(t => t.code === week.week_type_code) ?? null : null
   const inWeek = (l: Log) => !!week && l.session_date >= week.start_date && l.session_date <= addDays(week.start_date, 6)
-  const m = week ? weekMatrix(roster.data, logs.data.filter(inWeek), week.start_date, wt) : null
+  const m = week ? weekMatrix(roster.data, weekLogs.data ?? [], week.start_date, wt, { inProgress: addDays(week.start_date, 6) >= today }) : null
   const row = m?.rows.find(r => r.player.id === player.id)
-  const own = logs.data.filter(l => l.player_id === player.id)
-  const days = week && m ? playerDays(own.filter(inWeek), ref.data.types, week.start_date, m.dayMeans) : []
-  const ratio = acwr(own, today)
+  const days = week && m ? playerDays(own.data.filter(inWeek), ref.data.types, week.start_date, m.dayMeans) : []
+  const ratio = acwr(own.data, today)
 
   return (
     <>
@@ -68,7 +70,7 @@ export function PlayerView() {
         <div className="flex flex-wrap gap-3">
           <Kpi label="Séances déclarées" value={String(row.sessions)} />
           <Kpi label={`sRPE total ${week?.code}`} value={`${row.total} UA`} hint={wt ? `Cible ${wt.target_srpe} UA` : 'Hors calendrier'} />
-          <Kpi label="% de la cible" value={`${row.pct} %`} tone={row.status ? STATUS_TONE[row.status] : 'neutral'} hint={row.status ?? undefined} />
+          <Kpi label="% de la cible" value={`${row.pct} %`} tone={row.status ? STATUS_TONE[row.status] : 'neutral'} hint={row.status ?? (m?.inProgress ? 'semaine en cours' : undefined)} />
           <Kpi label="Vs moyenne du groupe" value={`${row.vsGroupPct > 0 ? '+' : ''}${row.vsGroupPct} %`} />
           <Kpi label="Temps total" value={`${row.minutes} min`} />
           {isAdmin && (
@@ -100,11 +102,11 @@ export function PlayerView() {
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <SeasonCharts own={own} wellness={wellness.data.filter(w => w.player_id === player.id)} weeks={weeks}
+        <SeasonCharts own={own.data} wellness={wellness.data} weeks={weeks}
           targets={new Map(ref.data.weekTypes.map(t => [t.code, t.target_srpe]))} />
         <Card title="Journal des déclarations de la semaine">
           <ul className="text-sm flex flex-col gap-1 max-h-80 overflow-y-auto">
-            {own.filter(inWeek).sort((a, b) => a.created_at.localeCompare(b.created_at)).map((l, i) => (
+            {own.data.filter(inWeek).sort((a, b) => a.created_at.localeCompare(b.created_at)).map((l, i) => (
               <li key={i} className="flex justify-between gap-2 border-t border-line pt-1">
                 <span>{DAY_NAMES[(new Date(`${l.session_date}T00:00:00Z`).getUTCDay() + 6) % 7]} · {ref.data.types.find(t => t.id === l.activity_type_id)?.name}</span>
                 <span className="text-ink/70">{Number(l.srpe ?? 0)} UA · {new Date(l.created_at).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'short', timeStyle: 'short' })} · {SOURCE[l.source] ?? l.source}</span>
@@ -120,7 +122,7 @@ export function PlayerView() {
       </div>
 
       {isAdmin && <AvailabilityPanel player={player} today={today} />}
-      <CorrectionPanel player={player} types={ref.data.types} today={today} />
+      <CorrectionPanel player={player} types={ref.data.types} today={today} logs={own.data} wellness={wellness.data} />
     </>
   )
 }

@@ -62,6 +62,11 @@ describe('weekMatrix', () => {
   it('anomalies : hors plage, blessé exclu', () => {
     expect(m.anomalies.map(r => r.player.id)).toEqual(['a', 'b'])
   })
+  it('semaine en cours : % atteint, mais ni statut ni anomalie', () => {
+    const live = weekMatrix([player('a'), player('b')], logs, week, DEV, { inProgress: true })
+    expect(live.rows[0]).toMatchObject({ total: 1020, pct: 34, status: null })
+    expect(live).toMatchObject({ groupStatus: null, anomalies: [], inProgress: true })
+  })
   it('moyenne du jour parmi les déclarants aptes', () => {
     expect(m.dayMeans.slice(0, 3)).toEqual([360, 0, 600])
   })
@@ -92,12 +97,16 @@ describe('acwr : aigu 7 j / moyenne hebdo 28 j', () => {
     const logs = Array.from({ length: 28 }, (_, i) => log('a', day(i), 'muscu', 60, 5)) // 300 UA / jour
     expect(acwr(logs, '2026-10-24')).toEqual({ acute: 2100, chronic: 2100, ratio: 1, zone: 'optimal' })
   })
-  it('pic sur la dernière semaine : zone de risque', () => {
-    const logs = Array.from({ length: 7 }, (_, i) => log('a', day(i), 'muscu', 60, 10)) // 4200 UA en 7 j, rien avant
-    expect(acwr(logs, '2026-10-24')).toMatchObject({ acute: 4200, chronic: 1050, ratio: 4, zone: 'risque' })
+  it('pic sur la dernière semaine après 3 semaines très légères : zone de risque', () => {
+    const logs = [log('a', day(27), 'muscu', 100, 1), ...Array.from({ length: 7 }, (_, i) => log('a', day(i), 'muscu', 60, 10))]
+    expect(acwr(logs, '2026-10-24')).toMatchObject({ acute: 4200, chronic: 1075, ratio: 3.91, zone: 'risque' })
+  })
+  it('moins de 28 jours d\'historique : pas de ratio (sinon faux « risque »)', () => {
+    const logs = Array.from({ length: 7 }, (_, i) => log('a', day(i), 'muscu', 60, 5)) // nouveau joueur, 1 semaine
+    expect(acwr(logs, '2026-10-24')).toMatchObject({ acute: 2100, ratio: null, zone: null })
   })
   it('seuils : < 0,8 bas, ≤ 1,3 optimal, ≤ 1,5 vigilance', () => {
-    const zone = (acute: number) => acwr([log('a', '2026-09-28', 'muscu', 100, 4), log('a', '2026-10-24', 'muscu', acute, 1)], '2026-10-24').zone
+    const zone = (acute: number) => acwr([log('a', '2026-09-27', 'muscu', 100, 4), log('a', '2026-10-24', 'muscu', acute, 1)], '2026-10-24').zone
     // chronique = (400 + aigu) / 4 ; on choisit l'aigu pour viser chaque zone
     expect(zone(50)).toBe('bas')        // 50 / 113 = 0,44
     expect(zone(130)).toBe('optimal')   // 130 / 133 = 0,98

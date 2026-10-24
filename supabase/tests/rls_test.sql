@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(36);
+select plan(38);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -84,6 +84,9 @@ select is_empty($$select 1 from public.weekly_player_load     where player_id = 
 select throws_ok($$insert into public.wellness_entries (player_id, sleep_quality, fatigue, soreness_upper, soreness_lower, stress, mood)
                    values ('00000000-0000-0000-0000-00000000000b', 5, 5, 5, 5, 5, 5)$$,
                  '42501', null, 'A ne peut pas écrire le wellness de B');
+select throws_ok($$insert into public.wellness_entries (player_id, sleep_quality, fatigue, soreness_upper, soreness_lower, stress, mood, source)
+                   values ('00000000-0000-0000-0000-00000000000a', 4, 4, 4, 4, 4, 4, 'staff')$$,
+                 '42501', null, 'A ne peut pas marquer son état de forme comme saisi par le staff');
 select is_empty($$update public.wellness_entries set mood = 5
                   where player_id = '00000000-0000-0000-0000-00000000000a' returning 1$$,
                 'A ne peut pas modifier le wellness d''hier');
@@ -136,9 +139,11 @@ select lives_ok($$insert into public.session_logs (player_id, session_date, acti
                   values ('00000000-0000-0000-0000-00000000000b', public.paris_today() - 3,
                           (select id from public.activity_types where name = 'Jeu au Poste'), 45, 6, 'staff')$$,
                 'le staff corrige un oubli de RPE sur un jour passé (saisi par le staff)');
-select lives_ok($$insert into public.wellness_entries (player_id, entry_date, sleep_quality, fatigue, soreness_upper, soreness_lower, stress, mood)
-                  values ('00000000-0000-0000-0000-00000000000b', public.paris_today() - 3, 4, 4, 4, 4, 4, 4)$$,
+select lives_ok($$insert into public.wellness_entries (player_id, entry_date, sleep_quality, fatigue, soreness_upper, soreness_lower, stress, mood, source)
+                  values ('00000000-0000-0000-0000-00000000000b', public.paris_today() - 3, 4, 4, 4, 4, 4, 4, 'staff')$$,
                 'le staff corrige un état de forme sur un jour passé');
+select is((select source from public.wellness_entries where player_id = '00000000-0000-0000-0000-00000000000b' and entry_date = public.paris_today() - 3),
+          'staff', 'la correction de l''état de forme est marquée « saisi par le staff »');
 
 -- ---------- Admin M ----------
 reset role;

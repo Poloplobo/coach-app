@@ -131,6 +131,8 @@ Trois vues (barre du haut) : **Aujourd'hui · Semaine · Joueur**, plus Réglage
   (forme et sRPE, Recharts), complétion muscu, objectifs et tests ; **ratio aigu/chronique** (admins seulement :
   7 j / moyenne hebdo 28 j ; < 0,8 et 1,3-1,5 jaune, 0,8-1,3 vert, > 1,5 rouge) ; **bouton blessé / apte** (admins) ;
   **correction des saisies** d'un jour passé par le staff (RPE, durée, état de forme ; `source = 'staff'`).
+- Limite connue (E6) : la relance « RPE d'hier » suppose que les séances de groupe concernent tous les joueurs aptes ;
+  à lier aux membres du groupe quand il y aura plusieurs groupes.
 - **Export Excel** de la semaine : onglet « Collectif » (TABLEAU_DE_BORD) + un onglet par joueur (SUIVI_INDIVIDUEL),
   fichier `PER_<code semaine>_<lundi>.xlsx`, à ranger soi-même sur le Drive.
 - **Validation** : Vitest des calculs (statut aux bornes des plages, %, matrice, synthèse, ratio, alerte, retardataires) ;

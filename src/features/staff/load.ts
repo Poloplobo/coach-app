@@ -51,7 +51,9 @@ export type MatrixRow = {
   pct: number; gap: number; vsGroupPct: number; status: Status | null
 }
 
-export function weekMatrix(players: Player[], weekLogs: Log[], weekStart: string, wt: WeekType | null) {
+// inProgress : semaine pas encore terminée. Le statut n'a pas de sens (un lundi matin, tout le monde serait en sous-charge) :
+// on garde le % atteint, sans statut ni anomalie.
+export function weekMatrix(players: Player[], weekLogs: Log[], weekStart: string, wt: WeekType | null, { inProgress = false } = {}) {
   const dates = DAY_NAMES.map((_, i) => addDays(weekStart, i))
   const target = wt?.target_srpe ?? 0
   const base = players.map(player => {
@@ -69,14 +71,15 @@ export function weekMatrix(players: Player[], weekLogs: Log[], weekStart: string
     pct: pctOfTarget(r.total, target),
     gap: r.total - target,
     vsGroupPct: groupMean > 0 ? round((100 * (r.total - groupMean)) / groupMean, 1) : 0,
-    status: loadStatus(r.total, wt),
+    status: inProgress ? null : loadStatus(r.total, wt),
   }))
   const fit = rows.filter(r => !r.player.injured)
   return {
     rows,
     groupMean: round(groupMean),
     groupPct: pctOfTarget(groupMean, target),
-    groupStatus: loadStatus(groupMean, wt),
+    groupStatus: inProgress ? null : loadStatus(groupMean, wt),
+    inProgress,
     dayMeans: dates.map((_, i) => round(mean(fit.filter(r => r.byDay[i] > 0).map(r => r.byDay[i])))),
     // Anomalies : hors plage, blessés exclus des alertes (leur charge réduite est attendue)
     anomalies: fit.filter(r => r.status && r.status !== 'conforme'),
@@ -152,7 +155,9 @@ export function acwr(playerLogs: Log[], date: string): { acute: number; chronic:
     .filter(l => l.session_date > addDays(date, -days) && l.session_date <= date).reduce((s, l) => s + srpeOf(l), 0)
   const acute = sum(7)
   const chronic = round(sum(28) / 4)
-  if (!chronic) return { acute, chronic, ratio: null, zone: null }
+  // Moins de 28 jours d'historique : la moyenne chronique serait sous-estimée et le ratio gonflé (faux « risque »)
+  const firstDay = playerLogs.reduce<string | null>((min, l) => (min === null || l.session_date < min ? l.session_date : min), null)
+  if (!chronic || firstDay === null || firstDay > addDays(date, -27)) return { acute, chronic, ratio: null, zone: null }
   const ratio = round(acute / chronic, 2)
   const zone: AcwrZone = ratio < 0.8 ? 'bas' : ratio <= 1.3 ? 'optimal' : ratio <= 1.5 ? 'vigilance' : 'risque'
   return { acute, chronic, ratio, zone }

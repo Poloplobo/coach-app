@@ -1,6 +1,6 @@
 // Export Excel de la semaine : onglet « Collectif » (calque de TABLEAU_DE_BORD) + un onglet par joueur (SUIVI_INDIVIDUEL).
 // Mêmes calculs que l'écran (load.ts). Le fichier est créé dans le navigateur : aucune donnée ne passe par un serveur tiers.
-import { addDays } from '../../lib/week'
+import { addDays, parisDate } from '../../lib/week'
 import {
   DAY_NAMES, dailySynthesis, fullName, pctOfTarget, pillarSplit, playerDays, rangeLabel, weekMatrix,
   type ActivityType, type Log, type Player, type WeekType,
@@ -13,11 +13,12 @@ const signed = (v: number) => (v > 0 ? `+${v}` : String(v))
 export const PILLAR_LABEL = { physique: 'Physique', rugby: 'Rugby', accompagnement: 'Accompagnement de la performance', ppid: 'Besoins individuels (PPID)' }
 
 export function weekRows(week: WeekInfo, wt: WeekType | null, players: Player[], logs: Log[], types: ActivityType[]) {
-  const m = weekMatrix(players, logs, week.start_date, wt)
+  const inProgress = addDays(week.start_date, 6) >= parisDate()
+  const m = weekMatrix(players, logs, week.start_date, wt, { inProgress })
   const synthesis = dailySynthesis(logs, types, week.start_date)
   const pillars = pillarSplit(logs, types, wt)
   const target = wt?.target_srpe ?? 0
-  const status = (s: string | null, injured = false) => (injured ? 'Blessé' : s ?? 'Hors calendrier')
+  const status = (s: string | null, injured = false) => (injured ? 'Blessé' : s ?? (inProgress ? 'Semaine en cours' : 'Hors calendrier'))
 
   const collective: (string | number)[][] = [
     [`TABLEAU DE BORD COLLECTIF — SUIVI DE LA CHARGE sRPE — ${week.code} (${week.label ?? ''})`],

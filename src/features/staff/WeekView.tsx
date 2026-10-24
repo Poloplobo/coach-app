@@ -24,7 +24,7 @@ export function WeekView() {
 
   const wt = ref.data.weekTypes.find(t => t.code === week.week_type_code) ?? null
   const weekLogs = logs.data ?? []
-  const m = weekMatrix(roster.data, weekLogs, week.start_date, wt)
+  const m = weekMatrix(roster.data, weekLogs, week.start_date, wt, { inProgress: weekEnd(week) >= parisDate() })
   const synthesis = dailySynthesis(weekLogs, ref.data.types, week.start_date).filter(d => d.declarants > 0)
   const pillars = pillarSplit(weekLogs, ref.data.types, wt)
 
@@ -49,7 +49,7 @@ export function WeekView() {
         <Kpi label="Charge obtenue (moyenne)" value={`${m.groupMean} UA`} hint="Joueurs aptes" />
         <Kpi label={`Charge visée ${week.code}`} value={`${wt?.target_srpe ?? '—'} UA`} hint={wt ? `${wt.name} · plage ${rangeLabel(wt)}` : 'Hors calendrier'} />
         <Kpi label="% de la cible (Accurate RPE)" value={`${m.groupPct} %`} />
-        <Kpi label="Statut charge collective" value={m.groupStatus ?? 'hors calendrier'} tone={m.groupStatus ? STATUS_TONE[m.groupStatus] : 'neutral'} />
+        <Kpi label="Statut charge collective" value={m.groupStatus ?? (m.inProgress ? 'semaine en cours' : 'hors calendrier')} tone={m.groupStatus ? STATUS_TONE[m.groupStatus] : 'neutral'} />
       </div>
 
       <Card title="Matrice individuelle">
@@ -73,7 +73,7 @@ export function WeekView() {
                   <td className="pr-3 text-right">{r.pct} %</td>
                   <td className="pr-3 text-right">{r.gap > 0 ? '+' : ''}{r.gap}</td>
                   <td className="pr-3 text-right">{r.vsGroupPct > 0 ? '+' : ''}{r.vsGroupPct} %</td>
-                  <td>{r.player.injured ? <Badge tone="neutral">blessé</Badge> : r.status ? <Badge tone={STATUS_TONE[r.status]}>{r.status}</Badge> : '—'}</td>
+                  <td>{r.player.injured ? <Badge tone="neutral">blessé</Badge> : r.status ? <Badge tone={STATUS_TONE[r.status]}>{r.status}</Badge> : m.inProgress ? <Badge tone="neutral">en cours</Badge> : '—'}</td>
                 </tr>
               ))}
               <tr className="border-t-2 border-line font-semibold">
@@ -98,7 +98,7 @@ export function WeekView() {
       </div>
 
       <Card title={`Anomalies de charge (${m.anomalies.length})`}>
-        {m.anomalies.length === 0 ? <p className="text-sm text-ink/70">Aucun joueur apte hors de la plage.</p> : (
+        {m.anomalies.length === 0 ? <p className="text-sm text-ink/70">{m.inProgress ? 'Semaine en cours : les anomalies apparaissent une fois la semaine terminée.' : 'Aucun joueur apte hors de la plage.'}</p> : (
           <ul className="flex flex-wrap gap-2 text-sm">
             {m.anomalies.map(r => (
               <li key={r.player.id}>

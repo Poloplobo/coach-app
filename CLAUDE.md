@@ -21,6 +21,7 @@ RPE / charge, wellness (état de forme), tests physiques et progressions. Deux p
 - `npx supabase db reset` : rejoue toutes les migrations en local
 - `npm run test:db` : tests SQL (RLS) de supabase/tests sur le projet dev (sans Docker)
 - `npm run accounts -- --dry-run` : crée les comptes joueurs de data/import/joueurs.csv (Mac de l'admin uniquement)
+- Base de dev : données fictives uniquement (décision D10) ; `npm run accounts` et `npm run import` y sont en simulation seulement.
 - Production (projet « RNR - Acacémie », Francfort) : mêmes commandes suffixées `:prod` (`test:db:prod`, `accounts:prod`,
   `import:prod`), qui lisent `.env.prod.local`. Migrations : `npx supabase db push --db-url` avec l'URL de production.
 - L'import n'écrit qu'avec `-- --confirm=<référence du projet>` (sinon il s'arrête) et ne remplace jamais une saisie

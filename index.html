@@ -9,11 +9,12 @@
     <meta name="theme-color" content="#1A1A1A" />
     <meta name="robots" content="noindex, nofollow" />
     <title>Rugby Tracker — RNR</title>
-    <link rel="preload" as="image" href="/splash-clair.webp" />
+    <link rel="preload" as="image" href="/splash-sombre.webp" />
     <!-- Écran d'ouverture en HTML/CSS pur : visible avant le chargement du JS (la CSP interdit les scripts en ligne).
-         Le logo apparaît, puis grandit en s'effaçant pour laisser place à l'app ; main.tsx retire ensuite l'élément. -->
+         Le logo apparaît, puis grandit en s'effaçant pour laisser place à l'app ; main.tsx retire ensuite l'élément.
+         Version sombre pour tous : le thème choisi n'est connu qu'au chargement du JS, changer d'image en cours d'animation se verrait. -->
     <style>
-      #splash { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: #fff;
+      #splash { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: #0e0e10; /* fond exact du logo sombre */
         pointer-events: none; animation: splash-out 420ms cubic-bezier(0.4, 0, 1, 1) 900ms both; }
       #splash img { width: min(72vw, 400px); height: auto;
         animation: splash-in 480ms cubic-bezier(0.2, 0.8, 0.2, 1) both, splash-grow 420ms cubic-bezier(0.4, 0, 1, 1) 900ms forwards; }
@@ -27,7 +28,7 @@
     </style>
   </head>
   <body>
-    <div id="splash" aria-hidden="true"><img src="/splash-clair.webp" alt="" width="1008" height="851" /></div>
+    <div id="splash" aria-hidden="true"><img src="/splash-sombre.webp" alt="" width="1008" height="851" /></div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

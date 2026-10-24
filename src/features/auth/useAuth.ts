@@ -51,12 +51,17 @@ export function useSignIn() {
 
 export const MIN_PASSWORD_LENGTH = 8
 
-// Le joueur remplace le mot de passe provisoire reçu du staff
+// Le joueur remplace le mot de passe provisoire reçu du staff. Le mot de passe actuel est redemandé :
+// un téléphone resté connecté ne suffit pas à s'approprier le compte.
 export function useChangePassword() {
   return useMutation({
-    mutationFn: async (password: string) => {
-      if (password.length < MIN_PASSWORD_LENGTH) throw new Error('mot de passe trop court')
-      const { error } = await supabase.auth.updateUser({ password })
+    mutationFn: async ({ current, next }: { current: string; next: string }) => {
+      if (next.length < MIN_PASSWORD_LENGTH) throw new Error('mot de passe trop court')
+      const email = (await supabase.auth.getUser()).data.user?.email
+      if (!email) throw new Error('session expirée')
+      const check = await supabase.auth.signInWithPassword({ email, password: current })
+      if (check.error) throw check.error
+      const { error } = await supabase.auth.updateUser({ password: next })
       if (error) throw error
     },
   })

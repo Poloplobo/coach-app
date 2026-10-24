@@ -131,6 +131,12 @@ console.log(`Tests : ${testRows.length} résultats, ${bodyRows.length} mesures t
 console.log(targetsWb ? `Objectifs : ${targetRows.length}` : 'Objectifs : data/import/objectifs.xlsx absent, rien à importer')
 if (rejects.size) console.log(`\nRejetés (non importés) :\n  ${[...rejects].join('\n  ')}`)
 if (dryRun) { console.log('\nSimulation : rien n\'a été écrit.'); process.exit(0) }
+// Écriture réelle : il faut nommer la base visée, pour ne jamais écrire en production par erreur
+const target = new URL(url).hostname.split('.')[0]
+if (!process.argv.includes(`--confirm=${target}`)) {
+  console.log(`\nRien n'a été écrit. Pour écrire dans la base « ${target} », relance avec : -- --confirm=${target}`)
+  process.exit(1)
+}
 
 // ---------- Écriture ----------
 
@@ -154,7 +160,8 @@ for (const w of upcoming.filter(w => w.off)) {
     .gte('session_date', w.startDate).lte('session_date', addDays(w.startDate, 6)).select(), 'semaine OFF')
 }
 
-must(await db.from('session_logs').upsert(logs,{ onConflict: 'player_id,session_date,activity_type_id' }).select(), 'RPE')
+// Saisies des joueurs : l'import complète, il ne remplace jamais une ligne existante (saisie dans l'app ou corrigée)
+must(await db.from('session_logs').upsert(logs, { onConflict: 'player_id,session_date,activity_type_id', ignoreDuplicates: true }).select(), 'RPE')
 
 const exerciseNames = [...new Set(muscuSessions.flatMap(s => s.exercises.map(e => e.name)))]
 const exercises = must(await db.from('exercises').upsert(exerciseNames.map(name => ({ name })), { onConflict: 'name' }).select('id, name'), 'exercices')
@@ -177,11 +184,13 @@ for (const s of muscuSessions) {
     player_id: s.player_id, planned_exercise_id: plannedByPosition.get(i + 1)!,
     rpe: e.feedback.rpe, done_load: e.feedback.doneLoad, status: e.feedback.status, comment: e.feedback.comment,
   }] : [])
-  if (feedback.length) must(await db.from('exercise_feedback').upsert(feedback, { onConflict: 'player_id,planned_exercise_id' }).select(), 'retours')
+  if (feedback.length) {
+    must(await db.from('exercise_feedback').upsert(feedback, { onConflict: 'player_id,planned_exercise_id', ignoreDuplicates: true }).select(), 'retours')
+  }
 
   // Le RPE muscu déclaré ce jour-là devient la validation de cette séance (verrouille les retours)
   must(await db.from('session_logs').update({ planned_session_id: session.id })
-    .match({ player_id: s.player_id, session_date: s.date, activity_type_id: musculation }).select(), 'lien séance')
+    .match({ player_id: s.player_id, session_date: s.date, activity_type_id: musculation, source: 'import_form' }).select(), 'lien séance')
 }
 
 must(await db.from('test_results').upsert(testRows, { onConflict: 'player_id,test_id,test_date' }).select(), 'tests')

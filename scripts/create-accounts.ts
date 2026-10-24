@@ -50,7 +50,7 @@ for (const a of accounts) {
 if (created.length) {
   // Un fichier par exécution : on n'écrase jamais des mots de passe pas encore distribués
   const file = `data/import/identifiants-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`
-  writeFileSync(file, `NOM;Prénom;Identifiant;Mot de passe\n${created.join('\n')}\n`)
+  writeFileSync(file, `NOM;Prénom;Identifiant;Mot de passe\n${created.join('\n')}\n`, { mode: 0o600 }) // lisible par toi seul
   console.log(`\n${created.length} compte(s) créé(s). Identifiants à distribuer : ${file}`)
 } else {
   console.log(dryRun ? '\nSimulation : rien n\'a été écrit.' : '\nAucun nouveau compte.')

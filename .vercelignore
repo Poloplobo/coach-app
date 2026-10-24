@@ -6,3 +6,5 @@ supabase/
 docs/
 node_modules/
 dist/
+.claude/
+CLAUDE.md

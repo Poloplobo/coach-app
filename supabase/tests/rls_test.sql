@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(30);
+select plan(34);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -127,11 +127,20 @@ select isnt_empty($$select 1 from public.wellness_entries where player_id = '000
 select throws_ok($$insert into public.player_availability (player_id, status)
                    values ('00000000-0000-0000-0000-00000000000b', 'blessé')$$,
                  '42501', null, 'un coach ne peut pas changer le statut blessé / apte');
+select is_empty($$update public.profiles set role = 'admin'
+                  where id = '00000000-0000-0000-0000-00000000000c' returning 1$$,
+                'un coach ne peut pas se donner le rôle admin');
+select is_empty($$delete from public.profiles where id = '00000000-0000-0000-0000-00000000000b' returning 1$$,
+                'un coach ne peut pas supprimer le profil d''un joueur');
 
 -- ---------- Admin M ----------
 reset role;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000d","role":"authenticated"}', true);
 set local role authenticated;
+
+select isnt_empty($$update public.profiles set position = 'Centre'
+                    where id = '00000000-0000-0000-0000-00000000000b' returning 1$$,
+                  'un admin peut modifier un profil');
 
 select lives_ok($$insert into public.player_availability (player_id, status)
                   values ('00000000-0000-0000-0000-00000000000b', 'blessé')$$,
@@ -159,6 +168,12 @@ select throws_ok($$insert into public.player_availability (player_id, status)
 select is_empty($$delete from public.session_logs
                   where player_id = '00000000-0000-0000-0000-00000000000a' and validated_at is not null returning 1$$,
                 'A ne peut pas supprimer une séance validée');
+
+-- ---------- Visiteur non connecté ----------
+reset role;
+select set_config('request.jwt.claims', '{"role":"anon"}', true);
+set local role anon;
+select throws_ok($$select 1 from public.wellness_entries$$, '42501', null, 'un visiteur non connecté n''a aucun accès aux données');
 
 select * from finish();
 rollback;

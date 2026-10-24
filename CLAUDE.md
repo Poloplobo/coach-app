@@ -23,6 +23,8 @@ RPE / charge, wellness (état de forme), tests physiques et progressions. Deux p
 - `npm run accounts -- --dry-run` : crée les comptes joueurs de data/import/joueurs.csv (Mac de l'admin uniquement)
 - Production (projet « RNR - Acacémie », Francfort) : mêmes commandes suffixées `:prod` (`test:db:prod`, `accounts:prod`,
   `import:prod`), qui lisent `.env.prod.local`. Migrations : `npx supabase db push --db-url` avec l'URL de production.
+- L'import n'écrit qu'avec `-- --confirm=<référence du projet>` (sinon il s'arrête) et ne remplace jamais une saisie
+  de joueur existante (RPE, retours d'exercice). Mot de passe oublié : `npm run reset-password:prod -- prenom.nom`.
 - `npx supabase gen types typescript --linked > src/lib/database.types.ts` : à relancer après chaque migration
 
 ## Architecture

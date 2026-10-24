@@ -1,6 +1,7 @@
 // Lance un fichier de tests pgTAP sur la base de SUPABASE_DB_URL (remplace « supabase test db », qui exige Docker)
 import pg from 'pg'
 import { readFileSync } from 'node:fs'
+// shortcut: certificat de la base non vérifié (Supabase signe avec sa propre autorité) ; ne lancer test:db:prod que sur un réseau de confiance, ou fournir le certificat CA du projet (ssl: { ca })
 const client = new pg.Client({ connectionString: process.env.SUPABASE_DB_URL, ssl: { rejectUnauthorized: false } })
 await client.connect()
 try {

@@ -76,4 +76,5 @@ export function loadProgression(sessions: StaffMuscuSession[], exerciseName: str
 // Exercices dont au moins une charge réalisée est lisible : ceux qu'on peut suivre en progression
 export const trackedExercises = (sessions: StaffMuscuSession[]) =>
   [...new Set(sessions.flatMap(s => s.planned_exercises
-    .filter(e => parseDoneLoad(e.exercise_feedback[0]?.done_load ?? null) !== null).map(e => e.exercises.name)))].sort()
+    // une charge nulle (gainage, PDC) ne fait pas une courbe de progression
+    .filter(e => (parseDoneLoad(e.exercise_feedback[0]?.done_load ?? null) ?? 0) > 0).map(e => e.exercises.name)))].sort()

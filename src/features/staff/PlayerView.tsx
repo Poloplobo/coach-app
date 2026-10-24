@@ -6,6 +6,7 @@ import { Card } from '../../components/ui/Card'
 import { Kpi } from '../../components/ui/Kpi'
 import { BRAND } from '../../lib/brand'
 import { addDays, parisDate } from '../../lib/week'
+import { pct } from '../../lib/format'
 import { completion } from '../seances/program'
 import { useWeekProgram } from '../seances/useSeance'
 import { MyGoals } from '../tests/MyGoals'
@@ -72,8 +73,8 @@ export function PlayerView() {
         <div className="flex flex-wrap gap-3">
           <Kpi label="Séances déclarées" value={String(row.sessions)} />
           <Kpi label={`sRPE total ${week?.code}`} value={`${row.total} UA`} hint={wt ? `Cible ${wt.target_srpe} UA` : 'Hors calendrier'} />
-          <Kpi label="% de la cible" value={`${row.pct} %`} tone={row.status ? STATUS_TONE[row.status] : 'neutral'} hint={row.status ?? (m?.inProgress ? 'semaine en cours' : undefined)} />
-          <Kpi label="Vs moyenne du groupe" value={`${row.vsGroupPct > 0 ? '+' : ''}${row.vsGroupPct} %`} />
+          <Kpi label="% de la cible" value={pct(row.pct)} tone={row.status ? STATUS_TONE[row.status] : 'neutral'} hint={row.status ?? (m?.inProgress ? 'semaine en cours' : undefined)} />
+          <Kpi label="Vs moyenne du groupe" value={pct(row.vsGroupPct, true)} />
           <Kpi label="Temps total" value={`${row.minutes} min`} />
           {isAdmin && (
             <Kpi label="Ratio aigu / chronique" value={ratio.ratio === null ? '—' : ratio.ratio.toLocaleString('fr-FR')}
@@ -107,6 +108,7 @@ export function PlayerView() {
         <SeasonCharts own={own.data} wellness={wellness.data} weeks={weeks}
           targets={new Map(ref.data.weekTypes.map(t => [t.code, t.target_srpe]))} />
         <Card title="Journal des déclarations de la semaine">
+          {!own.data.some(inWeek) && <p className="text-sm text-ink/70">Aucune déclaration cette semaine.</p>}
           <ul className="text-sm flex flex-col gap-1 max-h-80 overflow-y-auto">
             {own.data.filter(inWeek).sort((a, b) => a.created_at.localeCompare(b.created_at)).map((l, i) => (
               <li key={i} className="flex justify-between gap-2 border-t border-line pt-1">
@@ -158,6 +160,7 @@ function SeasonCharts({ own, wellness, weeks, targets }: {
         </ResponsiveContainer>
       </div>
       <p className="text-xs text-ink/60">Fatigue estimée (%) d'après l'état de forme</p>
+      {form.length === 0 ? <p className="text-sm text-ink/70">Aucun état de forme rempli depuis le début de la saison.</p> : (
       <div className="h-40 text-ink/60">
         <ResponsiveContainer>
           <LineChart data={form}>
@@ -170,6 +173,7 @@ function SeasonCharts({ own, wellness, weeks, targets }: {
           </LineChart>
         </ResponsiveContainer>
       </div>
+      )}
     </Card>
   )
 }

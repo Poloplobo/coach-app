@@ -32,7 +32,7 @@ export function FatigueBody({ wellness, score, compact = false, figureOnly = fal
     <div className="flex items-center gap-4">
       {figure}
       <div className="flex flex-col gap-1 text-sm">
-        <p className="font-display text-2xl font-bold tabular-nums">Fatigue {pct} %</p>
+        <p className={`font-display font-bold tabular-nums whitespace-nowrap ${compact ? 'text-lg' : 'text-2xl'}`}>Fatigue {pct} %</p>
         {!compact && (
           <>
             <p><span className="text-ink/60">Tête</span> {WORD[head]} <span className="text-ink/40">(sommeil, stress, humeur)</span></p>

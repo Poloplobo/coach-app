@@ -7,6 +7,7 @@ import { Card } from '../../components/ui/Card'
 import { Kpi } from '../../components/ui/Kpi'
 import { BRAND } from '../../lib/brand'
 import { parisDate } from '../../lib/week'
+import { pct } from '../../lib/format'
 import { PILLAR_LABEL, downloadWeek, weekEnd } from './exportWeek'
 import {
   DAY_NAMES, STATUS_TONE, dailySynthesis, fullName, pillarSplit, rangeLabel, rpeMatrix, weekMatrix, weekOf,
@@ -87,7 +88,7 @@ export function WeekView() {
       {tab === 'piliers' && (
         <Card title="Répartition par pilier (minutes moyennes par joueur)">
           <SimpleTable header={['Pilier', 'Réalisé (min)', '% réalisé', '% cible', 'Écart']}
-            rows={pillarSplit(weekLogs, types, wt).map(p => [PILLAR_LABEL[p.pillar], p.minutes, `${p.pct} %`, `${p.targetPct} %`, `${p.gap > 0 ? '+' : ''}${p.gap} %`])} />
+            rows={pillarSplit(weekLogs, types, wt).map(p => [PILLAR_LABEL[p.pillar], p.minutes, pct(p.pct), pct(p.targetPct), pct(p.gap, true)])} />
         </Card>
       )}
       </div>
@@ -111,7 +112,7 @@ function CoachSummary({ m, wt, code, pillars }: { m: ReturnType<typeof weekMatri
       <div className="flex flex-wrap gap-3">
         <Kpi label="Charge moyenne du groupe" value={`${m.groupMean} UA`} hint="Joueurs aptes" />
         <Kpi label={`Charge visée ${code}`} value={`${wt?.target_srpe ?? '—'} UA`} hint={wt ? `${wt.name} · plage ${rangeLabel(wt)}` : 'Hors calendrier'} />
-        <Kpi label="% de la cible" value={`${m.groupPct} %`} />
+        <Kpi label="% de la cible" value={pct(m.groupPct)} />
         <Kpi label="Statut du groupe" value={m.groupStatus ?? (m.inProgress ? 'semaine en cours' : 'hors calendrier')}
           tone={m.groupStatus ? STATUS_TONE[m.groupStatus] : 'neutral'} />
       </div>
@@ -124,7 +125,8 @@ function CoachSummary({ m, wt, code, pillars }: { m: ReturnType<typeof weekMatri
                 <BarChart data={bars} layout="vertical" margin={{ left: 8, right: 16 }}>
                   <CartesianGrid strokeOpacity={0.15} horizontal={false} />
                   {wt && <ReferenceArea x1={wt.srpe_min ?? 0} x2={wt.srpe_max ?? undefined} fill={BRAND.ok} fillOpacity={0.08} />}
-                  <XAxis type="number" tick={{ fill: 'currentColor', fontSize: 12 }} />
+                  {/* l'axe va au moins jusqu'au haut de la plage : la cible et la bande verte restent visibles en début de semaine */}
+                  <XAxis type="number" domain={[0, (max: number) => Math.max(max, wt?.srpe_max ?? wt?.target_srpe ?? 0)]} tick={{ fill: 'currentColor', fontSize: 12 }} />
                   <YAxis type="category" dataKey="name" width={150} tick={{ fill: 'currentColor', fontSize: 12 }} />
                   <Tooltip formatter={v => [`${v} UA`, 'sRPE']} />
                   {wt && <ReferenceLine x={wt.target_srpe} stroke={BRAND.gold} strokeDasharray="4 4" label={{ value: 'visée', fill: 'currentColor', fontSize: 11, position: 'top' }} />}
@@ -165,7 +167,7 @@ function CoachSummary({ m, wt, code, pillars }: { m: ReturnType<typeof weekMatri
                     <svg aria-hidden="true" width="12" height="12"><circle cx="6" cy="6" r="6" fill={PILLAR_COLOR[p.pillar]} /></svg>
                     {PILLAR_LABEL[p.pillar]}
                   </span>
-                  <span><strong>{p.pct} %</strong> <span className="text-ink/60">(cible {p.targetPct} %)</span></span>
+                  <span><strong>{pct(p.pct)}</strong> <span className="text-ink/60">(cible {pct(p.targetPct)})</span></span>
                 </li>
               ))}
             </ul>
@@ -185,7 +187,7 @@ function Group({ title, rows, tone }: { title: string; rows: MatrixRow[]; tone: 
         {rows.map(r => (
           <li key={r.player.id}>
             <Link to={`/staff/joueur/${r.player.id}`} className="hover:underline">
-              <Badge tone={tone}>{fullName(r.player)} · {r.total} UA · {r.pct} %</Badge>
+              <Badge tone={tone}>{fullName(r.player)} · {r.total} UA · {pct(r.pct)}</Badge>
             </Link>
           </li>
         ))}
@@ -214,16 +216,16 @@ function LoadTable({ m }: { m: ReturnType<typeof weekMatrix> }) {
                 <td className="pr-3">{r.sessions}</td>
                 {r.byDay.map((v, i) => <td key={i} className="pr-3 text-right">{v || '—'}</td>)}
                 <td className="pr-3 text-right font-semibold">{r.total}</td>
-                <td className="pr-3 text-right">{r.pct} %</td>
+                <td className="pr-3 text-right">{pct(r.pct)}</td>
                 <td className="pr-3 text-right">{r.gap > 0 ? '+' : ''}{r.gap}</td>
-                <td className="pr-3 text-right">{r.vsGroupPct > 0 ? '+' : ''}{r.vsGroupPct} %</td>
+                <td className="pr-3 text-right">{pct(r.vsGroupPct, true)}</td>
                 <td>{r.player.injured ? <Badge tone="neutral">blessé</Badge> : r.status ? <Badge tone={STATUS_TONE[r.status]}>{r.status}</Badge> : m.inProgress ? <Badge tone="neutral">en cours</Badge> : '—'}</td>
               </tr>
             ))}
             <tr className="border-t-2 border-line font-semibold">
               <td className="py-2 pr-3">Moyenne du groupe (aptes)</td><td />
               {m.dayMeans.map((v, i) => <td key={i} className="pr-3 text-right">{v || '—'}</td>)}
-              <td className="pr-3 text-right">{m.groupMean}</td><td className="pr-3 text-right">{m.groupPct} %</td><td colSpan={3} />
+              <td className="pr-3 text-right">{m.groupMean}</td><td className="pr-3 text-right">{pct(m.groupPct)}</td><td colSpan={3} />
             </tr>
           </tbody>
         </table>

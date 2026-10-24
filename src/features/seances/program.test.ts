@@ -21,6 +21,10 @@ describe('prescription', () => {
     expect(prescription(ex(1, { sets: null, reps: 'AMRAP', load_unit: 'bw', load_value: 60, tempo: null, rest: null })))
       .toBe('AMRAP · 60 % PDC')
   })
+  it('unité sans valeur : pas de « null » affiché', () => {
+    expect(prescription(ex(1, { load_unit: 'bw', load_value: null, tempo: null, rest: null }))).toBe('5 × 5 · PDC')
+    expect(prescription(ex(1, { load_unit: 'kg', load_value: null, tempo: null, rest: null }))).toBe('5 × 5')
+  })
 })
 
 describe('completion', () => {

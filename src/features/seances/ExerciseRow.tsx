@@ -77,16 +77,21 @@ export function ExerciseRow({ playerId, exercise, editable }: { playerId: string
             hint={rpe !== null ? RPE_LABELS[rpe] : undefined} />
         </>
       )}
-      <label className="flex flex-col gap-1 text-sm">
-        Commentaire (facultatif)
-        <input value={comment} onChange={e => setComment(e.target.value)} placeholder="ex. douleur, manque de temps"
-          className="rounded-lg bg-app border border-line px-3 py-2 text-base" />
-      </label>
-      {save.isError && <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">Enregistrement impossible, réessaie.</p>}
-      <div className="flex gap-2">
-        <Button className="flex-1" onClick={submit} disabled={!status || save.isPending}>{save.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>
-        {saved?.status && <Button variant="ghost" onClick={() => setEditing(false)}>Annuler</Button>}
-      </div>
+      {/* tant qu'aucun statut n'est choisi, l'exercice reste compact : la séance se lit d'un coup d'œil */}
+      {status && (
+        <>
+          <label className="flex flex-col gap-1 text-sm">
+            Commentaire (facultatif)
+            <input value={comment} onChange={e => setComment(e.target.value)} placeholder="ex. douleur, manque de temps"
+              className="rounded-lg bg-app border border-line px-3 py-2 text-base" />
+          </label>
+          {save.isError && <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">Enregistrement impossible, réessaie.</p>}
+          <div className="flex gap-2">
+            <Button className="flex-1" onClick={submit} disabled={save.isPending}>{save.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>
+            {saved?.status && <Button variant="ghost" onClick={() => setEditing(false)}>Annuler</Button>}
+          </div>
+        </>
+      )}
     </li>
   )
 }

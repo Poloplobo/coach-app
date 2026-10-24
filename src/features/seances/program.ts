@@ -18,10 +18,11 @@ export function sortedExercises(exercises: PlannedExercise[]) {
 }
 
 export function formatLoad(e: Pick<PlannedExercise, 'load_value' | 'load_unit' | 'instructions'>): string | null {
+  // unité sans valeur (import ou saisie incomplète) : ne jamais afficher « null »
   switch (e.load_unit) {
-    case 'pct_rm': return `${e.load_value} %RM`
-    case 'kg': return `${e.load_value} kg`
-    case 'bw': return `${e.load_value} % PDC`
+    case 'pct_rm': return e.load_value === null ? null : `${e.load_value} %RM`
+    case 'kg': return e.load_value === null ? null : `${e.load_value} kg`
+    case 'bw': return e.load_value === null ? 'PDC' : `${e.load_value} % PDC`
     case 'free': return e.instructions ?? 'Charge libre'
     default: return null
   }

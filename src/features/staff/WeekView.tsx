@@ -126,7 +126,7 @@ function CoachSummary({ m, wt, code, pillars }: { m: ReturnType<typeof weekMatri
                   <CartesianGrid strokeOpacity={0.15} horizontal={false} />
                   {wt && <ReferenceArea x1={wt.srpe_min ?? 0} x2={wt.srpe_max ?? undefined} fill={BRAND.ok} fillOpacity={0.08} />}
                   {/* l'axe va au moins jusqu'au haut de la plage : la cible et la bande verte restent visibles en début de semaine */}
-                  <XAxis type="number" domain={[0, (max: number) => Math.max(max, wt?.srpe_max ?? wt?.target_srpe ?? 0)]} tick={{ fill: 'currentColor', fontSize: 12 }} />
+                  <XAxis type="number" domain={[0, (max: number) => Math.ceil(Math.max(max, wt?.srpe_max ?? wt?.target_srpe ?? 0) / 500) * 500]} tickCount={6} tick={{ fill: 'currentColor', fontSize: 12 }} />
                   <YAxis type="category" dataKey="name" width={150} tick={{ fill: 'currentColor', fontSize: 12 }} />
                   <Tooltip formatter={v => [`${v} UA`, 'sRPE']} />
                   {wt && <ReferenceLine x={wt.target_srpe} stroke={BRAND.gold} strokeDasharray="4 4" label={{ value: 'visée', fill: 'currentColor', fontSize: 11, position: 'top' }} />}

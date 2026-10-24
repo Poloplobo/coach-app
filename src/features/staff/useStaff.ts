@@ -4,6 +4,8 @@ import { supabase } from '../../lib/supabaseClient'
 import { useProfile, useUserId } from '../auth/useAuth'
 import type { WellnessItems } from '../wellness/items'
 import type { ActivityType, Log, Player, WeekType } from './load'
+import type { StaffMuscuSession } from './muscu'
+import { MUSCULATION } from '../rpe/activities'
 
 // Le staff lit tout (RLS) ; un joueur qui appellerait ces requêtes ne recevrait que ses propres lignes.
 
@@ -105,5 +107,22 @@ export function useStaffSaveWellness() {
         .upsert({ player_id: w.playerId, entry_date: w.date, ...w.items, source: 'staff' }, { onConflict: 'player_id,entry_date' }).select())
     },
     onSuccess: () => invalidateStaff(qc),
+  })
+}
+
+// Séances de musculation individuelles (avec exercices et retours) ; playerId : un seul joueur (progression sur la saison)
+export function useStaffMuscu(from: string, to: string, playerId?: string) {
+  return useQuery({
+    enabled: !!from && !!to,
+    ...query(['staff', 'muscu', from, to, playerId ?? 'all'], (): Promise<StaffMuscuSession[]> => fetchAll((a, b) => {
+      let q = supabase.from('planned_sessions')
+        .select(`id, session_date, player_id, activity_types!inner(name),
+          planned_exercises(id, position, block_label, sets, reps, load_value, load_unit, tempo, rest, instructions,
+            exercises(name), exercise_feedback(player_id, rpe, done_load, status, comment))`)
+        .eq('activity_types.name', MUSCULATION).not('player_id', 'is', null)
+        .gte('session_date', from).lte('session_date', to)
+      if (playerId) q = q.eq('player_id', playerId)
+      return q.order('id').range(a, b)
+    })),
   })
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  acwr, dailySynthesis, latecomers, loadStatus, pctOfTarget, pillarSplit, playerDays, reminderMessage, weekMatrix, wellnessAlerts,
+  acwr, rpeMatrix, dailySynthesis, latecomers, loadStatus, pctOfTarget, pillarSplit, playerDays, reminderMessage, weekMatrix, wellnessAlerts,
   type ActivityType, type Log, type Player, type WeekType,
 } from './load'
 
@@ -140,4 +140,14 @@ describe('latecomers', () => {
   it('message de relance prêt à copier', () => {
     expect(reminderMessage(player('a'), ['état de forme du jour'])).toBe("Salut Pa, pense à remplir état de forme du jour dans l'app du Pôle. Merci !")
   })
+})
+
+it('rpeMatrix : RPE moyen par jour et sur la semaine, activités sans RPE ignorées, blessé hors moyenne du groupe', () => {
+  const r = rpeMatrix([player('a'), player('b', true)], [
+    log('a', '2026-10-05', 'muscu', 60, 6), log('a', '2026-10-05', 'video', 30, null), log('a', '2026-10-07', 'poste', 45, 9),
+    log('b', '2026-10-05', 'muscu', 60, 2),
+  ], '2026-10-05')
+  expect(r.rows[0]).toMatchObject({ byDay: [6, null, 9, null, null, null, null], week: 7.5 })
+  expect(r.groupByDay[0]).toBe(6)
+  expect(r.groupWeek).toBe(7.5)
 })

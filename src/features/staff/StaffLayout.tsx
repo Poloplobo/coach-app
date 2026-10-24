@@ -6,6 +6,7 @@ import { useProfile, useUserId } from '../auth/useAuth'
 const TABS = [
   { to: '/staff', label: "Aujourd'hui" },
   { to: '/staff/semaine', label: 'Semaine' },
+  { to: '/staff/musculation', label: 'Musculation' },
   { to: '/staff/joueur', label: 'Joueur' },
   { to: '/staff/reglages', label: 'Réglages' },
 ]

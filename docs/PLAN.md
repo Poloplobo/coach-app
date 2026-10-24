@@ -133,6 +133,11 @@ Trois vues (barre du haut) : **Aujourd'hui · Semaine · Joueur**, plus Réglage
   **correction des saisies** d'un jour passé par le staff (RPE, durée, état de forme ; `source = 'staff'`).
 - Limite connue (E6) : la relance « RPE d'hier » suppose que les séances de groupe concernent tous les joueurs aptes ;
   à lier aux membres du groupe quand il y aura plusieurs groupes.
+- **Semaine en sous-onglets** (25/10/2026) : Résumé coach (charge de chaque joueur vs visée avec la plage conforme,
+  joueurs en sous- ou surcharge, répartition de l'activité par pilier vs cible) · Charge par joueur · RPE moyen · Jour par jour · Répartition.
+- **Musculation** (vue staff) : par joueur et par semaine, séances, exercices faits, RPE de séance moyen, exercice au RPE
+  le plus haut, charges respectées (fait ET, si prescription en kg, charge réalisée ≥ prescrite ; sinon statut seul) ;
+  détail séance par séance ; progression de charge d'un exercice choisi (charge max lue dans la saisie, vs prescrite).
 - **Export Excel** de la semaine : onglet « Collectif » (TABLEAU_DE_BORD) + un onglet par joueur (SUIVI_INDIVIDUEL),
   fichier `PER_<code semaine>_<lundi>.xlsx`, à ranger soi-même sur le Drive.
 - **Validation** : Vitest des calculs (statut aux bornes des plages, %, matrice, synthèse, ratio, alerte, retardataires) ;

@@ -77,7 +77,32 @@ ids.forEach((player_id, i) => {
 must(await db.from('wellness_entries').insert(wellness).select('id'), 'formes')
 must(await db.from('session_logs').insert(logs).select('id'), 'RPE')
 
-// 3. Un joueur blessé, des tests et des objectifs
+// 3. Programmes de musculation fictifs : 4 exercices par séance, charges en progression, retours liés aux RPE de séance
+const PROGRAM: [string, string, number | null, string][] = [ // exercice, unité, charge de départ, reps
+  ['Développé Couché', 'kg', 70, '5'], ['Back Squat', 'kg', 90, '5'], ['Front Squat', 'pct_rm', 80, '3'], ['Tirage Banc', 'free', null, '8'],
+]
+must(await db.from('exercises').upsert(PROGRAM.map(([name]) => ({ name })), { onConflict: 'name' }).select(), 'exercices')
+const exerciseIds = new Map(must(await db.from('exercises').select('id, name').in('name', PROGRAM.map(p => p[0])), 'exercices').map(e => [e.name, e.id]))
+const muscuLogs = logs.filter(l => l.activity_type_id === types.get('Musculation'))
+const sessions = must(await db.from('planned_sessions').insert(muscuLogs.map(l => ({
+  session_date: l.session_date!, title: 'Musculation', player_id: l.player_id, activity_type_id: types.get('Musculation')!, planned_duration_min: 60,
+}))).select('id, player_id, session_date'), 'séances muscu')
+for (const s of sessions) {
+  const week = Math.floor((Date.parse(s.session_date) - Date.parse(from)) / (7 * 86400000))
+  const planned = must(await db.from('planned_exercises').insert(PROGRAM.map(([name, unit, start, reps], i) => ({
+    planned_session_id: s.id, exercise_id: exerciseIds.get(name)!, position: i + 1, block_label: ['A1', 'B1', 'B2', 'C1'][i], sets: 5, reps,
+    load_unit: unit, load_value: start === null ? null : unit === 'kg' ? start + 2.5 * week : start,
+  }))).select('id, position, load_value, load_unit'), 'exercices planifiés')
+  must(await db.from('exercise_feedback').insert(planned.map(e => {
+    const status = rand() < 0.85 ? 'fait' : rand() < 0.5 ? 'partiel' : 'non fait'
+    const kg = e.load_unit === 'kg' ? Number(e.load_value) + (rand() < 0.75 ? between(0, 1) * 2.5 : -5) : between(30, 60)
+    return { player_id: s.player_id!, planned_exercise_id: e.id, status, rpe: status === 'non fait' ? null : between(5, 9),
+      done_load: status === 'non fait' ? null : `${between(2, 4)}x${kg}` }
+  })).select('id'), 'retours')
+  must(await db.from('session_logs').update({ planned_session_id: s.id }).match({ player_id: s.player_id!, session_date: s.session_date, activity_type_id: types.get('Musculation')! }).select(), 'lien')
+}
+
+// 4. Un joueur blessé, des tests et des objectifs
 must(await db.from('player_availability').insert({ player_id: ids[5], status: 'blessé', note: 'Fictif : entorse cheville' }).select(), 'blessé')
 const testRows = ids.slice(0, 4).flatMap(player_id => [
   { player_id, test_id: tests.get('CMJ')!, test_date: from, period: 'P1', value: between(30, 45) },
@@ -87,4 +112,4 @@ must(await db.from('test_results').insert(testRows).select(), 'tests')
 must(await db.from('player_targets').insert(ids.slice(0, 4).map(player_id => (
   { player_id, season: '2026-2027', test_id: tests.get('CMJ')!, target_value: 50 }))).select(), 'objectifs')
 
-console.log(`${PLAYERS} joueurs fictifs, ${wellness.length} formes, ${logs.length} RPE du ${from} au ${today}, 1 blessé, ${testRows.length} tests`)
+console.log(`${PLAYERS} joueurs fictifs, ${wellness.length} formes, ${logs.length} RPE, ${sessions.length} séances muscu du ${from} au ${today}, 1 blessé, ${testRows.length} tests`)

@@ -8,6 +8,7 @@
   --surface: 42 42 42;   /* #2A2A2A */
   --line: 58 58 58;      /* #3A3A3A */
   --ink: 255 255 255;
+  --gold: 255 215 0;      /* #FFD700 */
   color-scheme: dark;
 }
 :root[data-theme='light'] {
@@ -15,6 +16,7 @@
   --surface: 255 255 255;
   --line: 214 214 218;
   --ink: 26 26 26;
+  --gold: 161 98 7;       /* ambre foncé : le jaune RNR est illisible en texte sur fond clair */
   color-scheme: light;
 }
 

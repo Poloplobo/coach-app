@@ -86,6 +86,22 @@ export function weekMatrix(players: Player[], weekLogs: Log[], weekStart: string
   }
 }
 
+// ---------- RPE moyen de la semaine (activités avec RPE seulement : vidéo, kiné, récup exclues) ----------
+
+export function rpeMatrix(players: Player[], weekLogs: Log[], weekStart: string) {
+  const dates = DAY_NAMES.map((_, i) => addDays(weekStart, i))
+  const avg = (logs: Log[]) => {
+    const values = logs.map(l => l.rpe).filter((r): r is number => r !== null).map(Number)
+    return values.length ? round(mean(values), 1) : null
+  }
+  const rows = players.map(player => {
+    const own = weekLogs.filter(l => l.player_id === player.id)
+    return { player, byDay: dates.map(d => avg(own.filter(l => l.session_date === d))), week: avg(own) }
+  })
+  const fit = weekLogs.filter(l => !players.find(p => p.id === l.player_id)?.injured)
+  return { rows, groupByDay: dates.map(d => avg(fit.filter(l => l.session_date === d))), groupWeek: avg(fit) }
+}
+
 // ---------- Synthèse collective jour par jour ----------
 
 export function dailySynthesis(weekLogs: Log[], types: ActivityType[], weekStart: string) {

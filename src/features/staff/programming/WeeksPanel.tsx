@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Badge } from '../../../components/ui/Badge'
 import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
+import { Loading } from '../../../components/ui/Loading'
 import { ConfirmButton } from '../../../components/ui/ConfirmButton'
 import { addDays, parisDate } from '../../../lib/week'
 import { rangeLabel } from '../load'
@@ -17,7 +18,7 @@ export function WeeksPanel() {
   const ref = useReference()
   const [editing, setEditing] = useState<{ form: WeekForm; previousCode?: string } | null>(null)
 
-  if (group.isPending || weeks.isPending || ref.isPending) return <p className="text-ink/60">Chargement…</p>
+  if (group.isPending || weeks.isPending || ref.isPending) return <Loading />
   if (group.isError || weeks.isError || ref.isError) return <p>Impossible de charger le calendrier.</p>
 
   const today = parisDate()

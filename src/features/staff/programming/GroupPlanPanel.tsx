@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Card } from '../../../components/ui/Card'
+import { Loading } from '../../../components/ui/Loading'
 import { addDays, formatDay, parisDate } from '../../../lib/week'
 import { MUSCULATION } from '../../rpe/activities'
 import { weekOf } from '../load'
@@ -18,7 +19,7 @@ export function GroupPlanPanel() {
   const week = (weeks.data ?? []).find(w => w.code === code) ?? weekOf(weeks.data ?? [], today)
   const plan = useGroupPlan(group.data?.id, week?.start_date ?? '', week ? addDays(week.start_date, 6) : '')
 
-  if (group.isPending || weeks.isPending || ref.isPending) return <p className="text-ink/60">Chargement…</p>
+  if (group.isPending || weeks.isPending || ref.isPending) return <Loading />
   if (group.isError || weeks.isError || ref.isError || plan.isError) return <p>Impossible de charger le planning.</p>
   if (!week) return <p>Crée d'abord une semaine dans l'onglet « Semaines ».</p>
 

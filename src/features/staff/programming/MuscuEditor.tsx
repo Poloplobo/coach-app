@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
+import { Loading } from '../../../components/ui/Loading'
 import { addDays, formatDay, parisDate } from '../../../lib/week'
 import { MUSCULATION } from '../../rpe/activities'
 import { fullName } from '../load'
@@ -19,7 +20,7 @@ export function MuscuEditor() {
   const selected = playerId || roster.data?.[0]?.id || ''
   const session = useMuscuSession(selected, date)
 
-  if (roster.isPending) return <p className="text-ink/60">Chargement…</p>
+  if (roster.isPending) return <Loading />
   if (roster.isError) return <p>Impossible de charger les joueurs.</p>
 
   return (
@@ -36,7 +37,7 @@ export function MuscuEditor() {
           <input type="date" value={date} onChange={e => setDate(e.target.value)} className="rounded-lg bg-surface border border-line px-3 py-2" />
         </label>
       </div>
-      {session.isPending && <p className="text-ink/60">Chargement…</p>}
+      {session.isPending && <Loading />}
       {session.isError && <p>Impossible de charger la séance.</p>}
       {session.isSuccess && (
         <SessionEditor key={`${selected}-${date}-${session.data?.id ?? 'none'}`} playerId={selected} date={date}
@@ -58,7 +59,7 @@ function SessionEditor({ playerId, date, past, session }: {
   const [rows, setRows] = useState<EditRow[] | null>(null)
   const [newName, setNewName] = useState('')
 
-  if (ref.isPending || library.isPending) return <p className="text-ink/60">Chargement…</p>
+  if (ref.isPending || library.isPending) return <Loading />
   if (ref.isError || library.isError) return <p>Impossible de charger la bibliothèque d'exercices.</p>
 
   const title = `Musculation — ${formatDay(date)}`

@@ -4,7 +4,7 @@ import { addDays } from '../../lib/week'
 import { WELLNESS_ITEMS, type WellnessKey } from '../wellness/items'
 
 export type Pillar = 'rugby' | 'physique' | 'accompagnement' | 'ppid'
-export type ActivityType = { id: string; name: string; pillar: Pillar; requires_rpe: boolean }
+export type ActivityType = { id: string; name: string; pillar: Pillar; requires_rpe: boolean; default_duration_min?: number | null }
 export type Log = {
   player_id: string; session_date: string; activity_type_id: string | null
   duration_min: number; rpe: number | null; srpe: number | null; source: string; created_at: string

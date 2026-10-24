@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(38);
+select plan(46);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -145,6 +145,32 @@ select lives_ok($$insert into public.wellness_entries (player_id, entry_date, sl
 select is((select source from public.wellness_entries where player_id = '00000000-0000-0000-0000-00000000000b' and entry_date = public.paris_today() - 3),
           'staff', 'la correction de l''état de forme est marquée « saisi par le staff »');
 
+-- Programmation (étape 6) : le staff enregistre une séance de musculation en une fois
+select lives_ok($$insert into public.planned_sessions (id, session_date, title, player_id, activity_type_id)
+                  values ('00000000-0000-0000-0000-0000000000b2', public.paris_today() + 2, 'Musculation', '00000000-0000-0000-0000-00000000000b',
+                          (select id from public.activity_types where name = 'Musculation'))$$,
+                'le staff programme une séance de musculation à venir');
+select lives_ok($$select public.save_muscu_exercises('00000000-0000-0000-0000-0000000000b2',
+                  '[{"exercise_id":"00000000-0000-0000-0000-0000000000e1","block_label":"A1","sets":5,"reps":"5","load_value":80,"load_unit":"pct_rm"},
+                    {"exercise_id":"00000000-0000-0000-0000-0000000000e1","block_label":"B1","reps":"8"}]')$$,
+                'le staff enregistre les exercices d''une séance');
+select lives_ok($$select public.save_muscu_exercises('00000000-0000-0000-0000-0000000000b2', (
+                  select jsonb_agg(jsonb_build_object('id', id, 'exercise_id', exercise_id, 'block_label', block_label) order by position desc)
+                  from public.planned_exercises where planned_session_id = '00000000-0000-0000-0000-0000000000b2'))$$,
+                'réordonner les exercices ne heurte pas la clé unique (séance, position)');
+select is((select block_label from public.planned_exercises where planned_session_id = '00000000-0000-0000-0000-0000000000b2' and position = 1),
+          'B1', 'le nouvel ordre est enregistré');
+select throws_ok($$select public.save_muscu_exercises('00000000-0000-0000-0000-0000000000b1', '[]')$$,
+                 'P0001', null, 'un exercice déjà renseigné par le joueur ne peut pas être supprimé');
+select throws_ok($$select public.save_muscu_exercises('00000000-0000-0000-0000-0000000000b2',
+                   '[{"id":"00000000-0000-0000-0000-0000000000f1","exercise_id":"00000000-0000-0000-0000-0000000000e1"}]')$$,
+                 'P0001', null, 'l''exercice d''une autre séance ne peut pas être modifié par ce biais');
+select throws_ok($$with s as (insert into public.planned_sessions (session_date, title, player_id, activity_type_id)
+                     values (public.paris_today() - 1, 'Musculation', '00000000-0000-0000-0000-00000000000b',
+                             (select id from public.activity_types where name = 'Musculation')) returning id)
+                   select public.save_muscu_exercises((select id from s), '[]')$$,
+                 'P0001', null, 'une séance passée n''est pas modifiable');
+
 -- ---------- Admin M ----------
 reset role;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000d","role":"authenticated"}', true);
@@ -180,6 +206,9 @@ select throws_ok($$insert into public.player_availability (player_id, status)
 select is_empty($$delete from public.session_logs
                   where player_id = '00000000-0000-0000-0000-00000000000a' and validated_at is not null returning 1$$,
                 'A ne peut pas supprimer une séance validée');
+select throws_ok($$select public.save_muscu_exercises('00000000-0000-0000-0000-0000000000a1',
+                   '[{"id":"00000000-0000-0000-0000-0000000000f2","exercise_id":"00000000-0000-0000-0000-0000000000e1"}]')$$,
+                 '42501', null, 'un joueur ne peut pas programmer sa séance');
 
 -- ---------- Visiteur non connecté ----------
 reset role;

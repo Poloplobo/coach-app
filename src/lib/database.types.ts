@@ -605,6 +605,7 @@ export type Database = {
           cycle: string | null
           group_id: string
           id: string
+          is_off: boolean
           label: string | null
           phase_note: string | null
           start_date: string
@@ -615,6 +616,7 @@ export type Database = {
           cycle?: string | null
           group_id: string
           id?: string
+          is_off?: boolean
           label?: string | null
           phase_note?: string | null
           start_date: string
@@ -625,6 +627,7 @@ export type Database = {
           cycle?: string | null
           group_id?: string
           id?: string
+          is_off?: boolean
           label?: string | null
           phase_note?: string | null
           start_date?: string
@@ -1001,6 +1004,10 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
       paris_today: { Args: never; Returns: string }
+      save_muscu_exercises: {
+        Args: { p_exercises: Json; p_session: string }
+        Returns: undefined
+      }
     }
     Enums: {
       availability_status: "apte" | "blessé"

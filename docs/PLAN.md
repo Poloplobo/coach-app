@@ -107,15 +107,23 @@ La programmation passe par les classeurs + `npm run import:prod` en attendant l'
   même sans accord parental.
 - Hébergement de l'app (à choisir à ce moment-là), fin du Google Form.
 
-## Étape 6 — Programmation staff et gestion des joueurs (desktop)
-- `features/staff/programming/` : grille de la semaine du groupe (activités rugby, vidéo…) ; programme de musculation
-  **par joueur** (pas de séance de muscu collective) : éditeur d'exercices (bloc, séries, reps, `load_value` + `load_unit`,
-  tempo, repos ; création d'exercice) ; calendrier `season_weeks` ;
-  « Dupliquer la semaine sur la suivante » pour le groupe ou pour un joueur (idempotent grâce aux clés de 0005).
-- Fiche joueur : statut **blessé / apte** (bouton visible et utilisable par les admins seulement) ;
-  saisie des objectifs chiffrés (`player_targets`) et des résultats de tests.
-- **Validation** : Vitest de `shiftWeek` ; pgTAP (un joueur ne peut pas planifier) ; dupliquer deux fois une semaine
-  sans doublon, et le joueur la voit aux étapes 4 et 5 ; un coach ne voit pas le bouton blessé / apte.
+## Étape 6 — Programmation staff (desktop) — décisions du 25/10/2026
+**L'app devient la seule source de la programmation** : l'import ne touche plus aux semaines, au planning ni aux
+programmes muscu (option `--programmes` pour une reprise exceptionnelle depuis les classeurs).
+Onglet staff « Programmation » (`features/staff/programming/`), ouvert au coach et à l'admin :
+- **Semaines** : créer / modifier S9, S10… (code, libellé, lundi, type DEV / COMP / REG, cycle, note, **OFF**) ;
+  passer une semaine en OFF retire ses séances de groupe (après confirmation). Migration `0012` : `season_weeks.is_off`.
+- **Planning du groupe** : semaine en grille (lundi → dimanche) ; ajouter / retirer une activité d'un jour, changer sa durée.
+  Musculation exclue (individuelle).
+- **Séance de musculation** d'un joueur pour un jour : blocs, exercice (bibliothèque + création), séries, reps, charge
+  (%RM, kg, PDC, libre), tempo, repos, consigne, ordre. Une seule séance par joueur et par jour. Enregistrement en une
+  fois (fonction SQL `save_muscu_exercises`, réservée au staff par la RLS) : **séance passée non modifiable**,
+  **exercice ayant un retour du joueur non supprimable**.
+- **Fiche joueur** : saisie d'un résultat de test (date, P1 / P2 / P3, valeur) et d'un objectif chiffré de la saison.
+- Hors périmètre (non demandé) : duplication de semaine, copie de séance d'un joueur à l'autre.
+- **Validation** : Vitest des fonctions pures ; pgTAP (un joueur ne programme rien, séance passée refusée, exercice
+  avec retour non supprimable, réordonner sans conflit) ; parcours : semaine créée → activités → séance muscu → le joueur
+  les voit dans ses onglets.
 
 ## Étape 7 — Tableau de bord staff (desktop) — décisions du 24/10/2026
 Trois vues (barre du haut) : **Aujourd'hui · Semaine · Joueur**, plus Réglages. Calculs purs dans `features/staff/load.ts`

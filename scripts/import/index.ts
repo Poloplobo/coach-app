@@ -22,6 +22,9 @@ const ALIASES = existsSync(`${DIR}/alias.csv`)
   : []
 
 const dryRun = process.argv.includes('--dry-run')
+// Depuis l'étape 6, l'app est la seule source de la programmation : semaines, planning du groupe et programmes muscu
+// ne sont repris des classeurs qu'à la demande (reprise exceptionnelle), sinon ils écraseraient le travail fait dans l'app
+const withPrograms = process.argv.includes('--programmes')
 const url = process.env.VITE_SUPABASE_URL
 const secretKey = process.env.SUPABASE_SECRET_KEY
 if (!url || !secretKey) throw new Error('Ajoute VITE_SUPABASE_URL et SUPABASE_SECRET_KEY dans .env.local')
@@ -130,6 +133,7 @@ console.log(`Musculation : ${muscuSessions.length} séances, ${muscuSessions.red
 console.log(`Tests : ${testRows.length} résultats, ${bodyRows.length} mesures taille / poids`)
 console.log(targetsWb ? `Objectifs : ${targetRows.length}` : 'Objectifs : data/import/objectifs.xlsx absent, rien à importer')
 if (rejects.size) console.log(`\nRejetés (non importés) :\n  ${[...rejects].join('\n  ')}`)
+if (!withPrograms) console.log('\nSemaines, planning et programmes muscu : non repris (l\'app fait foi ; --programmes pour une reprise)')
 if (dryRun) { console.log('\nSimulation : rien n\'a été écrit.'); process.exit(0) }
 // Écriture réelle : il faut nommer la base visée, pour ne jamais écrire en production par erreur
 const target = new URL(url).hostname.split('.')[0]
@@ -144,57 +148,62 @@ const group = must(await db.from('groups').upsert(GROUP, { onConflict: 'name' })
 must(await db.from('group_members').upsert(members.map(m => ({ group_id: group.id, player_id: m.id })), { onConflict: 'group_id,player_id' }).select(), 'membres')
 for (const m of members) must(await db.from('profiles').update({ position: m.position }).eq('id', m.id).select(), 'poste')
 
-const cycles = [...new Set(weeks.map(w => w.cycle).filter(Boolean))]
-must(await db.from('cycles').upsert(cycles.map(name => ({ group_id: group.id, name })), { onConflict: 'group_id,name' }).select(), 'cycles')
-must(await db.from('season_weeks').upsert(weeks.map(w => ({
-  group_id: group.id, code: w.code, label: w.label, start_date: w.startDate,
-  week_type_code: w.weekType, cycle: w.cycle, phase_note: w.note || null,
-})), { onConflict: 'group_id,code' }).select(), 'semaines')
+if (withPrograms) {
+  const cycles = [...new Set(weeks.map(w => w.cycle).filter(Boolean))]
+  must(await db.from('cycles').upsert(cycles.map(name => ({ group_id: group.id, name })), { onConflict: 'group_id,name' }).select(), 'cycles')
+  must(await db.from('season_weeks').upsert(weeks.map(w => ({
+    group_id: group.id, code: w.code, label: w.label, start_date: w.startDate,
+    week_type_code: w.weekType, cycle: w.cycle, phase_note: w.note || null,
+  })), { onConflict: 'group_id,code' }).select(), 'semaines')
 
-// shortcut: une activité retirée de la semaine type reste planifiée dans les semaines déjà générées ; le staff la supprimera à l'étape 6
-must(await db.from('planned_sessions').upsert(groupPlan.map(p => ({ ...p, group_id: group.id })),
-  { onConflict: 'session_date,group_id,player_id,activity_type_id,title' }).select(), 'semaine type')
-// Une semaine passée en OFF après coup perd ses séances de groupe
-for (const w of upcoming.filter(w => w.off)) {
-  must(await db.from('planned_sessions').delete().eq('group_id', group.id)
-    .gte('session_date', w.startDate).lte('session_date', addDays(w.startDate, 6)).select(), 'semaine OFF')
+  // shortcut: une activité retirée de la semaine type reste planifiée dans les semaines déjà générées ; le staff la supprimera à l'étape 6
+  must(await db.from('planned_sessions').upsert(groupPlan.map(p => ({ ...p, group_id: group.id })),
+    { onConflict: 'session_date,group_id,player_id,activity_type_id,title' }).select(), 'semaine type')
+  // Une semaine passée en OFF après coup perd ses séances de groupe
+  for (const w of upcoming.filter(w => w.off)) {
+    must(await db.from('planned_sessions').delete().eq('group_id', group.id)
+      .gte('session_date', w.startDate).lte('session_date', addDays(w.startDate, 6)).select(), 'semaine OFF')
+  }
 }
 
 // Saisies des joueurs : l'import complète, il ne remplace jamais une ligne existante (saisie dans l'app ou corrigée)
 must(await db.from('session_logs').upsert(logs, { onConflict: 'player_id,session_date,activity_type_id', ignoreDuplicates: true }).select(), 'RPE')
 
-const exerciseNames = [...new Set(muscuSessions.flatMap(s => s.exercises.map(e => e.name)))]
-const exercises = must(await db.from('exercises').upsert(exerciseNames.map(name => ({ name })), { onConflict: 'name' }).select('id, name'), 'exercices')
-const exerciseByName = new Map(exercises.map(e => [e.name, e.id]))
-const musculation = activity('Musculation')
+if (withPrograms) {
+  const exerciseNames = [...new Set(muscuSessions.flatMap(s => s.exercises.map(e => e.name)))]
+  const exercises = must(await db.from('exercises').upsert(exerciseNames.map(name => ({ name })), { onConflict: 'name' }).select('id, name'), 'exercices')
+  const exerciseByName = new Map(exercises.map(e => [e.name, e.id]))
+  const musculation = activity('Musculation')
 
-for (const s of muscuSessions) {
-  const session = must(await db.from('planned_sessions').upsert({
-    session_date: s.date, title: 'Musculation', player_id: s.player_id, activity_type_id: musculation,
-  }, { onConflict: 'session_date,group_id,player_id,activity_type_id,title' }).select('id').single(), 'séance muscu')
+  for (const s of muscuSessions) {
+    const session = must(await db.from('planned_sessions').upsert({
+      session_date: s.date, title: 'Musculation', player_id: s.player_id, activity_type_id: musculation,
+    }, { onConflict: 'session_date,group_id,player_id,activity_type_id,title' }).select('id').single(), 'séance muscu')
 
-  const planned = must(await db.from('planned_exercises').upsert(s.exercises.map((e, i) => ({
-    planned_session_id: session.id, exercise_id: exerciseByName.get(e.name)!, position: i + 1,
-    block_label: e.block, sets: e.sets, reps: e.reps, load_value: e.loadValue, load_unit: e.loadUnit,
-    tempo: e.tempo, rest: e.rest, instructions: e.loadUnit === 'free' ? e.loadText : null,
-  })), { onConflict: 'planned_session_id,position' }).select('id, position'), 'exercices planifiés')
-  const plannedByPosition = new Map(planned.map(p => [p.position, p.id]))
+    const planned = must(await db.from('planned_exercises').upsert(s.exercises.map((e, i) => ({
+      planned_session_id: session.id, exercise_id: exerciseByName.get(e.name)!, position: i + 1,
+      block_label: e.block, sets: e.sets, reps: e.reps, load_value: e.loadValue, load_unit: e.loadUnit,
+      tempo: e.tempo, rest: e.rest, instructions: e.loadUnit === 'free' ? e.loadText : null,
+    })), { onConflict: 'planned_session_id,position' }).select('id, position'), 'exercices planifiés')
+    const plannedByPosition = new Map(planned.map(p => [p.position, p.id]))
 
-  const feedback = s.exercises.flatMap((e, i) => e.feedback ? [{
-    player_id: s.player_id, planned_exercise_id: plannedByPosition.get(i + 1)!,
-    rpe: e.feedback.rpe, done_load: e.feedback.doneLoad, status: e.feedback.status, comment: e.feedback.comment,
-  }] : [])
-  if (feedback.length) {
-    must(await db.from('exercise_feedback').upsert(feedback, { onConflict: 'player_id,planned_exercise_id', ignoreDuplicates: true }).select(), 'retours')
+    const feedback = s.exercises.flatMap((e, i) => e.feedback ? [{
+      player_id: s.player_id, planned_exercise_id: plannedByPosition.get(i + 1)!,
+      rpe: e.feedback.rpe, done_load: e.feedback.doneLoad, status: e.feedback.status, comment: e.feedback.comment,
+    }] : [])
+    if (feedback.length) {
+      must(await db.from('exercise_feedback').upsert(feedback, { onConflict: 'player_id,planned_exercise_id', ignoreDuplicates: true }).select(), 'retours')
+    }
+
+    // Le RPE muscu déclaré ce jour-là devient la validation de cette séance (verrouille les retours)
+    must(await db.from('session_logs').update({ planned_session_id: session.id })
+      .match({ player_id: s.player_id, session_date: s.date, activity_type_id: musculation, source: 'import_form' }).select(), 'lien séance')
   }
-
-  // Le RPE muscu déclaré ce jour-là devient la validation de cette séance (verrouille les retours)
-  must(await db.from('session_logs').update({ planned_session_id: session.id })
-    .match({ player_id: s.player_id, session_date: s.date, activity_type_id: musculation, source: 'import_form' }).select(), 'lien séance')
 }
 
-must(await db.from('test_results').upsert(testRows, { onConflict: 'player_id,test_id,test_date' }).select(), 'tests')
-if (targetRows.length) must(await db.from('player_targets').upsert(targetRows, { onConflict: 'player_id,season,test_id' }).select(), 'objectifs')
+// Tests et objectifs : saisis dans l'app par le staff depuis l'étape 6, l'import complète sans jamais remplacer
+must(await db.from('test_results').upsert(testRows, { onConflict: 'player_id,test_id,test_date', ignoreDuplicates: true }).select(), 'tests')
+if (targetRows.length) must(await db.from('player_targets').upsert(targetRows, { onConflict: 'player_id,season,test_id', ignoreDuplicates: true }).select(), 'objectifs')
 must(await db.from('body_measurements').upsert(bodyRows, { onConflict: 'player_id,measured_on' }).select(), 'mesures')
 
 // ---------- Contrôle : sRPE en base = totaux du formulaire, par joueur et par semaine ----------

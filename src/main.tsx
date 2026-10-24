@@ -16,6 +16,10 @@ import './index.css'
 
 applyTheme(storedTheme()) // avant le premier affichage : pas de flash de l'autre thème
 
+// Écran d'ouverture (index.html) : retiré du DOM une fois son animation finie
+const splash = document.getElementById('splash')
+if (splash) Promise.all(splash.getAnimations({ subtree: true }).map(a => a.finished)).finally(() => splash.remove())
+
 const queryClient = new QueryClient()
 // Connexion, déconnexion et renouvellement du jeton mettent à jour la session partout.
 // Toute fin de session (bouton, jeton expiré, autre onglet) vide le cache : rien d'un joueur ne reste pour le suivant.

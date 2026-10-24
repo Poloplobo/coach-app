@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Thème sombre (charte RNR) par défaut ; thème clair choisi dans Réglages */
+:root {
+  --app: 26 26 26;       /* #1A1A1A */
+  --surface: 42 42 42;   /* #2A2A2A */
+  --line: 58 58 58;      /* #3A3A3A */
+  --ink: 255 255 255;
+  color-scheme: dark;
+}
+:root[data-theme='light'] {
+  --app: 244 244 245;
+  --surface: 255 255 255;
+  --line: 214 214 218;
+  --ink: 26 26 26;
+  color-scheme: light;
+}
+
+body {
+  @apply bg-app text-ink font-sans antialiased;
+}

@@ -1,0 +1,8 @@
+.env.local
+data/
+node_modules/
+dist/
+.env.*.local
+supabase/.temp/
+.claude/skills/
+.agents/

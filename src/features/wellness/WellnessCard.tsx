@@ -1,0 +1,53 @@
+import { useState } from 'react'
+import { Button } from '../../components/ui/Button'
+import { Card } from '../../components/ui/Card'
+import { ScalePicker } from '../../components/ui/ScalePicker'
+import { FatigueBody } from './FatigueBody'
+import { WELLNESS_ITEMS, useSaveWellness, useWellnessDay, type WellnessItems, type WellnessKey } from './useWellness'
+
+export function WellnessCard({ playerId, date }: { playerId: string; date: string }) {
+  const today = useWellnessDay(playerId, date)
+  const save = useSaveWellness(playerId)
+  const [draft, setDraft] = useState<Partial<WellnessItems> | null>(null)
+
+  if (today.isPending) return <Card title="Mon état de forme"><p className="text-ink/60">Chargement…</p></Card>
+  if (today.isError) return <Card title="Mon état de forme"><p>Impossible de charger ton état de forme.</p></Card>
+
+  const entry = today.data
+  if (entry && !draft) {
+    return (
+      <Card title="Mon état de forme">
+        {/* le joueur voit son % de fatigue, pas le score sur 30 (réservé au staff) */}
+        {entry.score !== null ? <FatigueBody wellness={entry} score={entry.score} /> : <p>État de forme enregistré.</p>}
+        <Button variant="ghost" onClick={() => setDraft(Object.fromEntries(
+          WELLNESS_ITEMS.flatMap(i => entry[i.key] === null ? [] : [[i.key, entry[i.key]]]),
+        ))}>
+          Modifier
+        </Button>
+      </Card>
+    )
+  }
+
+  const values: Partial<WellnessItems> = draft ?? {}
+  const answered = WELLNESS_ITEMS.filter(i => values[i.key] !== undefined).length
+  const complete = answered === WELLNESS_ITEMS.length
+  const submit = () => save.mutate({ date, items: values as WellnessItems }, { onSuccess: () => setDraft(null) })
+
+  return (
+    <Card title="Mon état de forme">
+      <p className="text-sm text-ink/70">À remplir chaque jour. 5 = meilleur état pour chaque question.</p>
+      {WELLNESS_ITEMS.map(item => (
+        <ScalePicker
+          key={item.key} label={item.label} min={1} max={5} low={item.low} high={item.high}
+          value={values[item.key] ?? null}
+          onChange={v => setDraft({ ...values, [item.key as WellnessKey]: v })}
+        />
+      ))}
+      {save.isError && <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">Enregistrement impossible, réessaie.</p>}
+      <Button onClick={submit} disabled={!complete || save.isPending}>
+        {save.isPending ? 'Enregistrement…' : complete ? 'Enregistrer' : `Réponds aux ${WELLNESS_ITEMS.length} questions (${answered}/${WELLNESS_ITEMS.length})`}
+      </Button>
+      {entry && <Button variant="ghost" onClick={() => setDraft(null)}>Annuler</Button>}
+    </Card>
+  )
+}

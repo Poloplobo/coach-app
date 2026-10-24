@@ -1,0 +1,8 @@
+# Jamais envoyé à Vercel : données des joueurs, identifiants, clés, outils d'import (l'app n'en a pas besoin)
+data/
+.env*
+scripts/
+supabase/
+docs/
+node_modules/
+dist/

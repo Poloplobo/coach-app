@@ -117,21 +117,25 @@ La programmation passe par les classeurs + `npm run import:prod` en attendant l'
 - **Validation** : Vitest de `shiftWeek` ; pgTAP (un joueur ne peut pas planifier) ; dupliquer deux fois une semaine
   sans doublon, et le joueur la voit aux étapes 4 et 5 ; un coach ne voit pas le bouton blessé / apte.
 
-## Étape 7 — Tableau de bord staff (desktop)
-- `features/staff/dashboard/` :
-  - wellness du jour : joueurs sans saisie, **alerte si total < 16/30 ou si un item est à 1**, détail par item,
-    silhouette de fatigue de chaque joueur ;
-  - charge de la semaine (`weekly_player_load` / `weekly_group_load` : cible, %, sous-charge / conforme / surcharge) ;
-    les joueurs blessés sont exclus des alertes de sous-charge ;
-  - séances non faites ;
-  - **ratio aigu/chronique** (charge des 7 derniers jours / moyenne hebdo des 28 derniers jours), **admins seulement**.
-- Fiche joueur : courbes wellness et sRPE sur la saison (Recharts), retours musculation, objectifs et tests.
-- **Export hebdomadaire** (décision du 24/10/2026) : bouton « Télécharger la semaine » → fichier Excel détaillé reprenant le
-  rendu des onglets TABLEAU_DE_BORD et SUIVI_INDIVIDUEL du classeur (extrait chaque lundi), à ranger soi-même sur le Drive.
-- Semaine hors calendrier : total brut sans statut. Joueur sans groupe : listé à part.
-- **Validation** : Vitest de `loadStatus` (bornes des plages REG/COMP/DEV, miroir de la vue), de l'alerte wellness et du ratio ; pgTAP (un joueur
-  ne voit pas la charge des autres) ; totaux par joueur et par semaine identiques au classeur importé ;
-  un coach ne voit pas le ratio.
+## Étape 7 — Tableau de bord staff (desktop) — décisions du 24/10/2026
+Trois vues (barre du haut) : **Aujourd'hui · Semaine · Joueur**, plus Réglages. Calculs purs dans `features/staff/load.ts`
+(testés), lectures dans `features/staff/useStaff.ts`. Données de dev : joueurs fictifs (`scripts/seed-dev.ts`, dev uniquement).
+- **Aujourd'hui** : pour chaque joueur, silhouette, % de fatigue, score /30, détail des 6 items, **alerte si total < 16/30
+  ou un item à 1**, statut blessé/apte ; **relance des retardataires** (forme ou RPE non saisis) avec message prêt à copier.
+- **Semaine** (calque de TABLEAU_DE_BORD) : charge moyenne / visée, % de la cible (« Accurate RPE »), statut par **plage**
+  (REG 500-1500, COMP 1500-2500, DEV > 2500) ; synthèse jour par jour (déclarants, durée planifiée, dont rugby/muscu,
+  sRPE moyen et cumulé, intensité UA/min) ; **matrice individuelle** (séances, sRPE par jour, total, visé, %, écart, écart
+  vs groupe, statut) ; répartition par pilier vs cible ; anomalies ; joueurs blessés exclus des alertes de sous-charge.
+- **Joueur** (calque de SUIVI_INDIVIDUEL) : indicateurs de la semaine, détail jour par jour (activités, minutes rugby /
+  muscu / vidéo-kiné, RPE moyen, sRPE, moyenne du groupe, écart), journal des déclarations, courbes de la saison
+  (forme et sRPE, Recharts), complétion muscu, objectifs et tests ; **ratio aigu/chronique** (admins seulement :
+  7 j / moyenne hebdo 28 j ; < 0,8 et 1,3-1,5 jaune, 0,8-1,3 vert, > 1,5 rouge) ; **bouton blessé / apte** (admins) ;
+  **correction des saisies** d'un jour passé par le staff (RPE, durée, état de forme ; `source = 'staff'`).
+- **Export Excel** de la semaine : onglet « Collectif » (TABLEAU_DE_BORD) + un onglet par joueur (SUIVI_INDIVIDUEL),
+  fichier `PER_<code semaine>_<lundi>.xlsx`, à ranger soi-même sur le Drive.
+- **Validation** : Vitest des calculs (statut aux bornes des plages, %, matrice, synthèse, ratio, alerte, retardataires) ;
+  pgTAP (un coach ne change pas le statut, le staff corrige une saisie avec `source = 'staff'`, un joueur ne voit rien
+  d'autrui) ; parcours sur données fictives ; un coach ne voit ni le ratio ni le bouton blessé / apte.
 
 ---
 

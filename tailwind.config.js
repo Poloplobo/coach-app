@@ -1,3 +1,5 @@
+import { BRAND } from './src/lib/brand.js'
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
@@ -10,9 +12,7 @@ export default {
         surface: 'rgb(var(--surface) / <alpha-value>)',
         line: 'rgb(var(--line) / <alpha-value>)',
         ink: 'rgb(var(--ink) / <alpha-value>)',
-        rnr: '#C8102E',
-        gold: '#FFD700',
-        ok: '#10b981',
+        ...BRAND,
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

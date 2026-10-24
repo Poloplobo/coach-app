@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(34);
+select plan(36);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -132,6 +132,13 @@ select is_empty($$update public.profiles set role = 'admin'
                 'un coach ne peut pas se donner le rôle admin');
 select is_empty($$delete from public.profiles where id = '00000000-0000-0000-0000-00000000000b' returning 1$$,
                 'un coach ne peut pas supprimer le profil d''un joueur');
+select lives_ok($$insert into public.session_logs (player_id, session_date, activity_type_id, duration_min, rpe, source)
+                  values ('00000000-0000-0000-0000-00000000000b', public.paris_today() - 3,
+                          (select id from public.activity_types where name = 'Jeu au Poste'), 45, 6, 'staff')$$,
+                'le staff corrige un oubli de RPE sur un jour passé (saisi par le staff)');
+select lives_ok($$insert into public.wellness_entries (player_id, entry_date, sleep_quality, fatigue, soreness_upper, soreness_lower, stress, mood)
+                  values ('00000000-0000-0000-0000-00000000000b', public.paris_today() - 3, 4, 4, 4, 4, 4, 4)$$,
+                'le staff corrige un état de forme sur un jour passé');
 
 -- ---------- Admin M ----------
 reset role;

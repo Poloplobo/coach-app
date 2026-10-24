@@ -3,6 +3,7 @@ import { addDays, formatDay, isoWeekStart } from '../../lib/week'
 import { useWellnessRange } from '../wellness/useWellness'
 import { fatiguePercent } from '../wellness/fatigue'
 import { useLogsRange } from '../rpe/useRpe'
+import { Loading } from '../../components/ui/Loading'
 
 // Charge de la semaine (lundi → aujourd'hui) et historique des 7 derniers jours
 export function MyWeek({ playerId, date }: { playerId: string; date: string }) {
@@ -10,7 +11,7 @@ export function MyWeek({ playerId, date }: { playerId: string; date: string }) {
   const logs = useLogsRange(playerId, from, date)
   const wellness = useWellnessRange(playerId, from, date)
 
-  if (logs.isPending || wellness.isPending) return <Card title="Ma semaine"><p className="text-ink/60">Chargement…</p></Card>
+  if (logs.isPending || wellness.isPending) return <Card title="Ma semaine"><Loading /></Card>
   if (logs.isError || wellness.isError) return <Card title="Ma semaine"><p>Impossible de charger ta semaine.</p></Card>
 
   const week = logs.data.filter(l => l.session_date >= isoWeekStart(date))
@@ -19,11 +20,8 @@ export function MyWeek({ playerId, date }: { playerId: string; date: string }) {
   const days = Array.from({ length: 7 }, (_, i) => addDays(date, -i))
 
   return (
-    <Card title="Ma semaine">
-      <p>
-        <span className="text-2xl font-bold">{load}</span> <span className="text-ink/60">UA</span>
-        <span className="ml-4 text-ink/70">{minutes} min</span>
-      </p>
+    <Card title="Ma semaine" aside={<span className="text-sm text-ink/60 tabular-nums">{load} UA · {minutes} min</span>}>
+
       <table className="w-full text-sm">
         <thead className="text-ink/60">
           <tr><th className="text-left font-normal">7 derniers jours</th><th className="font-normal">Fatigue</th><th className="text-right font-normal">Charge</th></tr>

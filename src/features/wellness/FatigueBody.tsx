@@ -5,14 +5,14 @@ const WORD: Record<Level, string> = { ok: 'bien', warn: 'moyen', bad: 'à survei
 const LEAN = [0, 10, 20] // degrés : droit, légèrement voûté, voûté
 
 // Silhouette indicative : le haut du corps se voûte avec la fatigue, chaque zone prend la couleur de ses réponses
-export function FatigueBody({ wellness, score, compact = false }: { wellness: WellnessRow; score: number; compact?: boolean }) {
+// figureOnly : la silhouette seule, quand le % est affiché ailleurs (tableau d'affichage de l'accueil)
+export function FatigueBody({ wellness, score, compact = false, figureOnly = false }: { wellness: WellnessRow; score: number; compact?: boolean; figureOnly?: boolean }) {
   const pct = fatiguePercent(score)
   const z = bodyZones(wellness)
   const head = levelOf(z.head), body = levelOf(z.body), upper = levelOf(z.upper), lower = levelOf(z.lower)
   const summary = `Fatigue estimée ${pct} % : tête ${WORD[head]}, corps ${WORD[body]}, haut du corps ${WORD[upper]}, bas du corps ${WORD[lower]}`
 
-  return (
-    <div className="flex items-center gap-4">
+  const figure = (
       <svg viewBox="0 0 120 220" className={`${compact ? 'h-24 w-14' : 'h-44 w-24'} shrink-0`} role="img" aria-label={summary}>
         {/* jambes : courbatures bas du corps */}
         <rect x="42" y="128" width="15" height="82" rx="7" className={FILL[lower]} />
@@ -25,8 +25,14 @@ export function FatigueBody({ wellness, score, compact = false }: { wellness: We
           <circle cx="60" cy="26" r="20" className={FILL[head]} />
         </g>
       </svg>
+  )
+  if (figureOnly) return figure
+
+  return (
+    <div className="flex items-center gap-4">
+      {figure}
       <div className="flex flex-col gap-1 text-sm">
-        <p className="text-lg font-bold">Fatigue {pct} %</p>
+        <p className="font-display text-2xl font-bold tabular-nums">Fatigue {pct} %</p>
         {!compact && (
           <>
             <p><span className="text-ink/60">Tête</span> {WORD[head]} <span className="text-ink/40">(sommeil, stress, humeur)</span></p>

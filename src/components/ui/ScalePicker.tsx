@@ -8,14 +8,14 @@ export function ScalePicker({ label, min, max, value, onChange, low, high, hint 
   const values = Array.from({ length: max - min + 1 }, (_, i) => min + i)
   return (
     <fieldset className="flex flex-col gap-2">
-      <legend className="text-sm font-semibold mb-2">
+      <legend className="font-semibold mb-2">
         {label}{hint && <span className="ml-2 font-normal text-ink/70">{hint}</span>}
       </legend>
       <div role="radiogroup" aria-label={label} className="grid grid-cols-[repeat(auto-fit,minmax(2.75rem,1fr))] gap-1.5">
         {values.map(v => (
           <button
             key={v} type="button" role="radio" aria-checked={value === v} onClick={() => onChange(v)}
-            className={`h-11 rounded-lg font-semibold border ${value === v ? 'bg-rnr border-rnr text-white' : 'bg-app border-line'}`}
+            className={`h-12 rounded-md font-display text-xl font-semibold border transition-colors ${value === v ? 'bg-rnr border-rnr text-white' : 'bg-app border-line hover:border-ink/40'}`}
           >
             {v}
           </button>

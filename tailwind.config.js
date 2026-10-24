@@ -16,7 +16,9 @@ export default {
         gold: 'rgb(var(--gold) / <alpha-value>)', // or plus foncé en thème clair (lisibilité du texte)
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        // Barlow : texte courant ; Barlow Condensed : chiffres, titres, navigation (esprit tableau d'affichage)
+        sans: ['Barlow', 'system-ui', 'sans-serif'],
+        display: ['"Barlow Condensed"', 'Barlow', 'system-ui', 'sans-serif'],
       },
     },
   },

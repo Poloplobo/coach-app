@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
+import { ConfirmButton } from '../../components/ui/ConfirmButton'
 import { ScalePicker } from '../../components/ui/ScalePicker'
 import { addDays } from '../../lib/week'
 import { RPE_LABELS } from '../rpe/activities'
@@ -36,7 +37,7 @@ export function AvailabilityPanel({ player, today }: { player: Player; today: st
           Note (facultatif, visible du staff et du joueur)
           <input value={note} onChange={e => setNote(e.target.value)} placeholder="ex. entorse cheville, reprise prévue le…" className={field} />
         </label>
-        <Button disabled={save.isPending} onClick={toggle}>{status === 'blessé' ? 'Déclarer apte' : 'Déclarer blessé'}</Button>
+        <ConfirmButton confirmLabel="Confirmer" disabled={save.isPending} onClick={toggle}>{status === 'blessé' ? 'Déclarer apte' : 'Déclarer blessé'}</ConfirmButton>
       </div>
       <Saved ok={save.isSuccess} error={save.isError} />
     </Card>

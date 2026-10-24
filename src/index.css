@@ -23,3 +23,9 @@
 body {
   @apply bg-app text-ink font-sans antialiased;
 }
+
+/* Chiffres alignés en colonne dans tous les tableaux */
+table { font-variant-numeric: tabular-nums; }
+
+/* Focus clavier visible partout, jamais au clic */
+:focus-visible { @apply outline outline-2 outline-offset-2 outline-gold; }

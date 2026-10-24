@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
+import { ConfirmButton } from '../../components/ui/ConfirmButton'
 import { ScalePicker } from '../../components/ui/ScalePicker'
 import { addDays, formatDay, isoWeekStart } from '../../lib/week'
 import { MUSCULATION, RPE_LABELS } from '../rpe/activities'
@@ -8,6 +8,7 @@ import { useActivityTypes, useLogsRange } from '../rpe/useRpe'
 import { ExerciseRow } from './ExerciseRow'
 import { completion, sortedExercises } from './program'
 import { useMarkNotDone, useValidateSession, useWeekProgram } from './useSeance'
+import { Loading } from '../../components/ui/Loading'
 
 export function MuscuSessionCard({ playerId, date }: { playerId: string; date: string }) {
   const from = isoWeekStart(date)
@@ -20,7 +21,7 @@ export function MuscuSessionCard({ playerId, date }: { playerId: string; date: s
   const [rpe, setRpe] = useState<number | null>(null)
   const [duration, setDuration] = useState('')
 
-  if (program.isPending || logs.isPending || types.isPending) return <Card title="Musculation"><p className="text-ink/60">Chargement…</p></Card>
+  if (program.isPending || logs.isPending || types.isPending) return <Card title="Musculation"><Loading /></Card>
   if (program.isError || logs.isError || types.isError) return <Card title="Musculation"><p>Impossible de charger ton programme.</p></Card>
 
   const muscuType = types.data.find(t => t.name === MUSCULATION)
@@ -74,16 +75,18 @@ export function MuscuSessionCard({ playerId, date }: { playerId: string; date: s
           {(validate.isError || markNotDone.isError) && (
             <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">Enregistrement impossible, réessaie.</p>
           )}
-          <Button disabled={rpe === null || !validDuration || validate.isPending}
+          <ConfirmButton confirmLabel="Confirmer : la séance sera verrouillée" disabled={rpe === null || !validDuration || validate.isPending}
             onClick={() => validate.mutate({
               date, plannedSessionId: session.id, activityTypeId: muscuType.id, durationMin: minutes, rpe: rpe!,
               unansweredExerciseIds: exercises.filter(e => !e.exercise_feedback[0]?.status).map(e => e.id),
             })}>
             {validate.isPending ? 'Validation…' : 'Valider la séance'}
-          </Button>
-          <Button variant="ghost" disabled={markNotDone.isPending} onClick={() => markNotDone.mutate(exercises.map(e => e.id))}>
+          </ConfirmButton>
+          {/* écrase aussi les exercices déjà notés « fait » : confirmation obligatoire */}
+          <ConfirmButton variant="ghost" confirmLabel="Confirmer : tout passer en « non fait »" disabled={markNotDone.isPending}
+            onClick={() => markNotDone.mutate(exercises.map(e => e.id))}>
             Séance non faite
-          </Button>
+          </ConfirmButton>
         </div>
       )}
       {weekList}

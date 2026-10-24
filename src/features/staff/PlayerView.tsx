@@ -12,7 +12,9 @@ import { MyGoals } from '../tests/MyGoals'
 import { fatiguePercent } from '../wellness/fatigue'
 import { DAY_NAMES, STATUS_TONE, WELLNESS_ALERT_SCORE, acwr, fullName, playerDays, weekMatrix, weekOf, type Log } from './load'
 import { AvailabilityPanel, CorrectionPanel } from './PlayerAdmin'
+import { TestsPanel } from './programming/TestsPanel'
 import { useAllLogs, useAllWellness, useIsAdmin, useReference, useRoster } from './useStaff'
+import { Loading } from '../../components/ui/Loading'
 
 const SOURCE = { app: 'joueur', staff: 'staff', import_form: 'formulaire' } as Record<string, string>
 const ZONE_TONE = { bas: 'warn', optimal: 'ok', vigilance: 'warn', risque: 'bad' } as const
@@ -35,11 +37,11 @@ export function PlayerView() {
   const wellness = useAllWellness(selectedId ? seasonStart : '', today, selectedId)
   const weekLogs = useAllLogs(week?.start_date ?? '', week ? addDays(week.start_date, 6) : '')
 
-  if (ref.isPending || roster.isPending) return <p className="text-ink/60">Chargement…</p>
+  if (ref.isPending || roster.isPending) return <Loading />
   if (ref.isError || roster.isError || own.isError || wellness.isError || weekLogs.isError) return <p>Impossible de charger la fiche joueur.</p>
   const player = roster.data.find(p => p.id === selectedId)
   if (!player) return <p>Aucun joueur.</p>
-  if (own.isPending || wellness.isPending || (week && weekLogs.isPending)) return <p className="text-ink/60">Chargement…</p>
+  if (own.isPending || wellness.isPending || (week && weekLogs.isPending)) return <Loading />
 
   const wt = week ? ref.data.weekTypes.find(t => t.code === week.week_type_code) ?? null : null
   const inWeek = (l: Log) => !!week && l.session_date >= week.start_date && l.session_date <= addDays(week.start_date, 6)
@@ -123,6 +125,7 @@ export function PlayerView() {
 
       {isAdmin && <AvailabilityPanel player={player} today={today} />}
       <CorrectionPanel player={player} types={ref.data.types} today={today} logs={own.data} wellness={wellness.data} />
+      <TestsPanel player={player} today={today} />
     </>
   )
 }

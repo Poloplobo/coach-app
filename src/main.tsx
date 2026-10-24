@@ -5,6 +5,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { supabase } from './lib/supabaseClient'
 import App from './App'
 import { applyTheme, storedTheme } from './features/settings/theme'
+// Polices servies par l'app (pas d'appel à Google Fonts : rien ne part chez un tiers, et l'app marche hors ligne)
+import '@fontsource/barlow/400.css'
+import '@fontsource/barlow/500.css'
+import '@fontsource/barlow/600.css'
+import '@fontsource/barlow-condensed/500.css'
+import '@fontsource/barlow-condensed/600.css'
+import '@fontsource/barlow-condensed/700.css'
 import './index.css'
 
 applyTheme(storedTheme()) // avant le premier affichage : pas de flash de l'autre thème

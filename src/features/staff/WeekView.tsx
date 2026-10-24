@@ -13,6 +13,7 @@ import {
   type MatrixRow, type Pillar, type WeekType,
 } from './load'
 import { useAllLogs, useReference, useRoster } from './useStaff'
+import { Loading } from '../../components/ui/Loading'
 
 // Un tableau à la fois : le résumé du coach d'abord, le détail sur demande
 const TABS = [
@@ -37,7 +38,7 @@ export function WeekView() {
   const week = weeks.find(w => w.code === code) ?? weekOf(weeks, parisDate())
   const logs = useAllLogs(week?.start_date ?? '', week ? weekEnd(week) : '')
 
-  if (ref.isPending || roster.isPending || (week && logs.isPending)) return <p className="text-ink/60">Chargement…</p>
+  if (ref.isPending || roster.isPending || (week && logs.isPending)) return <Loading />
   if (ref.isError || roster.isError || logs.isError) return <p>Impossible de charger la semaine.</p>
   if (!week) return <p>Aucune semaine dans le calendrier : ajoute-les dans CONFIG_SEMAINES_PER puis relance l'import.</p>
 

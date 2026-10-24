@@ -9,6 +9,7 @@ import { prescription, sortedExercises } from '../seances/program'
 import { fullName, weekOf } from './load'
 import { loadProgression, muscuSummary, respected, trackedExercises, type Respect, type StaffMuscuSession } from './muscu'
 import { useAllLogs, useReference, useRoster, useStaffMuscu } from './useStaff'
+import { Loading } from '../../components/ui/Loading'
 
 const RESPECT: Record<Exclude<Respect, null>, { tone: 'ok' | 'warn' | 'bad'; label: string }> = {
   oui: { tone: 'ok', label: 'respectée' }, partiel: { tone: 'warn', label: 'partielle' }, non: { tone: 'bad', label: 'non respectée' },
@@ -29,7 +30,7 @@ export function MuscuView() {
   const sessions = useStaffMuscu(from, to)
   const logs = useAllLogs(from, to)
 
-  if (ref.isPending || roster.isPending || (week && (sessions.isPending || logs.isPending))) return <p className="text-ink/60">Chargement…</p>
+  if (ref.isPending || roster.isPending || (week && (sessions.isPending || logs.isPending))) return <Loading />
   if (ref.isError || roster.isError || sessions.isError || logs.isError) return <p>Impossible de charger la musculation.</p>
   if (!week) return <p>Aucune semaine dans le calendrier.</p>
 
@@ -152,7 +153,7 @@ function Progression({ players, seasonStart, today }: { players: { id: string; f
           </select>
         </label>
       </div>
-      {season.isPending && <p className="text-ink/60">Chargement…</p>}
+      {season.isPending && <Loading />}
       {season.isSuccess && points.length === 0 && <p className="text-sm text-ink/70">Aucune charge réalisée lisible pour ce joueur.</p>}
       {points.length > 0 && (
         <div className="h-64 text-ink/60">

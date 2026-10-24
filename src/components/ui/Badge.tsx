@@ -6,5 +6,5 @@ const TONES: Record<Tone, string> = {
 }
 
 export function Badge({ tone, children }: { tone: Tone; children: ReactNode }) {
-  return <span className={`inline-block whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-semibold ${TONES[tone]}`}>{children}</span>
+  return <span className={`inline-block whitespace-nowrap rounded-sm border px-1.5 py-0.5 text-xs font-semibold tabular-nums ${TONES[tone]}`}>{children}</span>
 }

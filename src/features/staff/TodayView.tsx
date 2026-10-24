@@ -9,6 +9,7 @@ import { fatiguePercent } from '../wellness/fatigue'
 import { WELLNESS_ITEMS } from '../wellness/items'
 import { fullName, itemValue, latecomers, reminderMessage, wellnessAlerts } from './load'
 import { useAllLogs, useAllPlan, useAllWellness, useRoster } from './useStaff'
+import { Loading } from '../../components/ui/Loading'
 
 const itemTone = (v: number | null) => (v === null ? 'neutral' : v >= 4 ? 'ok' : v === 3 ? 'warn' : 'bad')
 
@@ -20,7 +21,7 @@ export function TodayView() {
   const logs = useAllLogs(yesterday, today)
   const plan = useAllPlan(yesterday, yesterday)
 
-  if (roster.isPending || wellness.isPending || logs.isPending || plan.isPending) return <p className="text-ink/60">Chargement…</p>
+  if (roster.isPending || wellness.isPending || logs.isPending || plan.isPending) return <Loading />
   if (roster.isError || wellness.isError || logs.isError || plan.isError) return <p>Impossible de charger les données du jour.</p>
 
   const byPlayer = new Map(wellness.data.map(w => [w.player_id, w]))
@@ -95,15 +96,16 @@ function groupFatigue(rows: { w?: { score: number | null } }[]) {
 }
 
 function Reminder({ name, missing, message }: { name: string; missing: string[]; message: string }) {
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied] = useState<boolean | null>(null)
   const copy = async () => {
     try { await navigator.clipboard.writeText(message); setCopied(true) } catch { setCopied(false) }
+    setTimeout(() => setCopied(null), 2500)
   }
   return (
     <li className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-2">
       <span><span className="font-semibold">{name}</span> <span className="text-sm text-ink/70">— {missing.join(', ')}</span></span>
       <button type="button" onClick={copy} className="rounded-lg border border-line px-3 py-1.5 text-sm">
-        {copied ? 'Message copié' : 'Copier le message'}
+        {copied === null ? 'Copier le message' : copied ? 'Message copié' : 'Copie impossible'}
       </button>
     </li>
   )

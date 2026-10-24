@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Navigate } from 'react-router-dom'
 import { Button } from '../../components/ui/Button'
+import { Loading } from '../../components/ui/Loading'
 import { homePath, useProfile, useSession, useSignOut, type Role } from './useAuth'
 
 export function FullPageMessage({ children }: { children: ReactNode }) {
@@ -14,7 +15,7 @@ export function RequireRole({ roles, children }: { roles?: Role[]; children?: Re
   const profile = useProfile(userId)
   const signOut = useSignOut()
 
-  if (session.isPending || (userId && profile.isPending)) return <FullPageMessage>Chargement…</FullPageMessage>
+  if (session.isPending || (userId && profile.isPending)) return <FullPageMessage><div className="w-48"><Loading /></div></FullPageMessage>
   if (!userId) return <Navigate to="/login" replace />
   const signOutButton = <Button variant="ghost" onClick={() => signOut.mutate()}>Se déconnecter</Button>
   if (profile.isError) {

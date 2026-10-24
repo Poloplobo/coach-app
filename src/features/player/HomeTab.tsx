@@ -6,16 +6,19 @@ import { completion } from '../seances/program'
 import { useWeekProgram } from '../seances/useSeance'
 import { MyGoals } from '../tests/MyGoals'
 import { FatigueBody } from '../wellness/FatigueBody'
+import { fatiguePercent } from '../wellness/fatigue'
 import { useWellnessDay } from '../wellness/useWellness'
+import { useLogsRange } from '../rpe/useRpe'
 import { MyWeek } from './MyWeek'
 import { usePlayerDay } from './playerDay'
+import { Loading } from '../../components/ui/Loading'
 
 // Accueil : résumé de la semaine (fatigue, charge, musculation, à venir, objectifs)
 export function HomeTab() {
   const { playerId, today } = usePlayerDay()
   return (
     <>
-      <FatigueToday playerId={playerId} today={today} />
+      <Scoreboard playerId={playerId} today={today} />
       <MyWeek playerId={playerId} date={today} />
       <MuscuWeek playerId={playerId} today={today} />
       <Upcoming playerId={playerId} today={today} />
@@ -24,10 +27,29 @@ export function HomeTab() {
   )
 }
 
-function FatigueToday({ playerId, today }: { playerId: string; today: string }) {
+// Le tableau d'affichage : fatigue du jour et charge de la semaine, lisibles d'un coup d'œil
+function Scoreboard({ playerId, today }: { playerId: string; today: string }) {
   const wellness = useWellnessDay(playerId, today)
-  if (!wellness.data || wellness.data.score === null) return null
-  return <Card title="Mon état de fatigue"><FatigueBody wellness={wellness.data} score={wellness.data.score} compact /></Card>
+  const week = isoWeekStart(today)
+  const logs = useLogsRange(playerId, [week, addDays(today, -6)].sort()[0], today) // même requête que « Ma semaine » : servie par le cache
+  const w = wellness.data
+  const load = logs.data?.filter(l => l.session_date >= week).reduce((sum, l) => sum + Number(l.srpe ?? 0), 0)
+
+  return (
+    <section aria-label="Mon tableau du jour" className="flex items-center gap-4 rounded-lg border border-line bg-surface px-4 py-3">
+      {w && w.score !== null && <FatigueBody wellness={w} score={w.score} figureOnly />}
+      <dl className="grid flex-1 grid-cols-2 divide-x divide-line">
+        <div className="pr-3 flex flex-col-reverse">
+          <dt className="mt-1 text-sm text-ink/60">Fatigue du jour</dt>
+          <dd className="font-display text-6xl font-bold leading-none tabular-nums">{w?.score != null ? fatiguePercent(w.score) : '–'}<span className="text-2xl">%</span></dd>
+        </div>
+        <div className="pl-3 flex flex-col-reverse">
+          <dt className="mt-1 text-sm text-ink/60">UA cette semaine</dt>
+          <dd className="font-display text-6xl font-bold leading-none tabular-nums">{load ?? '–'}</dd>
+        </div>
+      </dl>
+    </section>
+  )
 }
 
 function MuscuWeek({ playerId, today }: { playerId: string; today: string }) {
@@ -48,7 +70,7 @@ function MuscuWeek({ playerId, today }: { playerId: string; today: string }) {
 function Upcoming({ playerId, today }: { playerId: string; today: string }) {
   const plan = usePlanRange(playerId, today, addDays(today, 6))
   const availability = useAvailability(playerId)
-  if (plan.isPending || availability.isPending) return <Card title="À venir"><p className="text-ink/60">Chargement…</p></Card>
+  if (plan.isPending || availability.isPending) return <Card title="À venir"><Loading /></Card>
   if (plan.isError || availability.isError) return <Card title="À venir"><p>Impossible de charger ton planning.</p></Card>
 
   const days = upcomingByDay(plan.data, { injured: availability.data === 'blessé' })

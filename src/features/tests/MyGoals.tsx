@@ -1,6 +1,7 @@
 import { Card } from '../../components/ui/Card'
 import { latestByTest, progressPct, seasonOf } from './progress'
 import { useTargets, useTestResults } from './useTests'
+import { Loading } from '../../components/ui/Loading'
 
 const number = (v: number) => v.toLocaleString('fr-FR', { maximumFractionDigits: 2 })
 
@@ -8,7 +9,7 @@ export function MyGoals({ playerId, date }: { playerId: string; date: string }) 
   const results = useTestResults(playerId)
   const targets = useTargets(playerId, seasonOf(date))
 
-  if (results.isPending || targets.isPending) return <Card title="Mes objectifs"><p className="text-ink/60">Chargement…</p></Card>
+  if (results.isPending || targets.isPending) return <Card title="Mes objectifs"><Loading /></Card>
   if (results.isError || targets.isError) return <Card title="Mes objectifs"><p>Impossible de charger tes tests.</p></Card>
 
   const latest = latestByTest(results.data)

@@ -6,7 +6,9 @@ import { useSaveLog } from './useRpe'
 
 type Log = { duration_min: number; rpe: number | null; srpe: number | null; validated_at: string | null }
 
-export function ActivityRow({ playerId, date, activity, log }: { playerId: string; date: string; activity: DayActivity; log?: Log }) {
+export function ActivityRow({ playerId, date, activity, log, onRemove }: {
+  playerId: string; date: string; activity: DayActivity; log?: Log; onRemove?: () => void
+}) {
   const save = useSaveLog(playerId)
   const [editing, setEditing] = useState(!log)
   const [rpe, setRpe] = useState<number | null>(log?.rpe ?? null)
@@ -57,7 +59,9 @@ export function ActivityRow({ playerId, date, activity, log }: { playerId: strin
         <Button className="flex-1" onClick={submit} disabled={save.isPending || !validDuration || (activity.requiresRpe && rpe === null)}>
           {save.isPending ? 'Enregistrement…' : activity.requiresRpe ? 'Enregistrer' : 'J\'y étais'}
         </Button>
-        {log && <Button variant="ghost" onClick={() => setEditing(false)}>Annuler</Button>}
+        {/* Annuler repart de la saisie enregistrée ; une activité ajoutée mais pas encore déclarée peut être retirée */}
+        {log && <Button variant="ghost" onClick={() => { setRpe(log.rpe); setDuration(String(log.duration_min)); setEditing(false) }}>Annuler</Button>}
+        {!log && onRemove && <Button variant="ghost" onClick={onRemove}>Retirer</Button>}
       </div>
     </li>
   )

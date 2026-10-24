@@ -4,14 +4,23 @@ import { Card } from '../../components/ui/Card'
 import { ScalePicker } from '../../components/ui/ScalePicker'
 import { FatigueBody } from './FatigueBody'
 import { WELLNESS_ITEMS, useSaveWellness, useWellnessDay, type WellnessItems, type WellnessKey } from './useWellness'
+import { Loading } from '../../components/ui/Loading'
 
 export function WellnessCard({ playerId, date }: { playerId: string; date: string }) {
   const today = useWellnessDay(playerId, date)
   const save = useSaveWellness(playerId)
   const [draft, setDraft] = useState<Partial<WellnessItems> | null>(null)
 
-  if (today.isPending) return <Card title="Mon état de forme"><p className="text-ink/60">Chargement…</p></Card>
-  if (today.isError) return <Card title="Mon état de forme"><p>Impossible de charger ton état de forme.</p></Card>
+  if (today.isPending) return <Card title="Mon état de forme"><Loading /></Card>
+  if (today.isError) {
+    // les autres onglets restent verrouillés tant que ce chargement échoue : il faut pouvoir relancer
+    return (
+      <Card title="Mon état de forme">
+        <p>Impossible de charger ton état de forme.</p>
+        <Button onClick={() => today.refetch()} disabled={today.isFetching}>{today.isFetching ? 'Chargement…' : 'Réessayer'}</Button>
+      </Card>
+    )
+  }
 
   const entry = today.data
   if (entry && !draft) {

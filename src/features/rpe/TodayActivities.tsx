@@ -3,6 +3,7 @@ import { Card } from '../../components/ui/Card'
 import { ActivityRow } from './ActivityRow'
 import { MUSCULATION, dayActivities, type DayActivity } from './activities'
 import { useActivityTypes, useAvailability, useLogsRange, usePlanRange } from './useRpe'
+import { Loading } from '../../components/ui/Loading'
 
 export function TodayActivities({ playerId, date }: { playerId: string; date: string }) {
   const availability = useAvailability(playerId)
@@ -12,7 +13,7 @@ export function TodayActivities({ playerId, date }: { playerId: string; date: st
   const [extraIds, setExtraIds] = useState<string[]>([])
 
   if (availability.isPending || plan.isPending || logs.isPending || types.isPending) {
-    return <Card title="Mes activités du jour"><p className="text-ink/60">Chargement…</p></Card>
+    return <Card title="Mes activités du jour"><Loading /></Card>
   }
   if (availability.isError || plan.isError || logs.isError || types.isError) {
     return <Card title="Mes activités du jour"><p>Impossible de charger tes activités. Vérifie ta connexion.</p></Card>
@@ -39,7 +40,8 @@ export function TodayActivities({ playerId, date }: { playerId: string; date: st
       <ul className="flex flex-col gap-3">
         {[...planned, ...extras].map(a => (
           <ActivityRow key={a.activityTypeId} playerId={playerId} date={date} activity={a}
-            log={logs.data.find(l => l.activity_type_id === a.activityTypeId)} />
+            log={logs.data.find(l => l.activity_type_id === a.activityTypeId)}
+            onRemove={plannedIds.has(a.activityTypeId) ? undefined : () => setExtraIds(ids => ids.filter(id => id !== a.activityTypeId))} />
         ))}
       </ul>
       {addable.length > 0 && (

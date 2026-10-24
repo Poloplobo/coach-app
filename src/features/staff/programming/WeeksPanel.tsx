@@ -28,8 +28,7 @@ export function WeeksPanel() {
     <>
       {editing && <WeekEditor key={editing.previousCode ?? 'new'} groupId={group.data.id} weeks={weeks.data} {...editing}
         weekTypes={ref.data.weekTypes} onDone={() => setEditing(null)} />}
-      <Card title="Calendrier de la saison">
-        <div className="flex justify-end"><Button onClick={startNew}>Nouvelle semaine</Button></div>
+      <Card title="Calendrier de la saison" aside={<Button size="sm" onClick={startNew}>Nouvelle semaine</Button>}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-left text-ink/60">
@@ -42,11 +41,11 @@ export function WeeksPanel() {
                   <tr key={w.code} className="border-t border-line">
                     <td className="py-2 pr-3 font-semibold">{w.code}{addDays(w.start_date, 6) < today && <span className="text-ink/50"> · passée</span>}</td>
                     <td className="pr-3">{w.label}</td>
-                    <td className="pr-3">{w.start_date}</td>
+                    <td className="pr-3">{new Date(w.start_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' })}</td>
                     <td className="pr-3">{w.is_off ? <Badge tone="neutral">OFF</Badge> : <>{w.week_type_code}{wt && <span className="text-ink/60"> · {rangeLabel(wt)}</span>}</>}</td>
                     <td className="pr-3">{w.cycle}</td>
                     <td className="pr-3 text-ink/70">{w.phase_note}</td>
-                    <td>{addDays(w.start_date, 6) >= today && <Button variant="ghost" className="py-1.5" onClick={() => setEditing({
+                    <td>{addDays(w.start_date, 6) >= today && <Button variant="ghost" size="sm" onClick={() => setEditing({
                       previousCode: w.code,
                       form: { code: w.code, label: w.label ?? '', start_date: w.start_date, week_type_code: w.week_type_code, cycle: w.cycle ?? '', phase_note: w.phase_note ?? '', is_off: w.is_off },
                     })}>Modifier</Button>}</td>

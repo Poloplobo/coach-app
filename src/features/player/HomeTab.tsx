@@ -80,7 +80,7 @@ function Upcoming({ playerId, today }: { playerId: string; today: string }) {
       <ul className="flex flex-col gap-2 text-sm">
         {days.map(d => (
           <li key={d.date}>
-            <p className="font-semibold capitalize">{d.date === today ? "Aujourd'hui" : formatDay(d.date)}</p>
+            <p className="font-semibold first-letter:uppercase">{d.date === today ? "Aujourd'hui" : formatDay(d.date)}</p>
             <p className="text-ink/70">{d.activities.map(a => a.durationMin ? `${a.name} (${a.durationMin} min)` : a.name).join(' · ')}</p>
           </li>
         ))}

@@ -102,7 +102,7 @@ function SessionsDetail({ sessions }: { sessions: StaffMuscuSession[] }) {
     <div className="flex flex-col gap-3 rounded-xl bg-app p-3">
       {sessions.map(s => (
         <div key={s.id}>
-          <p className="font-semibold capitalize">{formatDay(s.session_date)}</p>
+          <p className="font-semibold first-letter:uppercase">{formatDay(s.session_date)}</p>
           <table className="w-full text-xs">
             <thead className="text-left text-ink/60">
               <tr>{['Bloc', 'Exercice', 'Prescrit', 'Réalisé', 'RPE', 'Statut', 'Charge', 'Commentaire'].map(h => <th key={h} className="py-1 pr-2 font-normal">{h}</th>)}</tr>

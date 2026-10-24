@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { Dumbbell, HeartPulse, House, Lock, Settings, Users, type LucideIcon } from 'lucide-react'
+import { Loading } from '../../components/ui/Loading'
 import { formatDay, parisDate } from '../../lib/week'
 import { useProfile, useUserId } from '../auth/useAuth'
 import { useWellnessDay } from '../wellness/useWellness'
@@ -29,7 +30,9 @@ export function PlayerLayout() {
 
   // Tant que l'état de forme du jour n'est pas confirmé (chargement, réseau coupé), on reste verrouillé
   const mustFillForm = !wellness.isSuccess || !wellness.data
-  if (isTabLocked(pathname, mustFillForm)) return <Navigate to="/joueur/forme" replace />
+  // Pendant le chargement on attend sur place (sinon chaque ouverture de l'app renvoyait vers Forme, même rempli)
+  const locked = isTabLocked(pathname, mustFillForm)
+  if (locked && !wellness.isPending) return <Navigate to="/joueur/forme" replace />
 
   return (
     <div className="min-h-dvh pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
@@ -51,7 +54,7 @@ export function PlayerLayout() {
             Impossible de vérifier ton état de forme. Vérifie ta connexion internet.
           </p>
         )}
-        <Outlet key={today} context={{ playerId, today } satisfies PlayerDay} />
+        {locked ? <Loading /> : <Outlet key={today} context={{ playerId, today } satisfies PlayerDay} />}
       </main>
 
       <nav aria-label="Navigation" className="fixed inset-x-0 bottom-0 border-t border-line bg-surface/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">

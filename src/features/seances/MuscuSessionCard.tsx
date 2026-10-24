@@ -33,7 +33,7 @@ export function MuscuSessionCard({ playerId, date }: { playerId: string; date: s
         const c = completion(s.planned_exercises)
         return (
           <li key={s.id} className="flex justify-between">
-            <span className="capitalize">{formatDay(s.session_date)}</span>
+            <span className="inline-block first-letter:uppercase">{formatDay(s.session_date)}</span>
             <span className="text-ink/70">{s.session_date < date ? `${c.done}/${c.total} faits` : `${c.total} exercices`}</span>
           </li>
         )

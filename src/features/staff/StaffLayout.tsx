@@ -25,7 +25,7 @@ export function StaffLayout() {
             <img src="/logo-rnr.svg" alt="" className="h-10" />
             <div>
               <p className="font-display text-xl font-bold leading-tight">Suivi PER</p>
-              <p className="text-xs text-ink/60 capitalize">{formatDay(parisDate())} · {profile.data?.first_name} ({profile.data?.role === 'admin' ? 'admin' : 'coach'})</p>
+              <p className="text-xs text-ink/60 first-letter:uppercase">{formatDay(parisDate())} · {profile.data?.first_name} ({profile.data?.role === 'admin' ? 'admin' : 'coach'})</p>
             </div>
           </div>
           <nav aria-label="Navigation staff" className="flex self-stretch overflow-x-auto">

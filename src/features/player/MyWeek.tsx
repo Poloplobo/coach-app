@@ -32,7 +32,7 @@ export function MyWeek({ playerId, date }: { playerId: string; date: string }) {
             const score = wellness.data.find(w => w.entry_date === d)?.score
             return (
               <tr key={d} className="border-t border-line">
-                <td className="py-2 capitalize">{formatDay(d)}</td>
+                <td className="py-2 first-letter:uppercase">{formatDay(d)}</td>
                 <td className="text-center">{score != null ? `${fatiguePercent(score)} %` : '—'}</td>
                 <td className="text-right">{dayLoad ? `${dayLoad} UA` : '—'}</td>
               </tr>

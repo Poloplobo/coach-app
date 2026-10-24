@@ -45,10 +45,10 @@ export function WeeksPanel() {
                     <td className="pr-3">{w.is_off ? <Badge tone="neutral">OFF</Badge> : <>{w.week_type_code}{wt && <span className="text-ink/60"> · {rangeLabel(wt)}</span>}</>}</td>
                     <td className="pr-3">{w.cycle}</td>
                     <td className="pr-3 text-ink/70">{w.phase_note}</td>
-                    <td><Button variant="ghost" className="py-1.5" onClick={() => setEditing({
+                    <td>{addDays(w.start_date, 6) >= today && <Button variant="ghost" className="py-1.5" onClick={() => setEditing({
                       previousCode: w.code,
                       form: { code: w.code, label: w.label ?? '', start_date: w.start_date, week_type_code: w.week_type_code, cycle: w.cycle ?? '', phase_note: w.phase_note ?? '', is_off: w.is_off },
-                    })}>Modifier</Button></td>
+                    })}>Modifier</Button>}</td>
                   </tr>
                 )
               })}
@@ -74,7 +74,7 @@ function WeekEditor({ groupId, weeks, form: initial, previousCode, weekTypes, on
   const submit = async () => {
     await save.mutateAsync({ groupId, week: form, previousCode })
     // OFF : pas d'entraînement collectif, les séances de groupe prévues cette semaine sont retirées
-    if (becomesOff) await clear.mutateAsync({ groupId, from: form.start_date, to: addDays(form.start_date, 6) })
+    if (becomesOff) await clear.mutateAsync({ groupId, from: [form.start_date, parisDate()].sort()[1], to: addDays(form.start_date, 6) })
     onDone()
   }
 
@@ -82,7 +82,10 @@ function WeekEditor({ groupId, weeks, form: initial, previousCode, weekTypes, on
     <Card title={previousCode ? `Modifier ${previousCode}` : 'Nouvelle semaine'}>
       <div className="grid gap-3 sm:grid-cols-3">
         <label className="flex flex-col gap-1 text-sm">Code<input value={form.code} onChange={e => set({ code: e.target.value.toUpperCase() })} className={field} /></label>
-        <label className="flex flex-col gap-1 text-sm">Lundi<input type="date" value={form.start_date} onChange={e => set({ start_date: e.target.value })} className={field} /></label>
+        <label className="flex flex-col gap-1 text-sm">Lundi
+          {/* une semaine existante garde son lundi : ses séances resteraient sinon aux anciennes dates */}
+          <input type="date" value={form.start_date} onChange={e => set({ start_date: e.target.value })} disabled={!!previousCode} className={field} />
+        </label>
         <label className="flex flex-col gap-1 text-sm">Libellé<input value={form.label} onChange={e => set({ label: e.target.value })} placeholder="ex. Semaine 9 (Nantes)" className={field} /></label>
         <label className="flex flex-col gap-1 text-sm">
           Type
@@ -97,7 +100,7 @@ function WeekEditor({ groupId, weeks, form: initial, previousCode, weekTypes, on
         <input type="checkbox" checked={form.is_off} onChange={e => set({ is_off: e.target.checked })} className="h-5 w-5" />
         Semaine OFF (pas d'entraînement collectif)
       </label>
-      {becomesOff && <p className="rounded-lg border border-gold px-3 py-2 text-sm">Les séances du groupe déjà prévues cette semaine seront retirées. Les RPE déjà saisis sont conservés.</p>}
+      {becomesOff && <p className="rounded-lg border border-gold px-3 py-2 text-sm">Les séances du groupe prévues à partir d'aujourd'hui seront retirées. Les RPE déjà saisis sont conservés.</p>}
       {errors.length > 0 && <ul className="text-sm text-rnr">{errors.map(e => <li key={e}>{e}</li>)}</ul>}
       {(save.isError || clear.isError) && <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">Enregistrement impossible, réessaie.</p>}
       <div className="flex gap-2">

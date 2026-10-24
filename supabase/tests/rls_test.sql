@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(46);
+select plan(48);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -175,6 +175,12 @@ select throws_ok($$with s as (insert into public.planned_sessions (session_date,
 reset role;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000d","role":"authenticated"}', true);
 set local role authenticated;
+
+select lives_ok($$select public.save_muscu_exercises('00000000-0000-0000-0000-0000000000b2',
+                  '[{"exercise_id":"00000000-0000-0000-0000-0000000000e1","block_label":"A1","reps":"3"}]')$$,
+                'un admin programme aussi les séances de musculation');
+select throws_ok($$insert into public.exercises (name) values ('  SQUAT TEST ')$$,
+                 '23505', null, 'la bibliothèque refuse un exercice déjà présent avec une autre casse');
 
 select isnt_empty($$update public.profiles set position = 'Centre'
                     where id = '00000000-0000-0000-0000-00000000000b' returning 1$$,

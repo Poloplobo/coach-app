@@ -78,6 +78,7 @@ function SessionEditor({ playerId, date, past, session }: {
   }
 
   const byName = new Map(library.data.map(e => [e.name, e.id]))
+  const exists = (name: string) => library.data.some(e => e.name.trim().toLowerCase() === name.trim().toLowerCase())
   const current = rows ?? rowsFromSession(session.planned_exercises, byName)
   const set = (i: number, patch: Partial<EditRow>) => setRows(current.map((r, j) => (j === i ? { ...r, ...patch } : r)))
   const errors = rowsErrors(current)
@@ -108,7 +109,8 @@ function SessionEditor({ playerId, date, past, session }: {
                 </td>
                 <td className="pr-2"><input value={r.block_label} onChange={e => set(i, { block_label: e.target.value.toUpperCase() })} placeholder="A1" aria-label="Bloc" className={`${field} w-14`} /></td>
                 <td className="pr-2">
-                  <select value={r.exercise_id} onChange={e => set(i, { exercise_id: e.target.value })} aria-label="Exercice" className={`${field} max-w-48`}>
+                  <select value={r.exercise_id} onChange={e => set(i, { exercise_id: e.target.value })} aria-label="Exercice" className={`${field} max-w-48`}
+                    disabled={r.hasFeedback} title={r.hasFeedback ? 'Le joueur a déjà répondu sur cet exercice' : undefined}>
                     <option value="">Choisir…</option>
                     {library.data.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                   </select>
@@ -143,12 +145,12 @@ function SessionEditor({ playerId, date, past, session }: {
           Nouvel exercice dans la bibliothèque
           <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="ex. Hip Thrust" className={field} />
         </label>
-        <Button variant="ghost" disabled={!newName.trim() || addExercise.isPending || byName.has(newName.trim())}
+        <Button variant="ghost" disabled={!newName.trim() || addExercise.isPending || exists(newName)}
           onClick={() => addExercise.mutate(newName, { onSuccess: e => { setRows([...current, newRow((e as { id: string }).id)]); setNewName('') } })}>
           Créer et ajouter
         </Button>
       </div>
-      {byName.has(newName.trim()) && <p className="text-xs text-ink/60">Cet exercice existe déjà : choisis-le dans la liste.</p>}
+      {newName.trim() && exists(newName) && <p className="text-xs text-ink/60">Cet exercice existe déjà : choisis-le dans la liste.</p>}
 
       {errors.length > 0 && dirty && <ul className="text-sm text-rnr">{errors.map(e => <li key={e}>{e}</li>)}</ul>}
       {save.isError && <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">{(save.error as { message?: string }).message ?? 'Enregistrement impossible.'}</p>}

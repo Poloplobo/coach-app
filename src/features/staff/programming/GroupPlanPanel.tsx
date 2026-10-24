@@ -41,7 +41,7 @@ export function GroupPlanPanel() {
             <ul className="flex flex-col gap-2">
               {d.items.map(item => <PlannedItem key={item.id} id={item.id} name={item.activity_types?.name ?? '—'} minutes={item.planned_duration_min} past={d.date < today} />)}
             </ul>
-            {!week.is_off && <AddActivity groupId={group.data.id} date={d.date} types={types} taken={new Set(d.items.map(i => i.activity_type_id ?? ''))} />}
+            {!week.is_off && d.date >= today && <AddActivity groupId={group.data.id} date={d.date} types={types} taken={new Set(d.items.map(i => i.activity_type_id ?? ''))} />}
           </Card>
         ))}
       </div>

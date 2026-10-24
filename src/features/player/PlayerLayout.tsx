@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Navigate, Outlet, useLocation } from 'react-router-dom'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
+import { TabLink } from '../../components/ui/TabLink'
 import { Dumbbell, HeartPulse, House, Lock, Settings, Users, type LucideIcon } from 'lucide-react'
 import { Loading } from '../../components/ui/Loading'
 import { formatDay, parisDate } from '../../lib/week'
@@ -54,10 +55,13 @@ export function PlayerLayout() {
             Impossible de vérifier ton état de forme. Vérifie ta connexion internet.
           </p>
         )}
-        {locked ? <Loading /> : <Outlet key={today} context={{ playerId, today } satisfies PlayerDay} />}
+        {/* « page » : seul le contenu s'anime au changement d'onglet (index.css) ; en-tête et barre restent fixes */}
+        <div className="flex flex-col gap-4 [view-transition-name:page]">
+          {locked ? <Loading /> : <Outlet key={today} context={{ playerId, today } satisfies PlayerDay} />}
+        </div>
       </main>
 
-      <nav aria-label="Navigation" className="fixed inset-x-0 bottom-0 border-t border-line bg-surface/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
+      <nav aria-label="Navigation" className="[view-transition-name:player-nav] fixed inset-x-0 bottom-0 border-t border-line bg-surface/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
         <ul className="mx-auto max-w-md grid grid-cols-5">
           {TABS.map(t => {
             const Icon = ICON[t.to]
@@ -70,14 +74,18 @@ export function PlayerLayout() {
                   </span>
                 ) : (
                   // onglet actif : trait rouge en haut, comme une ligne d'en-but
-                  <NavLink to={t.to} end
-                    className={({ isActive }) => `${tab} ${isActive ? 'text-ink before:absolute before:inset-x-3 before:top-0 before:h-[3px] before:bg-rnr' : 'text-ink/55 hover:text-ink/80'}`}>
+                  <TabLink to={t.to} end
+                    className={({ isActive }) => `${tab} ${isActive ? 'text-ink' : 'text-ink/55 hover:text-ink/80'}`}>
+                    {({ isActive }) => <>
+                    {/* un seul trait porte ce nom à la fois : le navigateur le fait glisser d'un onglet à l'autre */}
+                    {isActive && <span aria-hidden="true" className="absolute inset-x-3 top-0 h-[3px] bg-rnr [view-transition-name:tab-bar]" />}
                     <span className="relative">
                       <Icon size={22} aria-hidden="true" />
                       {t.to === '/joueur/forme' && mustFillForm && <span className="absolute -right-1 -top-0.5 h-2.5 w-2.5 rounded-full bg-rnr ring-2 ring-surface" aria-label="à remplir" />}
                     </span>
                     {t.label}
-                  </NavLink>
+                    </>}
+                  </TabLink>
                 )}
               </li>
             )

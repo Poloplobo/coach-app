@@ -29,3 +29,16 @@ table { font-variant-numeric: tabular-nums; }
 
 /* Focus clavier visible partout, jamais au clic */
 :focus-visible { @apply outline outline-2 outline-offset-2 outline-gold; }
+
+/* Changement d'onglet (NavLink viewTransition) : le trait de l'onglet glisse, le contenu apparaît en fondu.
+   Navigateur sans View Transitions : changement instantané, rien à faire. */
+::view-transition-group(tab-bar) { animation-duration: 260ms; animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1); }
+::view-transition-group(page) { animation: none; } /* pas d'étirement entre deux pages de hauteurs différentes */
+::view-transition-old(page) { animation: 110ms ease-in both page-out; }
+::view-transition-new(page) { animation: 220ms cubic-bezier(0.2, 0.8, 0.2, 1) 40ms both page-in; }
+@keyframes page-out { to { opacity: 0; } }
+@keyframes page-in { from { opacity: 0; transform: translateY(8px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+}

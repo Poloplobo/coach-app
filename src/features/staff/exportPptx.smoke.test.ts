@@ -65,6 +65,7 @@ describe('export PowerPoint (fichier réel)', () => {
     const r = weekReport({ week, wt: null, players, logs: [], inProgress: true })
     const file = join(dir, 'semaine-vide.pptx')
     await downloadWeekReport(r, week, null, [], types, file)
-    expect(await open(file)).toEqual({ slides: 5, charts: 3 })
+    // sans activité, pas d'anneau de répartition vide : un message à la place
+    expect(await open(file)).toEqual({ slides: 5, charts: 2 })
   })
 })

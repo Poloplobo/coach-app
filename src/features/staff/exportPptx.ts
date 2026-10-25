@@ -18,6 +18,8 @@ const C = {
   red: hex(BRAND.rnr), gold: 'FFD700', green: hex(BRAND.ok), grey: '71717A',
 }
 const STATUS_COLOR = { 'sous-charge': C.gold, conforme: C.green, surcharge: C.red } as const
+// Mêmes couleurs de piliers que l'anneau de l'app (vue Semaine)
+const PILLAR_FILL = { rugby: C.red, physique: C.gold, accompagnement: C.green, ppid: C.grey } as const
 const DISPLAY = 'Arial Narrow' // titres et chiffres : étroite et grasse, fournie avec Office sur PC et Mac
 const FONT = 'Arial'
 
@@ -228,13 +230,27 @@ export async function downloadWeekReport(
     ['Intensité (UA/min)', ...days.map(d => String(d.intensity).replace('.', ','))],
   ]), { ...tableStyle, fontSize: 11, x: 0.6, y: 5.4, w: 12.13, colW: [2.33, ...DAY_NAMES.map(() => 1.4)], align: 'center' })
 
-  // 4. Répartition par pilier
+  // 4. Répartition par pilier : anneau du temps réalisé (couleurs des piliers de l'app), cible et écart en légende chiffrée
   const pillars = pillarSplit(logs, types, wt)
-  const split = slide(d, 'Répartition de l\'activité', 'Part du temps d\'entraînement par pilier, comparée aux préconisations du type de semaine')
-  split.addChart(pptx.ChartType.bar, [
-    { name: 'Réalisé (%)', labels: pillars.map(p => PILLAR_LABEL[p.pillar]), values: pillars.map(p => p.pct) },
-    { name: 'Préconisé (%)', labels: pillars.map(p => PILLAR_LABEL[p.pillar]), values: pillars.map(p => p.targetPct) },
-  ], { ...chart, x: 0.6, y: 1.8, w: 12.13, h: 5.0, barGrouping: 'clustered', barGapWidthPct: 60, chartColors: [C.red, C.grey], showLegend: true, legendPos: 'b', showValue: true, dataLabelFontSize: 12 })
+  const split = slide(d, 'Répartition de l\'activité', 'Part du temps d\'entraînement par pilier ; la préconisation du type de semaine et l\'écart à droite')
+  const done = pillars.filter(p => p.pct > 0) // une part nulle ne se dessine pas, elle reste dans la légende
+  if (done.length) split.addChart(pptx.ChartType.doughnut, [
+    { name: 'Réalisé (%)', labels: done.map(p => PILLAR_LABEL[p.pillar]), values: done.map(p => p.pct) },
+  ], { ...chart, x: 0.6, y: 1.75, w: 6.2, h: 5.05, holeSize: 55, chartColors: done.map(p => PILLAR_FILL[p.pillar]),
+    dataBorder: { pt: 2, color: C.bg }, showLegend: false, showValue: false, showPercent: true, showLabel: false,
+    dataLabelColor: C.ink, dataLabelFontSize: 14, dataLabelFontBold: true })
+  else empty(split, 'Aucune activité déclarée cette semaine.')
+  pillars.forEach((p, i) => {
+    const y = 2.1 + i * 1.15, gap = p.pct - p.targetPct
+    split.addShape(pptx.ShapeType.rect, { x: 7.3, y: y + 0.08, w: 0.22, h: 0.22, fill: { color: PILLAR_FILL[p.pillar] }, line: { color: PILLAR_FILL[p.pillar] } })
+    split.addText(PILLAR_LABEL[p.pillar], { x: 7.7, y, w: 5, h: 0.38, fontFace: DISPLAY, fontSize: 18, bold: true, color: C.ink, margin: 0 })
+    split.addText([
+      { text: `${pct(p.pct)} réalisé`, options: { color: C.ink, bold: true } },
+      { text: `  ·  ${pct(p.targetPct)} préconisé  ·  `, options: { color: C.muted } },
+      // écart en points de pourcentage (18,8 % contre 25 % = −6,2 pts), pas en %
+      { text: `${gap > 0 ? '+' : ''}${(Math.round(gap * 10) / 10).toLocaleString('fr-FR')} pts`, options: { color: Math.abs(gap) <= 5 ? C.green : C.gold, bold: true } },
+    ], { x: 7.7, y: y + 0.4, w: 5, h: 0.35, fontFace: FONT, fontSize: 13, margin: 0 })
+  })
 
   // 5. Points d'attention : trois colonnes, chacune ouverte par un trait de sa couleur
   const alerts = slide(d, 'Points d\'attention', m.inProgress ? 'Semaine en cours : statuts disponibles une fois la semaine terminée' : 'Joueurs hors de la plage visée (blessés exclus)')

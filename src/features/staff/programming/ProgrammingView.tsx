@@ -1,36 +1,31 @@
 import { useState } from 'react'
+import { ViewSelect } from '../../../components/ui/ViewSelect'
 import { WeeksPanel } from './WeeksPanel'
 import { GroupPlanPanel } from './GroupPlanPanel'
 import { MuscuEditor } from './MuscuEditor'
 import { ImportPanel } from './ImportPanel'
 
-const TABS = [
-  { id: 'semaines', label: 'Semaines' },
+const VIEWS = [
+  { id: 'semaines', label: 'Semaines et duplication' },
   { id: 'planning', label: 'Planning du groupe' },
   { id: 'muscu', label: 'Séance de musculation' },
   { id: 'import', label: 'Import d\'un cycle' },
 ] as const
-type TabId = (typeof TABS)[number]['id']
+type ViewId = (typeof VIEWS)[number]['id']
 
-// Programmation : l'app est la seule source ; les fiches musculation d'un nouveau cycle s'importent depuis l'onglet Import
+// Programmation : l'app est la seule source ; les fiches musculation d'un nouveau cycle s'importent depuis la vue Import
 export function ProgrammingView() {
-  const [tab, setTab] = useState<TabId>('semaines')
+  const [view, setView] = useState<ViewId>('semaines')
   return (
     <>
-      <div role="tablist" aria-label="Programmation" className="flex flex-wrap gap-1 border-b border-line">
-        {TABS.map(t => (
-          <button key={t.id} id={`prog-tab-${t.id}`} type="button" role="tab" aria-selected={tab === t.id} aria-controls="prog-panel"
-            onClick={() => setTab(t.id)}
-            className={`-mb-px rounded-t-lg border-b-2 px-3 py-2 text-sm font-semibold ${tab === t.id ? 'border-rnr text-ink' : 'border-transparent text-ink/60'}`}>
-            {t.label}
-          </button>
-        ))}
-      </div>
-      <div id="prog-panel" role="tabpanel" aria-labelledby={`prog-tab-${tab}`} className="flex flex-col gap-4">
-        {tab === 'semaines' && <WeeksPanel />}
-        {tab === 'planning' && <GroupPlanPanel />}
-        {tab === 'muscu' && <MuscuEditor />}
-        {tab === 'import' && <ImportPanel />}
+      <ViewSelect label="Afficher" value={view} onChange={setView}>
+        {VIEWS.map(v => <option key={v.id} value={v.id}>{v.label}</option>)}
+      </ViewSelect>
+      <div className="flex flex-col gap-6">
+        {view === 'semaines' && <WeeksPanel />}
+        {view === 'planning' && <GroupPlanPanel />}
+        {view === 'muscu' && <MuscuEditor />}
+        {view === 'import' && <ImportPanel />}
       </div>
     </>
   )

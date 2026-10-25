@@ -10,7 +10,7 @@ import { useReference, useStaffMuscu } from '../useStaff'
 import { nextWeek, progressedLoads, weekErrors } from './programming'
 import { useClearGroupWeek, useDuplicateWeek, useGroup, useSaveWeek, useWeeksFull, type WeekForm } from './useProgramming'
 
-const field = 'rounded-lg bg-app border border-line px-3 py-2 text-base'
+const field = 'rounded-lg bg-field border border-line px-3 py-2 text-base'
 
 export function WeeksPanel() {
   const group = useGroup()
@@ -29,7 +29,7 @@ export function WeeksPanel() {
       {editing && <WeekEditor key={editing.previousCode ?? 'new'} groupId={group.data.id} weeks={weeks.data} {...editing}
         weekTypes={ref.data.weekTypes} onDone={() => setEditing(null)} />}
       <DuplicateWeek groupId={group.data.id} weeks={weeks.data} today={today} />
-      <Card title="Calendrier de la saison" aside={<Button size="sm" onClick={startNew}>Nouvelle semaine</Button>}>
+      <Card title="Calendrier de la saison" help="Les semaines de la saison, la plus récente en haut : type, plage de charge visée et cycle. Une semaine terminée n'est plus modifiable." aside={<Button size="sm" onClick={startNew}>Nouvelle semaine</Button>}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-left text-ink/60">
@@ -80,7 +80,7 @@ function WeekEditor({ groupId, weeks, form: initial, previousCode, weekTypes, on
   }
 
   return (
-    <Card title={previousCode ? `Modifier ${previousCode}` : 'Nouvelle semaine'}>
+    <Card boxed title={previousCode ? `Modifier ${previousCode}` : 'Nouvelle semaine'}>
       <div className="grid gap-3 sm:grid-cols-3">
         <label className="flex flex-col gap-1 text-sm">Code<input value={form.code} onChange={e => set({ code: e.target.value.toUpperCase() })} className={field} /></label>
         <label className="flex flex-col gap-1 text-sm">Lundi
@@ -127,9 +127,7 @@ function DuplicateWeek({ groupId, weeks, today }: { groupId: string; weeks: { co
   const duplicate = useDuplicateWeek()
 
   if (!pair) return (
-    <Card title="Dupliquer une semaine">
-      <p className="text-sm text-ink/70">Ajoute la semaine suivante au calendrier pour pouvoir y recopier la semaine en cours.</p>
-    </Card>
+    <Card title="Dupliquer une semaine" help="Ajoute la semaine suivante au calendrier pour pouvoir y recopier la semaine en cours.">{null}</Card>
   )
   const loads = muscu.data ? progressedLoads(muscu.data) : {}
   const changes = muscu.data?.flatMap(s => s.planned_exercises).filter(e => e.id in loads) ?? []
@@ -140,12 +138,10 @@ function DuplicateWeek({ groupId, weeks, today }: { groupId: string; weeks: { co
   const errorText = error?.code && /^(P0|42501)/.test(error.code) ? `Duplication impossible : ${error.message}.` : 'Duplication impossible, réessaie.'
 
   return (
-    <Card title="Dupliquer une semaine">
-      <p className="text-sm text-ink/70">
-        Recopie le planning du groupe et les séances individuelles de ses joueurs (musculation comprise) sur la semaine suivante.
-        Charges en kg ou %RM : +2,5 % si validée avec RPE &lt; 5, +1,25 % si validée avec RPE ≥ 5, −2,5 % si non validée avec RPE ≥ 7,
-        sinon identiques. Les séances déjà programmées et les jours passés ne sont pas touchés.
-      </p>
+    <Card title="Dupliquer une semaine" help={<>
+      Recopie le planning du groupe et les séances individuelles sur la semaine suivante. Charges kg / %RM : +2,5 % si validée
+      avec RPE &lt; 5, +1,25 % si RPE ≥ 5, −2,5 % si non validée avec RPE ≥ 7, sinon identiques. Séances déjà prévues et jours passés intacts.
+    </>}>
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-sm">
           Copier

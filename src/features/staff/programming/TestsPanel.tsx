@@ -5,7 +5,7 @@ import { seasonOf } from '../../tests/progress'
 import type { Player } from '../load'
 import { useSaveTarget, useSaveTestResult, useTestDefinitions } from './useProgramming'
 
-const field = 'rounded-lg bg-app border border-line px-3 py-2 text-base'
+const field = 'rounded-lg bg-field border border-line px-3 py-2 text-base'
 const parse = (v: string) => (v.trim() === '' ? null : Number(v.replace(',', '.')))
 
 // Le staff saisit les résultats de tests et les objectifs chiffrés ; le joueur les voit dans « Mes objectifs »

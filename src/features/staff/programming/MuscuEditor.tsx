@@ -9,7 +9,7 @@ import { useReference, useRoster } from '../useStaff'
 import { moveRow, newRow, rowsErrors, rowsFromSession, toPayload, type EditRow } from './programming'
 import { useCreateExercise, useCreateMuscuSession, useExerciseLibrary, useMuscuSession, useSaveMuscuExercises } from './useProgramming'
 
-const field = 'rounded-lg bg-app border border-line px-2 py-1.5 text-sm'
+const field = 'rounded-lg bg-field border border-line px-2 py-1.5 text-sm'
 const UNITS = [{ v: 'pct_rm', l: '%RM' }, { v: 'kg', l: 'kg' }, { v: 'bw', l: '% PDC' }, { v: 'free', l: 'libre' }]
 
 export function MuscuEditor() {
@@ -28,13 +28,13 @@ export function MuscuEditor() {
       <div className="flex flex-wrap gap-3">
         <label className="flex flex-col gap-1 text-sm">
           Joueur
-          <select value={selected} onChange={e => setPlayerId(e.target.value)} className="rounded-lg bg-surface border border-line px-3 py-2">
+          <select value={selected} onChange={e => setPlayerId(e.target.value)} className="rounded-lg bg-field border border-line px-3 py-2">
             {roster.data.map(p => <option key={p.id} value={p.id}>{fullName(p)}{p.injured ? ' (blessé)' : ''}</option>)}
           </select>
         </label>
         <label className="flex flex-col gap-1 text-sm">
           Jour
-          <input type="date" value={date} onChange={e => setDate(e.target.value)} className="rounded-lg bg-surface border border-line px-3 py-2" />
+          <input type="date" value={date} onChange={e => setDate(e.target.value)} className="rounded-lg bg-field border border-line px-3 py-2" />
         </label>
       </div>
       {session.isPending && <Loading />}

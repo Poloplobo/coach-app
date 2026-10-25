@@ -8,7 +8,7 @@ import { useReference } from '../useStaff'
 import { planByDay } from './programming'
 import { useAddGroupActivity, useGroup, useGroupPlan, useRemovePlanned, useSetDuration, useWeeksFull } from './useProgramming'
 
-const field = 'rounded-lg bg-app border border-line px-2 py-1.5 text-sm'
+const field = 'rounded-lg bg-field border border-line px-2 py-1.5 text-sm'
 
 export function GroupPlanPanel() {
   const group = useGroup()
@@ -31,14 +31,14 @@ export function GroupPlanPanel() {
     <>
       <label className="flex flex-col gap-1 text-sm self-start">
         Semaine
-        <select value={week.code} onChange={e => setCode(e.target.value)} className="rounded-lg bg-surface border border-line px-3 py-2">
+        <select value={week.code} onChange={e => setCode(e.target.value)} className="rounded-lg bg-field border border-line px-3 py-2">
           {weeks.data.map(w => <option key={w.code} value={w.code}>{w.code} · {w.label} · {w.start_date}{w.is_off ? ' · OFF' : ''}</option>)}
         </select>
       </label>
       {week.is_off && <p className="rounded-lg border border-gold px-3 py-2 text-sm">{week.code} est une semaine OFF : pas d'entraînement collectif.</p>}
       <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-7">
         {days.map(d => (
-          <Card key={d.date} title={formatDay(d.date).replace(/^./, c => c.toUpperCase())}>
+          <Card boxed key={d.date} title={formatDay(d.date).replace(/^./, c => c.toUpperCase())}>
             <ul className="flex flex-col gap-2">
               {d.items.map(item => <PlannedItem key={item.id} id={item.id} name={item.activity_types?.name ?? '—'} minutes={item.planned_duration_min} past={d.date < today} />)}
             </ul>

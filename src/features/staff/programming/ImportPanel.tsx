@@ -49,9 +49,9 @@ export function ImportPanel() {
   }
 
   return (
-    <Card title="Importer le programme d'un cycle">
+    <Card title="Importer le programme d'un cycle" help="Début de cycle : une fiche par joueur, lue sur cet ordinateur. Aperçu d'abord, rien n'est écrit avant « Importer ».">
       <div className="flex flex-col gap-1 text-sm text-ink/70">
-        <p>Une fiche « Prénom NOM_PER MUSCULATION.xlsx » par joueur, lue sur cet ordinateur (rien n'est envoyé ailleurs) :</p>
+        <p>Fiche « Prénom NOM_PER MUSCULATION.xlsx » :</p>
         <ul className="list-disc pl-5">
           <li>un onglet par semaine importée, nommé C&lt;cycle&gt;S&lt;semaine&gt; (ex. C2S7), mêmes colonnes et blocs « Lundi : » que d'habitude ;
             la réhab s'écrit dans ces onglets (blocs R1, R2…) ;</li>
@@ -63,7 +63,7 @@ export function ImportPanel() {
       <label className="flex flex-col gap-1 text-sm font-semibold">
         Fiches à importer
         <input type="file" accept=".xlsx" multiple onChange={e => read(e.target)}
-          className="text-sm file:mr-3 file:rounded-md file:border file:border-line file:bg-app file:px-3 file:py-1.5 file:text-ink" />
+          className="text-sm file:mr-3 file:rounded-md file:border file:border-line file:bg-field file:px-3 file:py-1.5 file:text-ink" />
       </label>
       {reading && <Loading />}
       {readError && <p role="alert" className="text-sm text-rnr">Lecture impossible : recharge la page et réessaie.</p>}

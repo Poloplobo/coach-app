@@ -13,23 +13,39 @@ export function ImportPanel() {
   const players = useImportPlayers()
   const tests = useTestDefinitions()
   const library = useExerciseLibrary()
-  const [files, setFiles] = useState<{ name: string; preview: ProgramPreview }[]>([])
+  const [files, setFiles] = useState<{ key: string; name: string; preview: ProgramPreview }[]>([])
   const [reading, setReading] = useState(false)
+  const [readError, setReadError] = useState(false)
 
   if (group.isPending || weeks.isPending || players.isPending || tests.isPending || library.isPending) return <Loading />
   if (group.isError || weeks.isError || players.isError || tests.isError || library.isError) return <p>Impossible de préparer l'import.</p>
 
-  const read = async (list: FileList | null) => {
-    if (!list?.length) return
+  const read = async (input: HTMLInputElement) => {
+    const list = [...(input.files ?? [])]
+    input.value = '' // re-choisir le même fichier (corrigé) relance la lecture
+    if (!list.length) return
     setReading(true)
-    const { readProgram } = await import('./importProgram') // xlsx chargé seulement ici
-    const ctx = { weeks: weeks.data, players: players.data, tests: tests.data, library: library.data.map(e => e.name) }
-    const read = await Promise.all([...list].map(async f => {
-      try { return { name: f.name, preview: readProgram(await f.arrayBuffer(), ctx) } }
-      catch { return { name: f.name, preview: { playerName: null, player: null, sessions: [], targets: [], newExercises: [], errors: ['Fichier illisible (un .xlsx est attendu).'] } } }
-    }))
-    setFiles(read)
-    setReading(false)
+    setReadError(false)
+    try {
+      const { readProgram } = await import('./importProgram') // xlsx chargé seulement ici
+      const ctx = { weeks: weeks.data, players: players.data, tests: tests.data, library: library.data.map(e => e.name) }
+      const stamp = Date.now()
+      const read = await Promise.all(list.map(async f => {
+        const key = `${f.name}-${f.lastModified}-${stamp}` // nouvelle lecture = nouvel aperçu, même nom de fichier
+        try { return { key, name: f.name, preview: readProgram(await f.arrayBuffer(), ctx, f.name) } }
+        catch { return { key, name: f.name, preview: { playerName: null, player: null, sessions: [], targets: [], newExercises: [], past: 0, errors: ['Fichier illisible (un .xlsx est attendu).'] } } }
+      }))
+      // Deux fiches du même joueur : la dernière importée écraserait l'autre
+      const seen = new Map<string, number>()
+      for (const f of read) if (f.preview.player) seen.set(f.preview.player.id, (seen.get(f.preview.player.id) ?? 0) + 1)
+      setFiles(read.map(f => f.preview.player && seen.get(f.preview.player.id)! > 1
+        ? { ...f, preview: { ...f.preview, errors: [...f.preview.errors, 'Plusieurs fiches sélectionnées pour ce joueur : garde-en une seule.'] } }
+        : f))
+    } catch {
+      setReadError(true)
+    } finally {
+      setReading(false)
+    }
   }
 
   return (
@@ -46,11 +62,12 @@ export function ImportPanel() {
       </div>
       <label className="flex flex-col gap-1 text-sm font-semibold">
         Fiches à importer
-        <input type="file" accept=".xlsx" multiple onChange={e => read(e.target.files)}
+        <input type="file" accept=".xlsx" multiple onChange={e => read(e.target)}
           className="text-sm file:mr-3 file:rounded-md file:border file:border-line file:bg-app file:px-3 file:py-1.5 file:text-ink" />
       </label>
       {reading && <Loading />}
-      {files.map(f => <FilePreview key={f.name} file={f.name} preview={f.preview} season={group.data.season} />)}
+      {readError && <p role="alert" className="text-sm text-rnr">Lecture impossible : recharge la page et réessaie.</p>}
+      {files.map(f => <FilePreview key={f.key} file={f.name} preview={f.preview} season={group.data.season} />)}
     </Card>
   )
 }
@@ -65,7 +82,7 @@ function FilePreview({ file, preview: p, season }: { file: string; preview: Prog
     <section aria-label={file} className="flex flex-col gap-2 border-t border-line pt-3 text-sm">
       <p className="font-semibold">{file}{p.player && <span className="font-normal text-ink/70"> · {p.player.first_name} {p.player.last_name}</span>}</p>
       {p.errors.length > 0
-        ? <ul role="alert" className="list-disc pl-5 text-rnr">{p.errors.map(e => <li key={e}>{e}</li>)}</ul>
+        ? <ul role="alert" className="list-disc pl-5 text-rnr">{p.errors.map((e, i) => <li key={i}>{e}</li>)}</ul>
         : (
           <>
             <ul className="flex flex-col gap-0.5">
@@ -75,6 +92,7 @@ function FilePreview({ file, preview: p, season }: { file: string; preview: Prog
             </ul>
             <p className="text-ink/70">
               {p.sessions.length} séance{p.sessions.length > 1 ? 's' : ''}, {exercises} exercices
+              {p.past > 0 && ` · ${p.past} séance${p.past > 1 ? 's' : ''} de jours passés ignorée${p.past > 1 ? 's' : ''} (anciens onglets)`}
               {p.newExercises.length > 0 && ` · nouveaux dans la bibliothèque : ${p.newExercises.join(', ')}`}
               {p.targets.length > 0 && ` · objectifs : ${p.targets.map(t => `${t.test} ${t.value}${t.label ? ` (${t.label})` : ''}`).join(', ')}`}
             </p>
@@ -89,7 +107,7 @@ function FilePreview({ file, preview: p, season }: { file: string; preview: Prog
               )
               : (
                 <div>
-                  <Button size="sm" disabled={save.isPending} onClick={() => save.mutate(
+                  <Button size="sm" aria-label={`Importer la fiche de ${p.player!.first_name} ${p.player!.last_name}`} disabled={save.isPending} onClick={() => save.mutate(
                     { playerId: p.player!.id, season, sessions: p.sessions.map(({ date, exercises }) => ({ date, exercises })), targets: p.targets.map(({ test_id, value, label }) => ({ test_id, value, label })) },
                     { onSuccess: setResult },
                   )}>{save.isPending ? 'Import…' : 'Importer'}</Button>

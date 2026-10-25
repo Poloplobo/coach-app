@@ -3,7 +3,7 @@
 // Chargé seulement à l'import (xlsx est lourd). Les retours éventuellement présents dans la fiche sont ignorés.
 import * as XLSX from 'xlsx'
 import { nameKey } from '../../../lib/names'
-import { addDays } from '../../../lib/week'
+import { addDays, parisDate } from '../../../lib/week'
 import { parseMuscuSheet } from './parseMuscu'
 
 type Week = { code: string; start_date: string }
@@ -19,33 +19,33 @@ export type ProgramPreview = {
   sessions: { date: string; week: string; exercises: ImportExercise[] }[]
   targets: { test: string; test_id: string; value: number; label: string | null }[]
   newExercises: string[]; errors: string[]
+  past: number // séances de jours passés (anciens onglets) : ignorées
 }
 
 const lower = (s: string) => s.trim().toLowerCase()
 
-export function readProgram(data: ArrayBuffer, ctx: { weeks: Week[]; players: Player[]; tests: TestDef[]; library: string[] }): ProgramPreview {
+export function readProgram(
+  data: ArrayBuffer, ctx: { weeks: Week[]; players: Player[]; tests: TestDef[]; library: string[] }, fileName = '',
+): ProgramPreview {
   const wb = XLSX.read(data)
   const errors: string[] = []
-  const preview: ProgramPreview = { playerName: null, player: null, sessions: [], targets: [], newExercises: [], errors }
+  const preview: ProgramPreview = { playerName: null, player: null, sessions: [], targets: [], newExercises: [], errors, past: 0 }
+  const today = parisDate()
 
-  const s1 = ctx.weeks.find(w => w.code === 'S1')
   const weekSheets = wb.SheetNames.filter(n => /^C\d+S\d+$/.test(n))
   if (!weekSheets.length) errors.push('Aucun onglet semaine (nommé C<cycle>S<semaine>, ex. C2S7).')
-  if (!s1) errors.push('S1 absente du calendrier : impossible de dater les séances.')
 
   const names = new Set<string>()
-  for (const sheet of s1 ? weekSheets : []) {
+  for (const sheet of weekSheets) {
+    const n = Number(sheet.match(/S(\d+)$/)![1])
+    const week = ctx.weeks.find(w => w.code === `S${n}`)
+    if (!week) { errors.push(`${sheet} : S${n} absente du calendrier (à créer dans Semaines).`); continue }
     try {
-      const { playerName, sessions } = parseMuscuSheet(wb.Sheets[sheet], sheet, s1!.start_date)
+      // Datée sur le lundi de Sn au calendrier (et non S1 + 7 jours par semaine) ; retours de la fiche jamais lus
+      const { playerName, sessions } = parseMuscuSheet(wb.Sheets[sheet], sheet, addDays(week.start_date, -7 * (n - 1)), [], { feedback: false })
       names.add(playerName)
-      const code = `S${sheet.match(/S(\d+)$/)![1]}`
-      // La fiche compte les semaines depuis S1 : la semaine doit exister au calendrier, au même lundi
-      const week = ctx.weeks.find(w => w.code === code)
-      if (!week || (sessions[0] && (sessions[0].date < week.start_date || sessions[0].date > addDays(week.start_date, 6)))) {
-        errors.push(`${sheet} : ${code} absente du calendrier (à créer dans Semaines).`)
-        continue
-      }
-      for (const s of sessions) preview.sessions.push({
+      const code = week.code
+      for (const s of sessions) if (s.date < today) preview.past++; else preview.sessions.push({
         date: s.date, week: code,
         exercises: s.exercises.map(e => ({
           name: e.name, block_label: e.block, sets: e.sets, reps: e.reps, load_value: e.loadValue, load_unit: e.loadUnit,
@@ -61,9 +61,16 @@ export function readProgram(data: ArrayBuffer, ctx: { weeks: Week[]; players: Pl
   preview.playerName = [...names][0] ?? null
   if (preview.playerName) {
     const key = nameKey(preview.playerName)
-    preview.player = ctx.players.find(p => nameKey(p.import_name ?? '') === key || nameKey(`${p.first_name} ${p.last_name}`) === key) ?? null
-    if (!preview.player) errors.push(`Joueur « ${preview.playerName} » introuvable dans l'effectif.`)
+    // Fiche copiée d'un autre joueur sans changer le nom : on écrirait chez le mauvais joueur
+    const fromFile = fileName.match(/^(.+?)_PER/i)?.[1]
+    if (fromFile && nameKey(fromFile) !== key) errors.push(`Le fichier est au nom de « ${fromFile} » mais la fiche indique « ${preview.playerName} » : corrige l'un des deux.`)
+    const matches = ctx.players.filter(p => nameKey(p.import_name ?? '') === key || nameKey(`${p.first_name} ${p.last_name}`) === key)
+    if (matches.length > 1) errors.push(`« ${preview.playerName} » correspond à plusieurs joueurs de l'effectif.`)
+    preview.player = matches.length === 1 ? matches[0] : null
+    if (!matches.length) errors.push(`Joueur « ${preview.playerName} » introuvable dans l'effectif.`)
   }
+  const dates = preview.sessions.map(s => s.date)
+  for (const d of new Set(dates.filter((d, i) => dates.indexOf(d) !== i))) errors.push(`Deux séances le même jour (${d}) : un seul bloc par jour et une seule fois chaque semaine.`)
 
   const objectives = wb.SheetNames.find(n => /^objectifs$/i.test(n.trim()))
   if (objectives) {
@@ -79,8 +86,9 @@ export function readProgram(data: ArrayBuffer, ctx: { weeks: Week[]; players: Pl
         if (!name) return
         const raw = String(r[value] ?? '').trim().replace(',', '.')
         const def = ctx.tests.find(t => lower(t.name) === lower(name))
-        if (!raw || Number.isNaN(Number(raw))) errors.push(`OBJECTIFS ligne ${h + i + 2} : objectif illisible « ${r[value] ?? ''} ».`)
+        if (!raw || !Number.isFinite(Number(raw))) errors.push(`OBJECTIFS ligne ${h + i + 2} : objectif illisible « ${r[value] ?? ''} ».`)
         else if (!def) errors.push(`OBJECTIFS ligne ${h + i + 2} : test « ${name} » inconnu (tests : ${ctx.tests.map(t => t.name).join(', ')}).`)
+        else if (preview.targets.some(t => t.test_id === def.id)) errors.push(`OBJECTIFS : test « ${def.name} » en double.`)
         else preview.targets.push({ test: def.name, test_id: def.id, value: Number(raw), label: label >= 0 ? String(r[label] ?? '').trim() || null : null })
       })
     }
@@ -89,7 +97,7 @@ export function readProgram(data: ArrayBuffer, ctx: { weeks: Week[]; players: Pl
   const known = new Set(ctx.library.map(lower))
   preview.newExercises = [...new Map(preview.sessions.flatMap(s => s.exercises)
     .filter(e => !known.has(lower(e.name))).map(e => [lower(e.name), e.name])).values()]
-  if (!preview.sessions.length && !errors.length) errors.push('Aucune séance trouvée dans la fiche.')
+  if (!preview.sessions.length && !errors.length) errors.push(preview.past ? 'Toutes les séances de la fiche sont passées : ajoute l\'onglet du nouveau cycle.' : 'Aucune séance trouvée dans la fiche.')
   return preview
 }
 

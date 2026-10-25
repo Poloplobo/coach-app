@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(63);
+select plan(70);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -229,6 +229,33 @@ select is(public.import_muscu_program('00000000-0000-0000-0000-00000000000b',
           'une séance déjà renseignée par le joueur et un jour passé ne sont pas touchés');
 select is((select done_load from public.exercise_feedback where planned_exercise_id = '00000000-0000-0000-0000-0000000000f1'),
           'secret B', 'le retour du joueur est conservé');
+select lives_ok($$insert into public.planned_sessions (id, session_date, title, player_id, activity_type_id)
+                  values ('00000000-0000-0000-0000-0000000000c4', '2030-02-06', 'Musculation', '00000000-0000-0000-0000-00000000000b',
+                          (select id from public.activity_types where name = 'Musculation'));
+                  insert into public.session_logs (player_id, planned_session_id, session_date, activity_type_id, duration_min, rpe, source)
+                  values ('00000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-0000000000c4', '2030-02-06',
+                          (select id from public.activity_types where name = 'Musculation'), 60, 6, 'staff')$$,
+                'préparation : RPE de séance déclaré sans retour d''exercice');
+select is((public.import_muscu_program('00000000-0000-0000-0000-00000000000b',
+            '[{"date":"2030-02-06","exercises":[{"name":"Squat test"}]}]', '2026-2027') ->> 'kept')::int,
+          1, 'une séance dont le RPE est déclaré (sans retour d''exercice) n''est pas remplacée');
+select throws_ok($$select public.import_muscu_program('00000000-0000-0000-0000-00000000000b',
+                   '[{"date":"2030-02-05","exercises":[{"name":"Squat test","load_value":"NaN","load_unit":"kg"}]}]', '2026-2027')$$,
+                 'P0001', null, 'une charge invalide est refusée à l''import');
+
+select is(public.import_muscu_program('00000000-0000-0000-0000-00000000000b',
+            '[{"date":"2030-02-11","exercises":[{"name":"Squat test","block_label":"A1","sets":3,"reps":"5"},
+                                                {"name":"squat TEST","block_label":"B1","sets":2,"reps":"8"},
+                                                {"name":"  ","block_label":"C1"}]}]', '2026-2027') ->> 'created',
+          '1', 'un exercice présent deux fois dans la séance (casse différente) ne plante pas');
+select is((select count(*)::int from public.planned_exercises pe join public.planned_sessions ps on ps.id = pe.planned_session_id
+           where ps.player_id = '00000000-0000-0000-0000-00000000000b' and ps.session_date = '2030-02-11'),
+          2, 'les deux occurrences sont gardées, le nom vide est ignoré');
+select is((select count(*)::int from public.exercises where lower(trim(name)) = 'squat test'), 1, 'aucun doublon dans la bibliothèque');
+select is(public.import_muscu_program('00000000-0000-0000-0000-00000000000b',
+            '[{"date":"2030-02-18","exercises":[{"name":"Dup jour","block_label":"A1"}]},{"date":"2030-02-18","exercises":[{"name":"Dup jour","block_label":"A1"}]}]',
+            '2026-2027'),
+          '{"created": 1, "replaced": 1, "kept": 0, "past": 0, "targets": 0}'::jsonb, 'même date deux fois : la seconde remplace la première');
 
 -- ---------- Admin M ----------
 reset role;

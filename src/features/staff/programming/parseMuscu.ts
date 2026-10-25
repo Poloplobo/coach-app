@@ -56,8 +56,9 @@ function fillVerticalMerges(ws: XLSX.WorkSheet) {
   }
 }
 
+// feedback: false (import depuis l'app) : colonnes de retour facultatives et jamais lues — un vieux RPE faux ne bloque rien
 export function parseMuscuSheet(
-  ws: XLSX.WorkSheet, sheetName: string, seasonStart: string, corrections: Correction[] = [],
+  ws: XLSX.WorkSheet, sheetName: string, seasonStart: string, corrections: Correction[] = [], { feedback = true } = {},
 ): { playerName: string; sessions: MuscuSession[] } {
   const week = sheetName.match(/^C\d+S(\d+)$/)
   if (!week) throw new Error(`onglet « ${sheetName} » : nom attendu C<cycle>S<semaine>`)
@@ -79,7 +80,7 @@ export function parseMuscuSheet(
   }
   const c = {
     sets: col(/^s[ée]ries/i), reps: col(/^r[ée]p[ée]titions/i), load: col(/^charge \(/i, false), tempo: col(/^tempo/i, false),
-    rest: col(/^repos/i, false), rpe: col(/^rpe/i), done: col(/^charge$/i, false), status: col(/^statut/i), comment: col(/^commentaire/i, false),
+    rest: col(/^repos/i, false), rpe: col(/^rpe/i, feedback), done: col(/^charge$/i, false), status: col(/^statut/i, feedback), comment: col(/^commentaire/i, false),
   }
   const cell = (r: string[], i: number) => (i < 0 ? null : text(r[i]))
   // Ligne 3 : « Prénom NOM » sous le titre « Séance PER - Semaine N »
@@ -102,8 +103,8 @@ export function parseMuscuSheet(
       reps: cell(r, c.reps),
       ...parseLoad(loadText), loadText,
       tempo: cell(r, c.tempo), rest: cell(r, c.rest),
-      feedback: parseFeedback(fix ? fix.rpe : cell(r, c.rpe), fix ? fix.doneLoad : cell(r, c.done),
-        cell(r, c.status), cell(r, c.comment), `${playerName} ${sheetName} ${name}`),
+      feedback: feedback ? parseFeedback(fix ? fix.rpe : cell(r, c.rpe), fix ? fix.doneLoad : cell(r, c.done),
+        cell(r, c.status), cell(r, c.comment), `${playerName} ${sheetName} ${name}`) : null,
     })
   }
   return { playerName, sessions: sessions.filter(s => s.exercises.length) }

@@ -3,6 +3,7 @@ import { supabase } from '../../../lib/supabaseClient'
 import type { Json } from '../../../lib/database.types'
 import { MUSCULATION } from '../../rpe/activities'
 import type { StaffMuscuSession } from '../muscu'
+import type { ImportExercise } from './importProgram'
 
 // Écritures réservées au staff par la RLS ; après chaque modification, tout l'espace staff se recharge (['staff'])
 
@@ -169,8 +170,11 @@ export type ImportResult = { created: number; replaced: number; kept: number; pa
 
 // Séances + objectifs d'une fiche, en une transaction (fonction SQL import_muscu_program)
 export function useImportProgram() {
-  return useStaffMutation(async (v: { playerId: string; season: string; sessions: unknown[]; targets: unknown[] }) =>
+  return useStaffMutation(async (v: {
+    playerId: string; season: string
+    sessions: { date: string; exercises: ImportExercise[] }[]; targets: { test_id: string; value: number; label: string | null }[]
+  }) =>
     check(await supabase.rpc('import_muscu_program', {
-      p_player: v.playerId, p_season: v.season, p_sessions: v.sessions as Json, p_targets: v.targets as Json,
+      p_player: v.playerId, p_season: v.season, p_sessions: v.sessions as unknown as Json, p_targets: v.targets as unknown as Json,
     })) as ImportResult)
 }

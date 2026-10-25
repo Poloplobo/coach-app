@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import * as XLSX from 'xlsx'
 import { readProgram } from './importProgram'
 
@@ -25,6 +25,10 @@ const ctx = {
   library: ['Front Squat', 'Développé Couché'],
 }
 
+// Les séances de jours passés sont ignorées : date du jour figée avant S7 (lundi 26/10/2026)
+beforeAll(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-20T10:00:00Z')) })
+afterAll(() => { vi.useRealTimers() })
+
 describe('readProgram (import d\'une fiche en début de cycle)', () => {
   it('séances datées sur la semaine du calendrier, retours ignorés, réhab incluse, objectifs reconnus', () => {
     const objectives = XLSX.utils.aoa_to_sheet([['Test', 'Objectif', 'Libellé'], ['développé couché', '100', '1RM']])
@@ -41,12 +45,83 @@ describe('readProgram (import d\'une fiche en début de cycle)', () => {
   })
   it('bloque sur une semaine absente du calendrier, un joueur inconnu ou un test inconnu', () => {
     const objectives = XLSX.utils.aoa_to_sheet([['Test', 'Objectif'], ['Squat 1RM', 'beaucoup']])
-    const p = readProgram(file({ C2S8: weekSheet('Jean INCONNU'), OBJECTIFS: objectives }), ctx)
+    const p = readProgram(file({ C2S7: weekSheet('Jean INCONNU'), C2S8: weekSheet('Jean INCONNU'), OBJECTIFS: objectives }), ctx)
     expect(p.errors.join('\n')).toMatch(/S8 absente du calendrier/)
     expect(p.errors.join('\n')).toMatch(/Jean INCONNU.*introuvable/)
     expect(p.errors.join('\n')).toMatch(/objectif illisible/)
   })
   it('refuse une fiche sans onglet semaine', () => {
     expect(readProgram(file({ Feuille1: XLSX.utils.aoa_to_sheet([['x']]) }), ctx).errors[0]).toMatch(/Aucun onglet semaine/)
+  })
+  it('deux onglets de joueurs différents : erreur bloquante', () => {
+    const p = readProgram(file({ C2S7: weekSheet('Paul MARTIN'), C2S8: weekSheet('Jean DUPONT') }), { ...ctx, weeks: [...ctx.weeks, { code: 'S8', start_date: '2026-11-02' }] })
+    expect(p.errors.join('\n')).toMatch(/Plusieurs joueurs dans la fiche/)
+  })
+  it('onglet semaine sans séance : pas de séance et erreur explicite', () => {
+    const empty = XLSX.utils.aoa_to_sheet([['', '', 'Séance PER - Semaine 7'], ['', '', 'Paul MARTIN'], ['', 'Exercice', '', 'Séries', 'Répétitions', 'RPE (1-10)', 'Statut']])
+    const p = readProgram(file({ C2S7: empty }), ctx)
+    expect(p.sessions).toEqual([])
+    expect(p.errors.join('\n')).toMatch(/Aucune séance/)
+  })
+  it('même date présente deux fois (deux onglets pour la même semaine) : doit être signalé', () => {
+    const p = readProgram(file({ C1S7: weekSheet(), C2S7: weekSheet() }), ctx)
+    const dates = p.sessions.map(s => s.date)
+    // Si le doublon n'est ni dédoublonné ni signalé, la 2e séance écrase silencieusement la 1re côté SQL
+    expect(new Set(dates).size === dates.length || p.errors.length > 0).toBe(true)
+  })
+  it('exercice au nom vide : ligne ignorée, jamais envoyée', () => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['', '', 'x'], ['', '', 'Paul MARTIN'],
+      ['', 'Exercice', '', 'Séries', 'Répétitions', 'Charge (%RM/kg)', 'TEMPO', 'Repos', 'RPE (1-10)', 'Charge', 'Statut'],
+      ['', 'Lundi :'], ['', 'A1', '   ', 3, 5], ['', 'A2', 'Front Squat', 3, 5],
+    ])
+    const p = readProgram(file({ C2S7: ws }), ctx)
+    expect(p.sessions[0].exercises.map(e => e.name)).toEqual(['Front Squat'])
+  })
+  it('fiche sans OBJECTIFS : pas de cible, pas d\'erreur', () => {
+    const p = readProgram(file({ C2S7: weekSheet() }), ctx)
+    expect(p.targets).toEqual([])
+    expect(p.errors).toEqual([])
+  })
+  it('objectif « 62,5 » (virgule) lu comme 62.5 ; libellé vide -> null', () => {
+    const o = XLSX.utils.aoa_to_sheet([['Test', 'Objectif', 'Libellé'], ['Développé Couché', '62,5', '']])
+    const p = readProgram(file({ C2S7: weekSheet(), OBJECTIFS: o }), ctx)
+    expect(p.errors).toEqual([])
+    expect(p.targets).toEqual([{ test: 'Développé Couché', test_id: 't1', value: 62.5, label: null }])
+  })
+  it('nom avec accents rapproché sans tenir compte des accents ni de l\'ordre', () => {
+    const c = { ...ctx, players: [{ id: 'p2', first_name: 'Hélios', last_name: 'DE LA BRÛLERIE', import_name: null }] }
+    const p = readProgram(file({ C2S7: weekSheet('Helios DE LA BRULERIE') }), c)
+    expect(p.player?.id).toBe('p2')
+    const q = readProgram(file({ C2S7: weekSheet('DE LA BRÛLERIE Hélios') }), c)
+    expect(q.player?.id).toBe('p2')
+  })
+  it('les retours de la fiche (RPE, statut, charge faite, commentaire) n\'apparaissent jamais dans les séances', () => {
+    const p = readProgram(file({ C2S7: weekSheet() }), ctx)
+    const json = JSON.stringify(p.sessions)
+    expect(json).not.toMatch(/rpe|status|statut|done|comment|"Fait"/i)
+    for (const e of p.sessions.flatMap(s => s.exercises)) {
+      expect(Object.keys(e).sort()).toEqual(['block_label', 'instructions', 'load_unit', 'load_value', 'name', 'reps', 'rest', 'sets', 'tempo'])
+    }
+  })
+  it('OBJECTIFS sans colonne Objectif : erreur', () => {
+    const o = XLSX.utils.aoa_to_sheet([['Test', 'Libellé'], ['Développé Couché', '1RM']])
+    expect(readProgram(file({ C2S7: weekSheet(), OBJECTIFS: o }), ctx).errors.join()).toMatch(/colonne « Objectif »/)
+  })
+  it('fiche copiée d\'un autre joueur (nom du fichier ≠ nom de la fiche) : bloquée', () => {
+    expect(readProgram(file({ C2S7: weekSheet() }), ctx, 'Jean DUPONT_PER MUSCULATION.xlsx').errors.join()).toMatch(/au nom de « Jean DUPONT »/)
+    expect(readProgram(file({ C2S7: weekSheet() }), ctx, 'Paul MARTIN_PER MUSCULATION.xlsx').errors).toEqual([])
+  })
+  it('test en double dans OBJECTIFS : bloqué', () => {
+    const o = XLSX.utils.aoa_to_sheet([['Test', 'Objectif'], ['Développé Couché', '100'], ['développé couché', '90']])
+    expect(readProgram(file({ C2S7: weekSheet(), OBJECTIFS: o }), ctx).errors.join()).toMatch(/en double/)
+  })
+  it('anciens onglets : séances passées ignorées, un vieux RPE faux ne bloque pas', () => {
+    const old = weekSheet()
+    old.I5 = { t: 'n', v: 50 } // RPE hors échelle saisi au cycle précédent
+    const p = readProgram(file({ C1S1: old, C2S7: weekSheet() }), { ...ctx, weeks: [...ctx.weeks] }, '')
+    expect(p.errors).toEqual([])
+    expect(p.past).toBe(2)
+    expect(p.sessions.map(s => s.week)).toEqual(['S7', 'S7'])
   })
 })

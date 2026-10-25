@@ -73,12 +73,18 @@ export function moveRow(rows: EditRow[], index: number, delta: -1 | 1): EditRow[
 
 // Duplication : charge de la semaine suivante selon le retour du joueur (kg et %RM ; PDC et libre inchangés), arrondie au 0,5.
 // Validé (fait, charge atteinte) : +2,5 % si RPE < 5, +1,25 % sinon (RPE ≥ 5 ou non renseigné, par prudence).
-// Non validé avec RPE ≥ 7 : -2,5 %. Tout autre cas (partiel ou non fait sans gros RPE, pas de retour) : charge identique.
+// Non validé (partiel, non fait, charge pas atteinte) avec RPE ≥ 7 : -2,5 %.
+// Tout autre cas (pas de gros RPE, pas de retour, « fait » sans charge lisible) : charge identique.
 export function progressedLoad(e: Pick<StaffExercise, 'load_value' | 'load_unit'>, f: StaffFeedback | undefined): number | null {
-  if (e.load_value === null || (e.load_unit !== 'kg' && e.load_unit !== 'pct_rm')) return e.load_value
+  if (e.load_value === null) return null
+  if (e.load_unit !== 'kg' && e.load_unit !== 'pct_rm') return Number(e.load_value)
   const rpe = f?.rpe ?? null
-  const factor = respected(e, f) === 'oui' ? (rpe !== null && rpe < 5 ? 1.025 : 1.0125) : rpe !== null && rpe >= 7 ? 0.975 : 1
-  return Math.round(Number(e.load_value) * factor * 2) / 2
+  const respect = respected(e, f)
+  // « fait » mais charge illisible : rien ne prouve un échec, on ne baisse pas
+  const failed = respect === 'non' || (respect === 'partiel' && f?.status === 'partiel') || (!f?.status && f !== undefined)
+  const factor = respect === 'oui' ? (rpe !== null && rpe < 5 ? 1.025 : 1.0125) : failed && rpe !== null && rpe >= 7 ? 0.975 : 1
+  // toFixed : 90 × 1,025 × 2 vaut 184,99999… en flottant, l'arrondi au 0,5 doit donner 92,5
+  return Math.round(Number((Number(e.load_value) * factor * 2).toFixed(6))) / 2
 }
 
 // Charges à transmettre à duplicate_week : seulement celles qui changent

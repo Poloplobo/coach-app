@@ -1,4 +1,5 @@
--- Étape 8 : dupliquer une semaine (planning du groupe + séances individuelles avec leurs exercices) sur une semaine suivante.
+-- Étape 8 : dupliquer une semaine (planning du groupe + séances individuelles de ses joueurs, avec leurs exercices)
+-- sur une semaine suivante du calendrier (l'écran propose la semaine d'après).
 -- Les nouvelles charges sont calculées dans l'app (règle de progression, testée) et passées dans p_loads :
 -- { "<id de l'exercice source>": <nouvelle charge> } ; un exercice absent garde sa charge.
 -- security invoker : la RLS s'applique, seul le staff peut écrire dans planned_sessions / planned_exercises.
@@ -18,11 +19,15 @@ begin
   if v_shift <= 0 or v_shift % 7 <> 0 then raise exception 'la semaine cible doit suivre la semaine source' using errcode = 'P0001'; end if;
   select is_off into v_off from public.season_weeks where group_id = p_group and start_date = p_to;
   if v_off is null then raise exception 'semaine cible absente du calendrier' using errcode = 'P0002'; end if;
+  if exists (select 1 from jsonb_each_text(p_loads) l where case when l.value ~ '^\d{1,4}(\.\d+)?$' then l.value::numeric > 1000 else true end) then
+    raise exception 'charge invalide' using errcode = 'P0001';
+  end if;
 
   for v_src in
     select * from public.planned_sessions
     where session_date between p_from and p_from + 6
-      and (group_id = p_group or player_id is not null)
+      and (group_id = p_group
+           or player_id in (select gm.player_id from public.group_members gm where gm.group_id = p_group))
     order by session_date, created_at
   loop
     -- Semaine OFF : pas de collectif ; jours déjà passés : l'historique ne se réécrit pas

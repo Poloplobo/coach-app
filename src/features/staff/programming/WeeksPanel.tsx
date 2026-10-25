@@ -121,20 +121,28 @@ function DuplicateWeek({ groupId, weeks, today }: { groupId: string; weeks: { co
     const next = weeks.find(n => n.start_date === addDays(w.start_date, 7))
     return next && addDays(next.start_date, 6) >= today ? [{ from: w, to: next }] : []
   })
-  const [fromCode, setFromCode] = useState(() => (pairs.find(p => p.from.start_date <= today) ?? pairs[0])?.from.code ?? '')
+  const [fromCode, setFromCode] = useState(() => ([...pairs].reverse().find(p => p.from.start_date <= today) ?? pairs[0])?.from.code ?? '')
   const pair = pairs.find(p => p.from.code === fromCode) ?? pairs[0]
   const muscu = useStaffMuscu(pair?.from.start_date ?? '', pair ? addDays(pair.from.start_date, 6) : '')
   const duplicate = useDuplicateWeek()
 
-  if (!pair) return null
+  if (!pair) return (
+    <Card title="Dupliquer une semaine">
+      <p className="text-sm text-ink/70">Ajoute la semaine suivante au calendrier pour pouvoir y recopier la semaine en cours.</p>
+    </Card>
+  )
   const loads = muscu.data ? progressedLoads(muscu.data) : {}
   const changes = muscu.data?.flatMap(s => s.planned_exercises).filter(e => e.id in loads) ?? []
   const up = changes.filter(e => loads[e.id] > Number(e.load_value)).length
+  const noFeedback = muscu.data?.flatMap(s => s.planned_exercises).filter(e => !e.exercise_feedback[0]?.status).length ?? 0
+  // Erreurs levées par duplicate_week (déjà en français) ; sinon problème réseau ou inattendu
+  const error = duplicate.error as { code?: string; message?: string } | null
+  const errorText = error?.code && /^(P0|42501)/.test(error.code) ? `Duplication impossible : ${error.message}.` : 'Duplication impossible, réessaie.'
 
   return (
     <Card title="Dupliquer une semaine">
       <p className="text-sm text-ink/70">
-        Recopie le planning du groupe et les séances de musculation de chaque joueur sur la semaine suivante.
+        Recopie le planning du groupe et les séances individuelles de ses joueurs (musculation comprise) sur la semaine suivante.
         Charges en kg ou %RM : +2,5 % si validée avec RPE &lt; 5, +1,25 % si validée avec RPE ≥ 5, −2,5 % si non validée avec RPE ≥ 7,
         sinon identiques. Les séances déjà programmées et les jours passés ne sont pas touchés.
       </p>
@@ -156,17 +164,18 @@ function DuplicateWeek({ groupId, weeks, today }: { groupId: string; weeks: { co
         <p className="text-sm">
           {muscu.data.length} séance{muscu.data.length > 1 ? 's' : ''} de musculation · {up} charge{up > 1 ? 's' : ''} en hausse ·{' '}
           {changes.length - up} en baisse · les autres identiques
+          {noFeedback > 0 && <span className="block text-ink/70">{noFeedback} exercice{noFeedback > 1 ? 's' : ''} sans retour du joueur : charge reconduite à l'identique.</span>}
           {pair.to.is_off && <span className="block text-ink/70">{pair.to.code} est OFF : le planning du groupe ne sera pas copié.</span>}
         </p>
       )}
       {duplicate.data && (
-        <p className="rounded-lg border border-line px-3 py-2 text-sm">
+        <p role="status" className="rounded-lg border border-line px-3 py-2 text-sm">
           {pair.to.code} remplie : {duplicate.data.group} activité{duplicate.data.group > 1 ? 's' : ''} du groupe,{' '}
           {duplicate.data.individual} séance{duplicate.data.individual > 1 ? 's' : ''} individuelle{duplicate.data.individual > 1 ? 's' : ''}
           {duplicate.data.skipped > 0 && ` · non copiées (déjà en place ou jour passé) : ${duplicate.data.skipped}`}.
         </p>
       )}
-      {duplicate.isError && <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">Duplication impossible, réessaie.</p>}
+      {duplicate.isError && <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">{errorText}</p>}
     </Card>
   )
 }

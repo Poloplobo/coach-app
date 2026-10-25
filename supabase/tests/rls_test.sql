@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(54);
+select plan(57);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -55,7 +55,13 @@ insert into public.season_weeks (group_id, code, start_date, week_type_code, is_
   ('00000000-0000-0000-0000-000000000002', 'S91', '2030-01-21', 'DEV', true);
 insert into public.planned_sessions (id, session_date, title, group_id, player_id, activity_type_id) values
   ('00000000-0000-0000-0000-0000000000c1', '2030-01-08', 'Jeu au Poste', '00000000-0000-0000-0000-000000000002', null, (select id from public.activity_types where name = 'Jeu au Poste')),
-  ('00000000-0000-0000-0000-0000000000c2', '2030-01-09', 'Musculation', null, '00000000-0000-0000-0000-00000000000b', (select id from public.activity_types where name = 'Musculation'));
+  ('00000000-0000-0000-0000-0000000000c2', '2030-01-09', 'Musculation', null, '00000000-0000-0000-0000-00000000000b', (select id from public.activity_types where name = 'Musculation')),
+  ('00000000-0000-0000-0000-0000000000c3', '2030-01-09', 'Musculation', null, '00000000-0000-0000-0000-00000000000a', (select id from public.activity_types where name = 'Musculation'));
+-- Duplication vers une semaine déjà passée (2019-12-30 -> 2020-01-06)
+insert into public.season_weeks (group_id, code, start_date, week_type_code, is_off) values
+  ('00000000-0000-0000-0000-000000000002', 'S80', '2020-01-06', 'DEV', false);
+insert into public.planned_sessions (session_date, title, group_id, activity_type_id) values
+  ('2019-12-31', 'Jeu au Poste', '00000000-0000-0000-0000-000000000002', (select id from public.activity_types where name = 'Jeu au Poste'));
 insert into public.planned_exercises (id, planned_session_id, exercise_id, position, load_value, load_unit) values
   ('00000000-0000-0000-0000-0000000000f4', '00000000-0000-0000-0000-0000000000c2', '00000000-0000-0000-0000-0000000000e1', 1, 100, 'kg');
 
@@ -192,8 +198,16 @@ select is(public.duplicate_week('00000000-0000-0000-0000-000000000002', '2030-01
           '{"group": 0, "individual": 0, "skipped": 2}'::jsonb, 'dupliquer deux fois ne crée pas de doublon');
 select is((public.duplicate_week('00000000-0000-0000-0000-000000000002', '2030-01-07', '2030-01-21') ->> 'group')::int,
           0, 'semaine OFF : le planning du groupe n''est pas copié');
+select is(public.duplicate_week('00000000-0000-0000-0000-000000000002', '2019-12-30', '2020-01-06'),
+          '{"group": 0, "individual": 0, "skipped": 1}'::jsonb, 'les jours cibles déjà passés ne sont pas copiés');
 select throws_ok($$select public.duplicate_week('00000000-0000-0000-0000-000000000002', '2030-01-07', '2030-01-28')$$,
                  'P0002', null, 'une semaine absente du calendrier ne peut pas être remplie');
+select is((select count(*)::int from public.planned_sessions where session_date = '2030-01-16'
+           and player_id = '00000000-0000-0000-0000-00000000000a'),
+          0, 'la séance d''un joueur hors du groupe n''est pas copiée');
+select throws_ok($$select public.duplicate_week('00000000-0000-0000-0000-000000000002', '2030-01-07', '2030-01-14',
+                   '{"00000000-0000-0000-0000-0000000000f4": "NaN"}')$$,
+                 'P0001', null, 'une charge invalide est refusée');
 
 -- ---------- Admin M ----------
 reset role;

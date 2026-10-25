@@ -11,6 +11,8 @@ if (!url.includes(DEV_REF)) throw new Error('ARRÊT : données fictives réserv�
 const db = createClient<Database>(url, process.env.SUPABASE_SECRET_KEY!, { auth: { persistSession: false } })
 
 const PLAYERS = 8
+// Prénoms en lettres : le rapprochement des fiches importées ignore les chiffres (« Joueur 1 » = « Joueur 2 »)
+const NAMES = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot', 'Golf', 'Hotel']
 const WEEKS = 4 // les 4 dernières semaines jusqu'à aujourd'hui
 // Semaine type des joueurs fictifs : jour (0 = lundi) → activités et durées
 const DAYS: Record<number, [string, number][]> = {
@@ -44,7 +46,7 @@ for (let i = 1; i <= PLAYERS; i++) {
   if (error) throw error
   ids.push(data.user.id)
   must(await db.from('profiles').insert({
-    id: data.user.id, role: 'player', first_name: `Joueur ${i}`, last_name: 'FICTIF', position: ['Pilier', 'Talon', '2ème Ligne', 'Centre'][i % 4],
+    id: data.user.id, role: 'player', first_name: NAMES[i - 1], last_name: 'FICTIF', position: ['Pilier', 'Talon', '2ème Ligne', 'Centre'][i % 4],
   }).select(), 'profil')
 }
 must(await db.from('group_members').insert(ids.map(player_id => ({ group_id: group.id, player_id }))).select(), 'membres')

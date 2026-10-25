@@ -1,5 +1,5 @@
 // Contenu des extractions PowerPoint (étape 9). Fonctions pures, testées : mêmes calculs que l'écran (load.ts, muscu.ts).
-import { addDays } from '../../lib/week'
+import { addDays, parisDate } from '../../lib/week'
 import { fullName, loadStatus, weekMatrix, type Log, type Player, type Status, type WeekType } from './load'
 import { muscuSummary, parseDoneLoad, type StaffMuscuSession } from './muscu'
 
@@ -14,9 +14,9 @@ const mean = (v: number[]) => (v.length ? v.reduce((a, b) => a + b, 0) / v.lengt
 // Bilan de cycle d'un joueur : semaines choisies à l'export (ex. S7 → S12)
 export function cycleReport(input: {
   player: Player; weeks: Week[]; weekTypes: WeekType[]; sessions: StaffMuscuSession[]; logs: Log[]
-  muscuTypeId: string | undefined; targets: CycleTarget[]
+  muscuTypeId: string | undefined; targets: CycleTarget[]; today?: string
 }) {
-  const { player, weeks, weekTypes, logs, targets } = input
+  const { player, weeks, weekTypes, logs, targets, today = parisDate() } = input
   const sessions = [...input.sessions].sort((a, b) => a.session_date.localeCompare(b.session_date))
   const from = weeks[0]?.start_date ?? ''
   const to = weeks.length ? addDays(weeks.at(-1)!.start_date, 6) : ''
@@ -44,25 +44,28 @@ export function cycleReport(input: {
   })
 
   // « Plus gros exercices » : les 5 plus lourds réalisés sur le cycle, avec leur RPE moyen
-  const byExercise = new Map<string, { best: number; rpes: number[] }>()
+  // Clé sans casse : « Back Squat » et « back squat » sont le même mouvement (nom affiché : le premier rencontré)
+  const byExercise = new Map<string, { name: string; best: number; rpes: number[] }>()
   for (const e of sessions.flatMap(s => s.planned_exercises)) {
     const f = e.exercise_feedback[0]
     const load = parseDoneLoad(f?.done_load ?? null) ?? (e.load_unit === 'kg' ? Number(e.load_value) : null)
     if (!load) continue
-    const cur = byExercise.get(e.exercises.name) ?? { best: 0, rpes: [] }
+    const key = e.exercises.name.trim().toLowerCase()
+    const cur = byExercise.get(key) ?? { name: e.exercises.name, best: 0, rpes: [] }
     cur.best = Math.max(cur.best, load)
     if (f?.rpe != null) cur.rpes.push(Number(f.rpe))
-    byExercise.set(e.exercises.name, cur)
+    byExercise.set(key, cur)
   }
-  const heaviest = [...byExercise].sort((a, b) => b[1].best - a[1].best).slice(0, 5)
-    .map(([name, v]) => ({ name, best: v.best, rpe: v.rpes.length ? round(mean(v.rpes)!, 1) : null }))
+  const heaviest = [...byExercise.values()].sort((a, b) => b.best - a.best).slice(0, 5)
+    .map(v => ({ name: v.name, best: v.best, rpe: v.rpes.length ? round(mean(v.rpes)!, 1) : null }))
 
   // Charge hebdo (sRPE) du joueur vs cible de chaque semaine
   const weekly = weeks.map(w => {
     const wt = weekTypes.find(t => t.code === w.week_type_code) ?? null
     const total = logs.filter(l => l.session_date >= w.start_date && l.session_date <= addDays(w.start_date, 6))
       .reduce((s, l) => s + Number(l.srpe ?? 0), 0)
-    return { code: w.code, total, target: wt?.target_srpe ?? 0, status: loadStatus(total, wt) }
+    // Semaine pas terminée : pas de statut (un mercredi, tout le monde serait en sous-charge), comme dans la vue Semaine
+    return { code: w.code, total, target: wt?.target_srpe ?? 0, status: addDays(w.start_date, 6) >= today ? null : loadStatus(total, wt) }
   })
 
   return {

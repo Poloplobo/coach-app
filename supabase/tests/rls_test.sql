@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(48);
+select plan(54);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -48,6 +48,16 @@ insert into public.session_logs (player_id, planned_session_id, session_date, ac
   ('00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-0000000000a2', public.paris_today(),
    (select id from public.activity_types where name = 'Musculation'), 60, 6, now());
 
+
+-- Duplication (étape 8) : semaine source du lundi 2030-01-07, cibles S90 (normale) et S91 (OFF)
+insert into public.season_weeks (group_id, code, start_date, week_type_code, is_off) values
+  ('00000000-0000-0000-0000-000000000002', 'S90', '2030-01-14', 'DEV', false),
+  ('00000000-0000-0000-0000-000000000002', 'S91', '2030-01-21', 'DEV', true);
+insert into public.planned_sessions (id, session_date, title, group_id, player_id, activity_type_id) values
+  ('00000000-0000-0000-0000-0000000000c1', '2030-01-08', 'Jeu au Poste', '00000000-0000-0000-0000-000000000002', null, (select id from public.activity_types where name = 'Jeu au Poste')),
+  ('00000000-0000-0000-0000-0000000000c2', '2030-01-09', 'Musculation', null, '00000000-0000-0000-0000-00000000000b', (select id from public.activity_types where name = 'Musculation'));
+insert into public.planned_exercises (id, planned_session_id, exercise_id, position, load_value, load_unit) values
+  ('00000000-0000-0000-0000-0000000000f4', '00000000-0000-0000-0000-0000000000c2', '00000000-0000-0000-0000-0000000000e1', 1, 100, 'kg');
 
 -- Retour de B (pour vérifier qu'A ne le lit pas)
 insert into public.exercise_feedback (player_id, planned_exercise_id, status, done_load) values
@@ -171,6 +181,20 @@ select throws_ok($$with s as (insert into public.planned_sessions (session_date,
                    select public.save_muscu_exercises((select id from s), '[]')$$,
                  'P0001', null, 'une séance passée n''est pas modifiable');
 
+-- Duplication de semaine (étape 8)
+select is((public.duplicate_week('00000000-0000-0000-0000-000000000002', '2030-01-07', '2030-01-14',
+            '{"00000000-0000-0000-0000-0000000000f4": 102.5}') - 'skipped'),
+          '{"group": 1, "individual": 1}'::jsonb, 'le staff duplique le planning du groupe et la séance individuelle');
+select is((select pe.load_value from public.planned_exercises pe join public.planned_sessions ps on ps.id = pe.planned_session_id
+           where ps.session_date = '2030-01-16' and ps.player_id = '00000000-0000-0000-0000-00000000000b'),
+          102.5::numeric, 'la charge recalculée est appliquée à la copie');
+select is(public.duplicate_week('00000000-0000-0000-0000-000000000002', '2030-01-07', '2030-01-14'),
+          '{"group": 0, "individual": 0, "skipped": 2}'::jsonb, 'dupliquer deux fois ne crée pas de doublon');
+select is((public.duplicate_week('00000000-0000-0000-0000-000000000002', '2030-01-07', '2030-01-21') ->> 'group')::int,
+          0, 'semaine OFF : le planning du groupe n''est pas copié');
+select throws_ok($$select public.duplicate_week('00000000-0000-0000-0000-000000000002', '2030-01-07', '2030-01-28')$$,
+                 'P0002', null, 'une semaine absente du calendrier ne peut pas être remplie');
+
 -- ---------- Admin M ----------
 reset role;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000d","role":"authenticated"}', true);
@@ -215,6 +239,8 @@ select is_empty($$delete from public.session_logs
 select throws_ok($$select public.save_muscu_exercises('00000000-0000-0000-0000-0000000000a1',
                    '[{"id":"00000000-0000-0000-0000-0000000000f2","exercise_id":"00000000-0000-0000-0000-0000000000e1"}]')$$,
                  '42501', null, 'un joueur ne peut pas programmer sa séance');
+select throws_ok($$select public.duplicate_week('00000000-0000-0000-0000-000000000002', '2030-01-07', '2030-01-14')$$,
+                 '42501', null, 'un joueur ne peut pas dupliquer une semaine');
 
 -- ---------- Visiteur non connecté ----------
 reset role;

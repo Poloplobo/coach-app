@@ -1001,6 +1001,10 @@ export type Database = {
         Args: { p_planned_exercise_id: string }
         Returns: boolean
       }
+      duplicate_week: {
+        Args: { p_from: string; p_group: string; p_loads?: Json; p_to: string }
+        Returns: Json
+      }
       is_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
       paris_today: { Args: never; Returns: string }

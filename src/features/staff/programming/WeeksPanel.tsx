@@ -6,9 +6,9 @@ import { Loading } from '../../../components/ui/Loading'
 import { ConfirmButton } from '../../../components/ui/ConfirmButton'
 import { addDays, parisDate } from '../../../lib/week'
 import { rangeLabel } from '../load'
-import { useReference } from '../useStaff'
-import { nextWeek, weekErrors } from './programming'
-import { useClearGroupWeek, useGroup, useSaveWeek, useWeeksFull, type WeekForm } from './useProgramming'
+import { useReference, useStaffMuscu } from '../useStaff'
+import { nextWeek, progressedLoads, weekErrors } from './programming'
+import { useClearGroupWeek, useDuplicateWeek, useGroup, useSaveWeek, useWeeksFull, type WeekForm } from './useProgramming'
 
 const field = 'rounded-lg bg-app border border-line px-3 py-2 text-base'
 
@@ -28,6 +28,7 @@ export function WeeksPanel() {
     <>
       {editing && <WeekEditor key={editing.previousCode ?? 'new'} groupId={group.data.id} weeks={weeks.data} {...editing}
         weekTypes={ref.data.weekTypes} onDone={() => setEditing(null)} />}
+      <DuplicateWeek groupId={group.data.id} weeks={weeks.data} today={today} />
       <Card title="Calendrier de la saison" aside={<Button size="sm" onClick={startNew}>Nouvelle semaine</Button>}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -109,6 +110,63 @@ function WeekEditor({ groupId, weeks, form: initial, previousCode, weekTypes, on
           : <Button disabled={errors.length > 0 || save.isPending} onClick={submit}>{save.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>}
         <Button variant="ghost" onClick={onDone}>Annuler</Button>
       </div>
+    </Card>
+  )
+}
+
+// Copie le planning du groupe et les séances individuelles d'une semaine sur la suivante, charges ajustées selon les retours
+function DuplicateWeek({ groupId, weeks, today }: { groupId: string; weeks: { code: string; start_date: string; is_off: boolean }[]; today: string }) {
+  // Sources possibles : les semaines suivies d'une semaine du calendrier qui n'est pas encore terminée
+  const pairs = weeks.flatMap(w => {
+    const next = weeks.find(n => n.start_date === addDays(w.start_date, 7))
+    return next && addDays(next.start_date, 6) >= today ? [{ from: w, to: next }] : []
+  })
+  const [fromCode, setFromCode] = useState(() => (pairs.find(p => p.from.start_date <= today) ?? pairs[0])?.from.code ?? '')
+  const pair = pairs.find(p => p.from.code === fromCode) ?? pairs[0]
+  const muscu = useStaffMuscu(pair?.from.start_date ?? '', pair ? addDays(pair.from.start_date, 6) : '')
+  const duplicate = useDuplicateWeek()
+
+  if (!pair) return null
+  const loads = muscu.data ? progressedLoads(muscu.data) : {}
+  const changes = muscu.data?.flatMap(s => s.planned_exercises).filter(e => e.id in loads) ?? []
+  const up = changes.filter(e => loads[e.id] > Number(e.load_value)).length
+
+  return (
+    <Card title="Dupliquer une semaine">
+      <p className="text-sm text-ink/70">
+        Recopie le planning du groupe et les séances de musculation de chaque joueur sur la semaine suivante.
+        Charges en kg ou %RM : +2,5 % si validée avec RPE &lt; 5, +1,25 % si validée avec RPE ≥ 5, −2,5 % si non validée avec RPE ≥ 7,
+        sinon identiques. Les séances déjà programmées et les jours passés ne sont pas touchés.
+      </p>
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="flex flex-col gap-1 text-sm">
+          Copier
+          <select value={pair.from.code} onChange={e => { setFromCode(e.target.value); duplicate.reset() }} className={field}>
+            {pairs.map(p => <option key={p.from.code} value={p.from.code}>{p.from.code} → {p.to.code}</option>)}
+          </select>
+        </label>
+        <ConfirmButton size="sm" confirmLabel={`Confirmer : remplir ${pair.to.code}`} disabled={!muscu.data || duplicate.isPending}
+          onClick={() => duplicate.mutate({ groupId, from: pair.from.start_date, to: pair.to.start_date, loads })}>
+          {duplicate.isPending ? 'Copie…' : `Dupliquer vers ${pair.to.code}`}
+        </ConfirmButton>
+      </div>
+      {muscu.isPending && <Loading />}
+      {muscu.isError && <p role="alert" className="text-sm text-rnr">Impossible de lire les séances de {pair.from.code}.</p>}
+      {muscu.data && (
+        <p className="text-sm">
+          {muscu.data.length} séance{muscu.data.length > 1 ? 's' : ''} de musculation · {up} charge{up > 1 ? 's' : ''} en hausse ·{' '}
+          {changes.length - up} en baisse · les autres identiques
+          {pair.to.is_off && <span className="block text-ink/70">{pair.to.code} est OFF : le planning du groupe ne sera pas copié.</span>}
+        </p>
+      )}
+      {duplicate.data && (
+        <p className="rounded-lg border border-line px-3 py-2 text-sm">
+          {pair.to.code} remplie : {duplicate.data.group} activité{duplicate.data.group > 1 ? 's' : ''} du groupe,{' '}
+          {duplicate.data.individual} séance{duplicate.data.individual > 1 ? 's' : ''} individuelle{duplicate.data.individual > 1 ? 's' : ''}
+          {duplicate.data.skipped > 0 && ` · non copiées (déjà en place ou jour passé) : ${duplicate.data.skipped}`}.
+        </p>
+      )}
+      {duplicate.isError && <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">Duplication impossible, réessaie.</p>}
     </Card>
   )
 }

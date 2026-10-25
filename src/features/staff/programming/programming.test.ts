@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { moveRow, newRow, nextWeek, planByDay, rowsErrors, rowsFromSession, toPayload, weekErrors } from './programming'
+import { moveRow, newRow, nextWeek, planByDay, progressedLoad, progressedLoads, rowsErrors, rowsFromSession, toPayload, weekErrors } from './programming'
 
 const weeks = [{ code: 'S1', start_date: '2026-09-14' }, { code: 'S8', start_date: '2026-11-02' }]
 const form = (over = {}) => ({ code: 'S9', label: '', start_date: '2026-11-09', week_type_code: 'DEV', cycle: '', phase_note: '', is_off: false, ...over })
@@ -51,5 +51,35 @@ describe('édition d\'une séance de musculation', () => {
     const rows = [newRow('a'), newRow('b'), newRow('c')]
     expect(moveRow(rows, 2, -1).map(r => r.exercise_id)).toEqual(['a', 'c', 'b'])
     expect(moveRow(rows, 0, -1)).toBe(rows)
+  })
+})
+
+describe('progressedLoad (duplication de semaine)', () => {
+  const kg = { load_value: 100, load_unit: 'kg' }
+  const fb = (status: string, rpe: number | null, done_load: string | null = '100') => ({ player_id: 'p', status, rpe, done_load, comment: null })
+  it('validé : +2,5 % si RPE < 5, +1,25 % si RPE ≥ 5 ou absent', () => {
+    expect(progressedLoad(kg, fb('fait', 4))).toBe(102.5)
+    expect(progressedLoad(kg, fb('fait', 5))).toBe(101.5) // 101,25 arrondi au 0,5
+    expect(progressedLoad(kg, fb('fait', null))).toBe(101.5)
+  })
+  it('non validé : -2,5 % dès RPE 7, sinon identique', () => {
+    expect(progressedLoad(kg, fb('fait', 7, '95'))).toBe(97.5) // charge pas atteinte
+    expect(progressedLoad(kg, fb('partiel', 8))).toBe(97.5)
+    expect(progressedLoad(kg, fb('non fait', 6))).toBe(100)
+    expect(progressedLoad(kg, fb('fait', 9, null))).toBe(97.5) // charge non renseignée : pas validé
+    expect(progressedLoad(kg, undefined)).toBe(100)
+  })
+  it('%RM ×1,025 ; poids de corps et charge libre inchangés', () => {
+    expect(progressedLoad({ load_value: 80, load_unit: 'pct_rm' }, fb('fait', 3, null))).toBe(82)
+    expect(progressedLoad({ load_value: 60, load_unit: 'bw' }, fb('fait', 3))).toBe(60)
+    expect(progressedLoad({ load_value: null, load_unit: 'free' }, fb('fait', 3))).toBeNull()
+  })
+  it('progressedLoads ne transmet que les charges qui changent', () => {
+    const ex = (id: string, load_value: number, f?: ReturnType<typeof fb>) => ({
+      id, position: 1, block_label: 'A1', sets: 5, reps: '5', load_value, load_unit: 'kg', tempo: null, rest: null, instructions: null,
+      exercises: { name: id }, exercise_feedback: f ? [f] : [],
+    })
+    expect(progressedLoads([{ id: 's', session_date: '2026-10-19', player_id: 'p', planned_exercises: [ex('a', 100, fb('fait', 4)), ex('b', 100)] }]))
+      .toEqual({ a: 102.5 })
   })
 })

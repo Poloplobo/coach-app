@@ -9,7 +9,7 @@ const check = <T,>({ data, error }: { data: T; error: unknown }): T => { if (err
 // Listes : jamais null une fois la requête réussie
 const rows = <T,>(r: { data: T[] | null; error: unknown }): T[] => check(r) ?? []
 
-const useStaffMutation = <V,>(fn: (v: V) => Promise<unknown>) => {
+const useStaffMutation = <V, R>(fn: (v: V) => Promise<R>) => {
   const qc = useQueryClient()
   return useMutation({ mutationFn: fn, onSuccess: () => qc.invalidateQueries({ queryKey: ['staff'] }) })
 }
@@ -148,4 +148,10 @@ export function useSaveTarget() {
       player_id: t.playerId, season: t.season, test_id: t.testId, target_value: t.value, label: t.label,
     }, { onConflict: 'player_id,season,test_id' }).select())
   })
+}
+
+// Copie une semaine sur une suivante en une transaction (fonction SQL duplicate_week) ; loads : charges recalculées
+export function useDuplicateWeek() {
+  return useStaffMutation(async ({ groupId, from, to, loads }: { groupId: string; from: string; to: string; loads: Record<string, number> }) =>
+    check(await supabase.rpc('duplicate_week', { p_group: groupId, p_from: from, p_to: to, p_loads: loads })) as { group: number; individual: number; skipped: number })
 }

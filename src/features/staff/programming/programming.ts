@@ -1,6 +1,6 @@
 // Programmation staff : fonctions pures (testées) utilisées par les écrans de l'onglet Programmation
 import { addDays, isoWeekStart } from '../../../lib/week'
-import type { StaffExercise } from '../muscu'
+import { respected, type StaffExercise, type StaffFeedback, type StaffMuscuSession } from '../muscu'
 import type { ExerciseRowInput, WeekForm } from './useProgramming'
 
 type Week = { code: string; start_date: string }
@@ -69,4 +69,22 @@ export function moveRow(rows: EditRow[], index: number, delta: -1 | 1): EditRow[
   const next = [...rows]
   ;[next[index], next[to]] = [next[to], next[index]]
   return next
+}
+
+// Duplication : charge de la semaine suivante selon le retour du joueur (kg et %RM ; PDC et libre inchangés), arrondie au 0,5.
+// Validé (fait, charge atteinte) : +2,5 % si RPE < 5, +1,25 % sinon (RPE ≥ 5 ou non renseigné, par prudence).
+// Non validé avec RPE ≥ 7 : -2,5 %. Tout autre cas (partiel ou non fait sans gros RPE, pas de retour) : charge identique.
+export function progressedLoad(e: Pick<StaffExercise, 'load_value' | 'load_unit'>, f: StaffFeedback | undefined): number | null {
+  if (e.load_value === null || (e.load_unit !== 'kg' && e.load_unit !== 'pct_rm')) return e.load_value
+  const rpe = f?.rpe ?? null
+  const factor = respected(e, f) === 'oui' ? (rpe !== null && rpe < 5 ? 1.025 : 1.0125) : rpe !== null && rpe >= 7 ? 0.975 : 1
+  return Math.round(Number(e.load_value) * factor * 2) / 2
+}
+
+// Charges à transmettre à duplicate_week : seulement celles qui changent
+export function progressedLoads(sessions: StaffMuscuSession[]): Record<string, number> {
+  return Object.fromEntries(sessions.flatMap(s => s.planned_exercises.flatMap(e => {
+    const next = progressedLoad(e, e.exercise_feedback[0])
+    return next !== null && next !== Number(e.load_value) ? [[e.id, next]] : []
+  })))
 }

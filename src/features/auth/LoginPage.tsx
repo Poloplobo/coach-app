@@ -20,8 +20,8 @@ export function LoginPage() {
     <main className="min-h-dvh flex items-center justify-center p-6">
       <form onSubmit={submit} className="w-full max-w-sm flex flex-col gap-4">
         <img src="/logo-rnr.svg" alt="Rouen Normandie Rugby" className="h-28 self-center" />
-        <h1 className="font-display text-4xl font-bold text-center leading-none">Rugby Tracker</h1>
-        <p className="-mt-2 mb-2 text-center text-sm text-ink/60">Crabos et Pôle Espoir</p>
+        <h1 className="font-display text-4xl font-bold text-center leading-none">Pôle Espoir - RNR App</h1>
+        <p className="-mt-2 mb-2 text-center text-sm text-ink/60">Rouen Normandie Rugby</p>
 
         <label className="flex flex-col gap-1 text-sm">
           Identifiant

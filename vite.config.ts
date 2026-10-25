@@ -10,8 +10,8 @@ export default defineConfig({
       // xlsx et pptxgenjs (imports / exports staff) se chargent à la demande : pas de préchargement sur les téléphones des joueurs
       workbox: { globIgnores: ['**/xlsx-*.js', '**/pptxgen*.js', '**/exportPptx-*.js'] },
       manifest: {
-        name: 'Rugby Tracker — Rouen Normandie Rugby',
-        short_name: 'Rugby Tracker',
+        name: 'Pôle Espoir - RNR App',
+        short_name: 'Pôle Espoir', // nom sous l'icône du téléphone : le nom complet y serait tronqué
         lang: 'fr',
         start_url: '/',
         display: 'standalone',

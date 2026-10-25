@@ -25,10 +25,11 @@ export function LoginPage() {
 
         <label className="flex flex-col gap-1 text-sm">
           Identifiant
-          <input
+          <span id="identifiant-aide" className="text-xs text-ink/60">Joueur : prenom.nom · Staff : ton adresse e-mail</span>
+          <input aria-describedby="identifiant-aide"
             value={identifier} onChange={e => setIdentifier(e.target.value)}
             autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} required
-            placeholder="prenom.nom"
+            placeholder="prenom.nom ou e-mail"
             className="rounded-md bg-surface border border-line px-3 py-3 text-base focus:border-ink/50"
           />
         </label>
@@ -44,7 +45,8 @@ export function LoginPage() {
         {signIn.isError && (
           <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">
             {isWrongCredentials(signIn.error)
-              ? 'Identifiant ou mot de passe incorrect.'
+              // un membre du staff qui tape « prenom.nom » vise un compte joueur qui n'existe pas
+              ? `Identifiant ou mot de passe incorrect.${identifier.includes('@') ? '' : ' Membre du staff ? Connecte-toi avec ton adresse e-mail.'}`
               : 'Connexion impossible pour le moment. Vérifie ta connexion internet et réessaie.'}
           </p>
         )}

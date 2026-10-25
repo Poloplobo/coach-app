@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { ScalePicker } from '../../components/ui/ScalePicker'
+import { SavedFlash } from '../../components/ui/SavedFlash'
+import { useSavedFlash } from '../../components/ui/useSavedFlash'
 import { RPE_LABELS, type DayActivity } from './activities'
 import { useSaveLog } from './useRpe'
 
@@ -10,6 +12,7 @@ export function ActivityRow({ playerId, date, activity, log, onRemove }: {
   playerId: string; date: string; activity: DayActivity; log?: Log; onRemove?: () => void
 }) {
   const save = useSaveLog(playerId)
+  const [flash, showFlash] = useSavedFlash()
   const [editing, setEditing] = useState(!log)
   const [rpe, setRpe] = useState<number | null>(log?.rpe ?? null)
   const [duration, setDuration] = useState(String(log?.duration_min ?? activity.durationMin ?? ''))
@@ -25,6 +28,7 @@ export function ActivityRow({ playerId, date, activity, log, onRemove }: {
           <p className="text-sm text-ink/70">
             {activity.requiresRpe ? `RPE ${log.rpe} · ` : ''}{log.duration_min} min{activity.requiresRpe ? ` · ${log.srpe} UA` : ''}
           </p>
+          <SavedFlash shown={flash} />
         </div>
         {/* une séance validée est verrouillée ; sinon modifiable toute la journée */}
         {!log.validated_at && <Button variant="ghost" onClick={() => setEditing(true)}>Modifier</Button>}
@@ -34,7 +38,7 @@ export function ActivityRow({ playerId, date, activity, log, onRemove }: {
 
   const submit = () => save.mutate(
     { date, activityTypeId: activity.activityTypeId, plannedSessionId: activity.plannedSessionId, durationMin: minutes, rpe: activity.requiresRpe ? rpe : null },
-    { onSuccess: () => setEditing(false) },
+    { onSuccess: () => { setEditing(false); showFlash() } },
   )
 
   return (

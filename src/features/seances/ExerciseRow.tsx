@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { ScalePicker } from '../../components/ui/ScalePicker'
+import { SavedFlash } from '../../components/ui/SavedFlash'
+import { useSavedFlash } from '../../components/ui/useSavedFlash'
 import { RPE_LABELS } from '../rpe/activities'
 import { STATUSES, prescription, type FeedbackStatus, type PlannedExercise } from './program'
 import { useSaveFeedback } from './useSeance'
@@ -10,6 +12,7 @@ const STATUS_LABEL: Record<string, string> = { fait: 'Fait', partiel: 'Partiel',
 export function ExerciseRow({ playerId, exercise, editable }: { playerId: string; exercise: PlannedExercise; editable: boolean }) {
   const saved = exercise.exercise_feedback[0]
   const save = useSaveFeedback(playerId)
+  const [flash, showFlash] = useSavedFlash()
   const [editing, setEditing] = useState(false)
   const [status, setStatus] = useState<FeedbackStatus | null>((saved?.status as FeedbackStatus) ?? null)
   const [doneLoad, setDoneLoad] = useState(saved?.done_load ?? '')
@@ -45,6 +48,7 @@ export function ExerciseRow({ playerId, exercise, editable }: { playerId: string
             {saved.comment && <span className="block text-ink/60">« {saved.comment} »</span>}
           </p>
         )}
+        <SavedFlash shown={flash} />
         {editable && <Button variant="ghost" onClick={startEditing}>Modifier</Button>}
       </li>
     )
@@ -52,7 +56,7 @@ export function ExerciseRow({ playerId, exercise, editable }: { playerId: string
 
   const submit = () => save.mutate(
     { plannedExerciseId: exercise.id, status: status!, doneLoad: doneLoad.trim() || null, rpe, comment: comment.trim() || null },
-    { onSuccess: () => setEditing(false) },
+    { onSuccess: () => { setEditing(false); showFlash() } },
   )
 
   return (

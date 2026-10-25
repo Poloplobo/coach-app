@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { ScalePicker } from '../../components/ui/ScalePicker'
+import { SavedFlash } from '../../components/ui/SavedFlash'
+import { useSavedFlash } from '../../components/ui/useSavedFlash'
 import { FatigueBody } from './FatigueBody'
 import { WELLNESS_ITEMS, useSaveWellness, useWellnessDay, type WellnessItems, type WellnessKey } from './useWellness'
 import { Loading } from '../../components/ui/Loading'
@@ -9,6 +11,7 @@ import { Loading } from '../../components/ui/Loading'
 export function WellnessCard({ playerId, date }: { playerId: string; date: string }) {
   const today = useWellnessDay(playerId, date)
   const save = useSaveWellness(playerId)
+  const [flash, showFlash] = useSavedFlash()
   const [draft, setDraft] = useState<Partial<WellnessItems> | null>(null)
 
   if (today.isPending) return <Card title="Mon état de forme"><Loading /></Card>
@@ -28,6 +31,7 @@ export function WellnessCard({ playerId, date }: { playerId: string; date: strin
       <Card title="Mon état de forme">
         {/* le joueur voit son % de fatigue, pas le score sur 30 (réservé au staff) */}
         {entry.score !== null ? <FatigueBody wellness={entry} score={entry.score} /> : <p>État de forme enregistré.</p>}
+        <SavedFlash shown={flash} label="État de forme enregistré" />
         <Button variant="ghost" onClick={() => setDraft(Object.fromEntries(
           WELLNESS_ITEMS.flatMap(i => entry[i.key] === null ? [] : [[i.key, entry[i.key]]]),
         ))}>
@@ -40,7 +44,7 @@ export function WellnessCard({ playerId, date }: { playerId: string; date: strin
   const values: Partial<WellnessItems> = draft ?? {}
   const answered = WELLNESS_ITEMS.filter(i => values[i.key] !== undefined).length
   const complete = answered === WELLNESS_ITEMS.length
-  const submit = () => save.mutate({ date, items: values as WellnessItems }, { onSuccess: () => setDraft(null) })
+  const submit = () => save.mutate({ date, items: values as WellnessItems }, { onSuccess: () => { setDraft(null); showFlash() } })
 
   return (
     <Card title="Mon état de forme">

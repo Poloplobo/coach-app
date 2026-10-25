@@ -89,4 +89,10 @@ it('isWrongCredentials distingue mauvais mot de passe et coupure réseau', () =>
 it('toAuthEmail : identifiant joueur ou e-mail staff', () => {
   expect(toAuthEmail(' Jean.Dupont ')).toBe('jean.dupont@joueurs.rnr')
   expect(toAuthEmail('Coach@Club.fr ')).toBe('coach@club.fr')
+  // saisies au téléphone : même identifiant qu'à la création du compte
+  expect(toAuthEmail('victor adam')).toBe('victor.adam@joueurs.rnr')
+  expect(toAuthEmail('Victor. Adam')).toBe('victor.adam@joueurs.rnr')
+  expect(toAuthEmail('Élodie.Dupré')).toBe('elodie.dupre@joueurs.rnr')
+  expect(toAuthEmail('jean-baptiste.de la tour')).toBe('jean-baptiste.de-la-tour@joueurs.rnr')
+  expect(toAuthEmail('elie.d-artois')).toBe('elie.d-artois@joueurs.rnr')
 })

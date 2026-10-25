@@ -737,6 +737,7 @@ export type Database = {
       test_definitions: {
         Row: {
           category: string | null
+          exercise_id: string | null
           higher_is_better: boolean
           id: string
           name: string
@@ -744,6 +745,7 @@ export type Database = {
         }
         Insert: {
           category?: string | null
+          exercise_id?: string | null
           higher_is_better?: boolean
           id?: string
           name: string
@@ -751,12 +753,21 @@ export type Database = {
         }
         Update: {
           category?: string | null
+          exercise_id?: string | null
           higher_is_better?: boolean
           id?: string
           name?: string
           unit?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "test_definitions_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercises"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       test_results: {
         Row: {

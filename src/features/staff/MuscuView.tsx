@@ -11,6 +11,7 @@ import { fullName, weekOf } from './load'
 import { loadProgression, muscuSummary, respected, trackedExercises, type Respect, type StaffMuscuSession } from './muscu'
 import { useAllLogs, useReference, useRoster, useStaffMuscu } from './useStaff'
 import { Loading } from '../../components/ui/Loading'
+import { CycleReport } from './CycleReport'
 
 const RESPECT: Record<Exclude<Respect, null>, { tone: 'ok' | 'warn' | 'bad'; label: string }> = {
   oui: { tone: 'ok', label: 'respectée' }, partiel: { tone: 'warn', label: 'partielle' }, non: { tone: 'bad', label: 'non respectée' },
@@ -86,6 +87,8 @@ export function MuscuView() {
       </Card>
 
       <Progression players={roster.data} seasonStart={weeks[0]?.start_date ?? addDays(today, -90)} today={today} />
+
+      <CycleReport />
     </>
   )
 }

@@ -7,8 +7,8 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      // xlsx (import / export staff) se charge à la demande : pas de préchargement sur les téléphones des joueurs
-      workbox: { globIgnores: ['**/xlsx-*.js'] },
+      // xlsx et pptxgenjs (imports / exports staff) se chargent à la demande : pas de préchargement sur les téléphones des joueurs
+      workbox: { globIgnores: ['**/xlsx-*.js', '**/pptxgen*.js', '**/exportPptx-*.js'] },
       manifest: {
         name: 'Rugby Tracker — Rouen Normandie Rugby',
         short_name: 'Rugby Tracker',

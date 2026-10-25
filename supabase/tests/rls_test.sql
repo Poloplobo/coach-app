@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(70);
+select plan(72);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -257,6 +257,10 @@ select is(public.import_muscu_program('00000000-0000-0000-0000-00000000000b',
             '2026-2027'),
           '{"created": 1, "replaced": 1, "kept": 0, "past": 0, "targets": 0}'::jsonb, 'même date deux fois : la seconde remplace la première');
 
+-- Bilan de cycle (étape 9) : lien test ↔ exercice saisi par le staff
+select isnt_empty($$update public.test_definitions set exercise_id = '00000000-0000-0000-0000-0000000000e1'
+                    where name = 'CMJ' returning 1$$, 'le staff lie un test à un exercice');
+
 -- ---------- Admin M ----------
 reset role;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000d","role":"authenticated"}', true);
@@ -305,6 +309,8 @@ select throws_ok($$select public.duplicate_week('00000000-0000-0000-0000-0000000
                  '42501', null, 'un joueur ne peut pas dupliquer une semaine');
 select throws_ok($$select public.import_muscu_program('00000000-0000-0000-0000-00000000000a', '[]', '2026-2027')$$,
                  '42501', null, 'un joueur ne peut pas importer de programme');
+select is_empty($$update public.test_definitions set exercise_id = null where name = 'CMJ' returning 1$$,
+                'un joueur ne peut pas modifier le lien test ↔ exercice');
 
 -- ---------- Visiteur non connecté ----------
 reset role;

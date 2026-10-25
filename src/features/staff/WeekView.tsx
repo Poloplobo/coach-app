@@ -60,12 +60,24 @@ export function WeekView() {
             {TABS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
           </ViewSelect>
         </div>
-        <Button variant="ghost" size="sm" disabled={exporting} onClick={async () => {
-          setExporting(true)
-          try { await downloadWeek(week, wt, roster.data, weekLogs, types) } finally { setExporting(false) }
-        }}>
-          {exporting ? 'Préparation…' : `Télécharger ${week.code} (Excel)`}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="ghost" size="sm" disabled={exporting} onClick={async () => {
+            setExporting(true)
+            try {
+              const [{ downloadWeekReport }, { weekReport }] = await Promise.all([import('./exportPptx'), import('./report')]) // pptxgenjs chargé au clic
+              const inProgress = weekEnd(week) >= parisDate()
+              await downloadWeekReport(weekReport({ week, wt, players: roster.data, logs: weekLogs, inProgress }), week, wt, weekLogs, types, `PER_${week.code}_${week.start_date}.pptx`)
+            } finally { setExporting(false) }
+          }}>
+            {exporting ? 'Préparation…' : `Résumé ${week.code} (PowerPoint)`}
+          </Button>
+          <Button variant="ghost" size="sm" disabled={exporting} onClick={async () => {
+            setExporting(true)
+            try { await downloadWeek(week, wt, roster.data, weekLogs, types) } finally { setExporting(false) }
+          }}>
+            {exporting ? 'Préparation…' : `Tableaux ${week.code} (Excel)`}
+          </Button>
+        </div>
       </div>
 
 

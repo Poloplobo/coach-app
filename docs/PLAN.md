@@ -171,12 +171,22 @@ Fichiers créés dans le navigateur (aucune donnée vers un service tiers), prop
 - **Résumé collectif RPE de la semaine** : le Résumé coach actuel, plus graphique (charge par joueur vs plage,
   répartition par pilier, jour par jour). L'export Excel reste disponible pour les tableaux bruts.
 
-## Étape 10 — Programme d'un nouveau cycle (à décider)
-Toutes les 6 semaines, chaque joueur change de séances type (fiche « Prénom NOM_PER MUSCULATION.xlsx » : objectifs,
-séances type du cycle, réhab des blessés). La duplication (étape 8) couvre ensuite les semaines 2 à 6 du cycle.
-Mode de saisie du cycle à choisir : import du classeur, éditeur dans l'app (déjà en place pour une séance), ou les deux.
-Les cycles sont gardés dans la même base (pas d'onglet par cycle) : table `cycles` (dates, focus) et bilan
-`player_cycle_reviews` ; les vues staff et les exports filtrent par cycle.
+## Étape 10 — Programme d'un nouveau cycle — en ligne le 25/10/2026
+Toutes les 6 semaines, chaque joueur change de séances type. Méthode retenue (option c) : **fiche importée dans l'app**
+pour la semaine 1 du cycle, **duplication avec progression** (étape 8) pour les semaines suivantes, **éditeur** de séance
+pour les retouches. Programmation > Afficher « Import d'un cycle » (`ImportPanel`, `importProgram.ts`, migration `0015`).
+- Fiche « Prénom NOM_PER MUSCULATION.xlsx » lue dans le navigateur (même lecteur que le script d'import, partagé :
+  `features/staff/programming/parseMuscu.ts`), aperçu puis import en une transaction (`import_muscu_program`, staff seulement).
+- Modèle : un onglet `C<cycle>S<semaine>` (numéro de semaine de la saison, ex. C2S7), mêmes colonnes et blocs « Lundi : » ;
+  **réhab** dans ces onglets (blocs R1, R2…) ; onglet **OBJECTIFS** : Test | Objectif | Libellé (test de l'app).
+  MOBILITÉ, REHAB et Résumé CYCLE sont ignorés.
+- Dates prises au calendrier (la semaine Sn doit exister). Retours (RPE, charge faite, statut) du fichier jamais lus.
+- Séance déjà programmée remplacée, **sauf si le joueur y a répondu** (retour d'exercice ou RPE de séance) ; jours passés ignorés ;
+  exercices inconnus créés dans la bibliothèque ; objectif du fichier remplace celui de la saison (libellé conservé s'il est vide).
+- Bloqué avant écriture : nom du fichier ≠ nom de la fiche, joueur inconnu ou homonyme, semaine absente, même jour ou même test
+  en double, objectif illisible, deux fiches du même joueur.
+- **Cycles conservés** dans la même base (pas d'onglet par cycle) : toutes les séances restent datées. À venir : sélecteur
+  « Cycle » dans la vue Musculation, la fiche joueur et le bilan PowerPoint (tables `cycles`, `player_cycle_reviews`).
 
 ---
 

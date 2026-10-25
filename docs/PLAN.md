@@ -163,13 +163,18 @@ Règle de progression (kg et %RM, arrondi au 0,5 ; PDC et libre inchangés), cal
 - sinon (pas de retour, « fait » sans charge lisible, RPE plus bas) : charge identique.
 Avant de confirmer : nombre de charges en hausse / en baisse et d'exercices sans retour du joueur.
 
-## Étape 9 — Extractions PowerPoint (à faire)
-Fichiers créés dans le navigateur (aucune donnée vers un service tiers), propres sans retouche, graphiques natifs modifiables.
-- **Bilan de cycle muscu d'un joueur** : semaines choisies à l'export (ex. S1 → S6) ; % gagné sur les mouvements de ses
-  **objectifs chiffrés** (lien test ↔ exercice à saisir une fois, ex. DC 1RM ↔ Développé couché ; charge réalisée début →
-  fin de cycle et % de l'objectif atteint) ; RPE moyen des plus gros exercices ; complétion et respect des charges.
-- **Résumé collectif RPE de la semaine** : le Résumé coach actuel, plus graphique (charge par joueur vs plage,
-  répartition par pilier, jour par jour). L'export Excel reste disponible pour les tableaux bruts.
+## Étape 9 — Extractions PowerPoint — en ligne le 25/10/2026
+Fichiers créés dans le navigateur (pptxgenjs 4.0.1, chargé au clic, exclu du préchargement PWA) : aucune donnée vers un
+service tiers ; graphiques natifs modifiables. Calculs dans `features/staff/report.ts` (testés, mêmes fonctions que l'écran),
+mise en page dans `exportPptx.ts`.
+- **Bilan de cycle d'un joueur** (vue Musculation, en bas) : semaines au choix (par défaut début du cycle en cours →
+  semaine en cours). 5 diapos : chiffres clés ; objectifs (charge de travail début / fin, **1RM estimée** Epley jusqu'à
+  10 reps, gain et % de l'objectif sur l'estimation) ; courbes de 1RM estimée ; 5 plus gros exercices réellement
+  réalisés et leur RPE moyen ; charge sRPE par semaine vs cible (semaine en cours sans statut).
+- **Lien test ↔ exercice** (migration `0016`, `test_definitions.exercise_id`) : pré-rempli par le nom (« Back Squat 1RM »
+  → « Back Squat »), modifiable dans le bilan pour les tests en kg ; vaut pour toute l'équipe.
+- **Résumé collectif de la semaine** (vue Semaine, bouton PowerPoint à côté de l'Excel) : chiffres clés, charge par joueur
+  colorée par statut, jour par jour, répartition par pilier vs préconisations, points d'attention.
 
 ## Étape 10 — Programme d'un nouveau cycle — en ligne le 25/10/2026
 Toutes les 6 semaines, chaque joueur change de séances type. Méthode retenue (option c) : **fiche importée dans l'app**

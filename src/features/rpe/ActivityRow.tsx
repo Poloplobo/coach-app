@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Button } from '../../components/ui/Button'
-import { ScalePicker } from '../../components/ui/ScalePicker'
 import { SavedFlash } from '../../components/ui/SavedFlash'
 import { useSavedFlash } from '../../components/ui/useSavedFlash'
-import { RPE_LABELS, type DayActivity } from './activities'
+import { type DayActivity } from './activities'
+import { RpePicker } from './RpePicker'
 import { useSaveLog } from './useRpe'
 
 type Log = { duration_min: number; rpe: number | null; srpe: number | null; validated_at: string | null }
@@ -45,10 +45,7 @@ export function ActivityRow({ playerId, date, activity, log, onRemove }: {
     <li className="flex flex-col gap-3 border-t border-line pt-3">
       <p className="font-semibold">{activity.name}</p>
       {activity.requiresRpe && (
-        <ScalePicker
-          label="Effort ressenti (RPE)" min={0} max={10} low="Repos" high="Maximal"
-          value={rpe} onChange={setRpe} hint={rpe !== null ? RPE_LABELS[rpe] : undefined}
-        />
+        <RpePicker label="Effort ressenti (RPE)" value={rpe} onChange={setRpe} />
       )}
       <label className="flex items-center gap-3 text-sm">
         Durée

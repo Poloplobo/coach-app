@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { Button } from '../../components/ui/Button'
-import { ScalePicker } from '../../components/ui/ScalePicker'
 import { SavedFlash } from '../../components/ui/SavedFlash'
 import { useSavedFlash } from '../../components/ui/useSavedFlash'
-import { RPE_LABELS } from '../rpe/activities'
+import { RpePicker } from '../rpe/RpePicker'
 import { STATUSES, prescription, type FeedbackStatus, type PlannedExercise } from './program'
 import { useSaveFeedback } from './useSeance'
 
@@ -77,8 +76,7 @@ export function ExerciseRow({ playerId, exercise, editable }: { playerId: string
             <input value={doneLoad} onChange={e => setDoneLoad(e.target.value)} placeholder="ex. 2x125 1x120"
               className="rounded-lg bg-app border border-line px-3 py-2 text-base" />
           </label>
-          <ScalePicker label="RPE de l'exercice" min={0} max={10} low="Repos" high="Maximal" value={rpe} onChange={setRpe}
-            hint={rpe !== null ? RPE_LABELS[rpe] : undefined} />
+          <RpePicker label="RPE de l'exercice" value={rpe} onChange={setRpe} />
         </>
       )}
       {/* tant qu'aucun statut n'est choisi, l'exercice reste compact : la séance se lit d'un coup d'œil */}

@@ -4,7 +4,7 @@ import { Card } from '../../components/ui/Card'
 import { ConfirmButton } from '../../components/ui/ConfirmButton'
 import { ScalePicker } from '../../components/ui/ScalePicker'
 import { addDays } from '../../lib/week'
-import { RPE_LABELS } from '../rpe/activities'
+import { RpePicker } from '../rpe/RpePicker'
 import { WELLNESS_ITEMS, type WellnessItems } from '../wellness/items'
 import type { ActivityType, Log, Player } from './load'
 import { useAvailabilityDetail, useSetAvailability, useStaffSaveLog, useStaffSaveWellness } from './useStaff'
@@ -91,7 +91,7 @@ export function CorrectionPanel({ player, types, today, logs, wellness }: {
             </label>
           </div>
           {activity?.requires_rpe && (
-            <ScalePicker label="RPE" min={0} max={10} low="Repos" high="Maximal" value={rpe} onChange={setRpe} hint={rpe !== null ? RPE_LABELS[rpe] : undefined} />
+            <RpePicker label="RPE" value={rpe} onChange={setRpe} />
           )}
           {existingLog ? (
             <p className="rounded-lg border border-gold px-3 py-2 text-sm">

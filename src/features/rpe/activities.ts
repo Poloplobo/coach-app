@@ -46,6 +46,9 @@ export function upcomingByDay(plan: (PlannedRow & { session_date: string })[], {
     .filter(d => d.activities.length)
 }
 
-// Échelle CR-10 (Borg / Foster)
-export const RPE_LABELS = ['Repos', 'Très, très facile', 'Facile', 'Modéré', 'Un peu difficile', 'Difficile',
-  'Difficile', 'Très difficile', 'Très difficile', 'Presque maximal', 'Maximal']
+// Échelle RPE de Borg (CR-10) du staff, reprise telle quelle de public/RPE - Borg.png : saisie de 1 à 10,
+// 6, 8 et 9 sans libellé (paliers intermédiaires). Index = valeur ; l'index 0 n'est plus proposé à la saisie.
+export const RPE_LABELS = ['', 'Très très facile', 'Facile', 'Modéré', 'Quelque peu difficile', 'Difficile',
+  '', 'Très difficile', '', '', 'Maximal']
+export const RPE_COLORS = ['', '#ccffcc', '#cbff99', '#ffff99', '#feff00', '#ffd966', '#ffc000', '#ed7d32', '#f05227', '#ff0300', '#000000']
+export const rpeInk = (v: number) => (v === 10 ? '#ffffff' : '#1a1a1a') // chiffre noir comme sur la feuille, blanc sur le 10 noir

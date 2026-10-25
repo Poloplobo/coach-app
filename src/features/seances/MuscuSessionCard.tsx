@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Card } from '../../components/ui/Card'
 import { ConfirmButton } from '../../components/ui/ConfirmButton'
-import { ScalePicker } from '../../components/ui/ScalePicker'
 import { addDays, formatDay, isoWeekStart } from '../../lib/week'
-import { MUSCULATION, RPE_LABELS } from '../rpe/activities'
+import { MUSCULATION } from '../rpe/activities'
+import { RpePicker } from '../rpe/RpePicker'
 import { useActivityTypes, useLogsRange } from '../rpe/useRpe'
 import { ExerciseRow } from './ExerciseRow'
 import { completion, sortedExercises } from './program'
@@ -63,8 +63,7 @@ export function MuscuSessionCard({ playerId, date }: { playerId: string; date: s
         <p className="rounded-lg border border-ok px-3 py-2 text-sm">Séance validée · RPE {log.rpe} · {log.duration_min} min · {log.srpe} UA</p>
       ) : (
         <div className="flex flex-col gap-3 border-t border-line pt-3">
-          <ScalePicker label="RPE de la séance" min={0} max={10} low="Repos" high="Maximal" value={rpe} onChange={setRpe}
-            hint={rpe !== null ? RPE_LABELS[rpe] : undefined} />
+          <RpePicker label="RPE de la séance" value={rpe} onChange={setRpe} />
           <label className="flex items-center gap-3 text-sm">
             Durée
             <input type="number" inputMode="numeric" min={1} max={300} value={duration} placeholder={String(plannedMinutes ?? '')} onChange={e => setDuration(e.target.value)}

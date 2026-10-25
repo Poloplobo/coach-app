@@ -35,7 +35,8 @@ export function WeekView() {
   const roster = useRoster()
   const [code, setCode] = useState<string | null>(null)
   const [tab, setTab] = useState<TabId>('resume')
-  const [exporting, setExporting] = useState(false)
+  const [exporting, setExporting] = useState<'pptx' | 'xlsx' | null>(null)
+  const [exportFailed, setExportFailed] = useState(false)
   const weeks = ref.data?.weeks ?? []
   const week = weeks.find(w => w.code === code) ?? weekOf(weeks, parisDate())
   const logs = useAllLogs(week?.start_date ?? '', week ? weekEnd(week) : '')
@@ -48,6 +49,12 @@ export function WeekView() {
   const weekLogs = logs.data ?? []
   const m = weekMatrix(roster.data, weekLogs, week.start_date, wt, { inProgress: weekEnd(week) >= parisDate() })
   const types = ref.data.types
+  // Export au clic ; module absent (hors ligne, ou onglet resté ouvert après une mise à jour) : message plutôt qu'un bouton muet
+  const run = async (kind: 'pptx' | 'xlsx', task: () => Promise<void>) => {
+    setExporting(kind)
+    setExportFailed(false)
+    try { await task() } catch { setExportFailed(true) } finally { setExporting(null) }
+  }
 
   return (
     <>
@@ -61,22 +68,17 @@ export function WeekView() {
           </ViewSelect>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="ghost" size="sm" disabled={exporting} onClick={async () => {
-            setExporting(true)
-            try {
-              const [{ downloadWeekReport }, { weekReport }] = await Promise.all([import('./exportPptx'), import('./report')]) // pptxgenjs chargé au clic
-              const inProgress = weekEnd(week) >= parisDate()
-              await downloadWeekReport(weekReport({ week, wt, players: roster.data, logs: weekLogs, inProgress }), week, wt, weekLogs, types, `PER_${week.code}_${week.start_date}.pptx`)
-            } finally { setExporting(false) }
-          }}>
-            {exporting ? 'Préparation…' : `Résumé ${week.code} (PowerPoint)`}
+          <Button variant="ghost" size="sm" disabled={!!exporting} onClick={() => run('pptx', async () => {
+            const [{ downloadWeekReport }, { weekReport }] = await Promise.all([import('./exportPptx'), import('./report')]) // pptxgenjs chargé au clic
+            const inProgress = weekEnd(week) >= parisDate()
+            await downloadWeekReport(weekReport({ week, wt, players: roster.data, logs: weekLogs, inProgress }), week, wt, weekLogs, types, `PER_${week.code}_${week.start_date}.pptx`)
+          })}>
+            {exporting === 'pptx' ? 'Préparation…' : `Résumé ${week.code} (PowerPoint)`}
           </Button>
-          <Button variant="ghost" size="sm" disabled={exporting} onClick={async () => {
-            setExporting(true)
-            try { await downloadWeek(week, wt, roster.data, weekLogs, types) } finally { setExporting(false) }
-          }}>
-            {exporting ? 'Préparation…' : `Tableaux ${week.code} (Excel)`}
+          <Button variant="ghost" size="sm" disabled={!!exporting} onClick={() => run('xlsx', () => downloadWeek(week, wt, roster.data, weekLogs, types))}>
+            {exporting === 'xlsx' ? 'Préparation…' : `Tableaux ${week.code} (Excel)`}
           </Button>
+          {exportFailed && <p role="alert" className="w-full text-sm text-rnr">Création du fichier impossible : recharge la page et réessaie.</p>}
         </div>
       </div>
 

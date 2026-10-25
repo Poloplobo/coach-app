@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cycleReport, weekReport } from './report'
+import { cycleReport, estimated1RM, weekReport } from './report'
 import type { Log, Player, WeekType } from './load'
 import type { StaffMuscuSession } from './muscu'
 
@@ -26,10 +26,11 @@ describe('cycleReport', () => {
     logs: [log('2026-10-26', 420, 7), log('2026-11-02', 480, 8), log('2026-11-03', 2400, 6, 'rugby')],
     targets: [{ test: 'Développé Couché 1RM', value: 100, label: '1RM', exercise: 'développé couché' }, { test: 'CMJ', value: 50, label: null, exercise: null }],
   })
-  it('objectif : charge début → fin dans l\'ordre des dates, % gagné et % de l\'objectif', () => {
-    expect(r.objectives[0]).toMatchObject({ start: 80, end: 88, best: 88, gainPct: 10, targetPct: 88 })
+  it('objectif : 1RM estimée (Epley) début → fin, % gagné et % de l\'objectif sur l\'estimation', () => {
+    // 80 kg × 3 → 88 ; 88 kg × 3 → 96,8 arrondi au 0,5 → 97
+    expect(r.objectives[0]).toMatchObject({ first: { load: 80, reps: 3, e1rm: 88 }, last: { load: 88, reps: 3, e1rm: 97 }, bestE1rm: 97, gainPct: 10.2, targetPct: 97 })
     expect(r.objectives[0].points.map(p => p.date)).toEqual(['2026-10-26', '2026-11-02'])
-    expect(r.objectives[1]).toMatchObject({ start: null, gainPct: null, targetPct: null }) // test sans exercice lié
+    expect(r.objectives[1]).toMatchObject({ first: null, gainPct: null, targetPct: null }) // test sans exercice lié
   })
   it('plus gros exercices triés par charge, avec RPE moyen ; charge libre sans retour ignorée', () => {
     expect(r.heaviest).toEqual([{ name: 'Back Squat', best: 110, rpe: 9 }, { name: 'Développé Couché', best: 88, rpe: 7 }])
@@ -59,7 +60,7 @@ describe('cycleReport : cas limites', () => {
 
   it('aucun retour de séance : pas de crash, valeurs nulles', () => {
     const r = cycleReport({ ...base, sessions: sess(ex('a', 'Back Squat', null, null, null)), targets: target('Back Squat') })
-    expect(r.objectives[0]).toMatchObject({ start: null, end: null, best: null, gainPct: null, targetPct: null, points: [] })
+    expect(r.objectives[0]).toMatchObject({ first: null, last: null, bestE1rm: null, gainPct: null, targetPct: null, points: [] })
     expect(r.heaviest).toEqual([])
     expect(r.summary).toMatchObject({ completionPct: 0, sessionRpe: null, hardest: null })
   })
@@ -70,7 +71,7 @@ describe('cycleReport : cas limites', () => {
   })
   it('un seul point : début = fin, gain 0 %', () => {
     const r = cycleReport({ ...base, sessions: sess(ex('a', 'Back Squat', 100, '3x90', 7)), targets: target('Back Squat') })
-    expect(r.objectives[0]).toMatchObject({ start: 90, end: 90, best: 90, gainPct: 0, targetPct: 90 })
+    expect(r.objectives[0]).toMatchObject({ first: { load: 90 }, last: { load: 90 }, bestE1rm: 99, gainPct: 0, targetPct: 99 })
   })
   it('charge de départ à 0 ou illisible : pas de division par zéro', () => {
     for (const done of ['0', 'RAS', 'ok']) {
@@ -84,7 +85,7 @@ describe('cycleReport : cas limites', () => {
       { id: 's1', session_date: '2026-10-26', player_id: 'p', planned_exercises: [ex('a', 'Back Squat', null, '0', 7)] },
       { id: 's2', session_date: '2026-11-02', player_id: 'p', planned_exercises: [ex('b', 'Back Squat', null, '100', 7)] },
     ]
-    expect(cycleReport({ ...base, sessions: s, targets: target('Back Squat') }).objectives[0]).toMatchObject({ start: 100, end: 100, gainPct: 0 })
+    expect(cycleReport({ ...base, sessions: s, targets: target('Back Squat') }).objectives[0]).toMatchObject({ first: { load: 100 }, last: { load: 100 }, gainPct: 0 })
   })
   it('valeur d\'objectif à 0 : % de l\'objectif null', () => {
     const r = cycleReport({ ...base, sessions: sess(ex('a', 'Back Squat', null, '100', 7)), targets: [{ test: 'DC', value: 0, label: null, exercise: 'Back Squat' }] })
@@ -122,7 +123,7 @@ describe('cycleReport : cas limites', () => {
       { id: 's2', session_date: '2026-11-02', player_id: 'p', planned_exercises: [ex('b', 'back squat', null, '3x110', 8)] },
     ]
     const r = cycleReport({ ...base, sessions: s, targets: target('BACK SQUAT') })
-    expect(r.objectives[0]).toMatchObject({ start: 100, end: 110, best: 110 })
+    expect(r.objectives[0]).toMatchObject({ first: { load: 100 }, last: { load: 110 }, bestE1rm: 121 })
     expect(r.heaviest).toHaveLength(1) // même mouvement, saisi avec deux casses
   })
   it('limite à 5 exercices, triés par charge décroissante', () => {
@@ -130,9 +131,18 @@ describe('cycleReport : cas limites', () => {
     const r = cycleReport({ ...base, sessions: sess(...exs), targets: [] })
     expect(r.heaviest.map(h => h.name)).toEqual(['G', 'F', 'E', 'D', 'C'])
   })
-  it('charge prescrite en kg utilisée quand le joueur n\'a rien renseigné', () => {
-    const r = cycleReport({ ...base, sessions: sess(ex('a', 'Back Squat', 120, null, null)), targets: [] })
-    expect(r.heaviest).toEqual([{ name: 'Back Squat', best: 120, rpe: null }])
+  it('jamais de charge non réalisée : prescription sans retour, « non fait », gainage chronométré, poids de corps', () => {
+    const timed = { ...ex('t', 'Gainage', null, '3x45', 7), reps: "45''" }
+    const bw = { ...ex('w', 'Pompes', 60, '3x20', 7), load_unit: 'bw' }
+    const notDone = ex('n', 'Soulevé de terre', 140, '140', 9, 'non fait')
+    const r = cycleReport({ ...base, sessions: sess(ex('a', 'Back Squat', 120, null, null), timed, bw, notDone), targets: [] })
+    expect(r.heaviest).toEqual([])
+  })
+  it('1RM estimée : Epley jusqu\'à 10 reps, 1 rep = la charge, reps non numériques ou > 10 : pas d\'estimation', () => {
+    expect(estimated1RM(100, 1)).toBe(100)
+    expect(estimated1RM(100, 5)).toBe(116.5) // 116,67 arrondi au 0,5
+    expect(estimated1RM(100, 12)).toBeNull()
+    expect(estimated1RM(100, null)).toBeNull()
   })
 })
 

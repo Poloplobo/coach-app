@@ -9,6 +9,9 @@ export type CycleTarget = { test: string; value: number; label: string | null; e
 // « 26 oct. »
 const shortDate = (d: string) => new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' })
 const round = (v: number, digits = 0) => Math.round(v * 10 ** digits) / 10 ** digits
+// Epley, fiable jusqu'à 10 répétitions ; 1 répétition = la charge elle-même
+export const estimated1RM = (load: number, reps: number | null) =>
+  reps === null || reps < 1 || reps > 10 ? null : reps === 1 ? load : Math.round(load * (1 + reps / 30) * 2) / 2
 const mean = (v: number[]) => (v.length ? v.reduce((a, b) => a + b, 0) / v.length : null)
 
 // Bilan de cycle d'un joueur : semaines choisies à l'export (ex. S7 → S12)
@@ -23,37 +26,54 @@ export function cycleReport(input: {
   const sessionRpes = logs.filter(l => l.activity_type_id === input.muscuTypeId && l.rpe !== null).map(l => Number(l.rpe))
   const summary = muscuSummary(sessions, sessionRpes)
 
-  // Charge réalisée max de l'exercice à chaque séance où il apparaît (texte libre lu par parseDoneLoad)
+  // Charge réellement réalisée (lue dans le texte libre) ; exclus : non fait, efforts chronométrés (« 30'' »)
+  // et poids de corps, où le nombre saisi n'est pas une charge en kg. Charge libre gardée : le joueur y note ses kg.
+  const doneLoad = (e: StaffMuscuSession['planned_exercises'][number]) => {
+    const f = e.exercise_feedback[0]
+    if (!f || f.status === 'non fait' || e.load_unit === 'bw' || /['’]/.test(e.reps ?? '')) return null
+    const load = parseDoneLoad(f.done_load)
+    return load && load > 0 ? load : null
+  }
+
+  // 1RM estimée (Epley) d'une séance : la charge de travail ne se compare pas telle quelle à un objectif 1RM
   const series = (exercise: string) => sessions.flatMap(s => {
-    const values = s.planned_exercises.filter(e => e.exercises.name.toLowerCase() === exercise.toLowerCase())
-      .map(e => parseDoneLoad(e.exercise_feedback[0]?.done_load ?? null)).filter((v): v is number => v !== null && v > 0)
-    return values.length ? [{ date: s.session_date, load: Math.max(...values) }] : []
+    const points = s.planned_exercises.filter(e => e.exercises.name.trim().toLowerCase() === exercise.trim().toLowerCase())
+      .flatMap(e => {
+        const load = doneLoad(e)
+        const reps = /^\d+$/.test(e.reps?.trim() ?? '') ? Number(e.reps) : null
+        return load === null ? [] : [{ load, reps, e1rm: estimated1RM(load, reps) }]
+      })
+    if (!points.length) return []
+    const top = points.reduce((a, b) => ((b.e1rm ?? b.load) > (a.e1rm ?? a.load) ? b : a))
+    return [{ date: s.session_date, ...top }]
   })
 
   // Mouvements prioritaires = exercices liés aux objectifs chiffrés du joueur
   const objectives = targets.map(t => {
     const points = t.exercise ? series(t.exercise) : []
-    const start = points[0]?.load ?? null
-    const end = points.at(-1)?.load ?? null
-    const best = points.length ? Math.max(...points.map(p => p.load)) : null
+    const first = points[0] ?? null
+    const last = points.at(-1) ?? null
+    const estimates = points.map(p => p.e1rm).filter((v): v is number => v !== null)
+    const bestE1rm = estimates.length ? Math.max(...estimates) : null
     return {
-      ...t, points, start, end, best,
-      gainPct: start && end !== null ? round((100 * (end - start)) / start, 1) : null,
-      targetPct: best !== null && t.value ? round((100 * best) / t.value) : null,
+      ...t, points, first, last, bestE1rm,
+      // Gain et % de l'objectif sur la 1RM estimée (null si les reps ne permettent pas d'estimer)
+      gainPct: first?.e1rm && last?.e1rm != null ? round((100 * (last.e1rm - first.e1rm)) / first.e1rm, 1) : null,
+      targetPct: bestE1rm !== null && t.value ? round((100 * bestE1rm) / t.value) : null,
     }
   })
 
-  // « Plus gros exercices » : les 5 plus lourds réalisés sur le cycle, avec leur RPE moyen
+  // « Plus gros exercices » : les 5 plus lourds réellement réalisés sur le cycle, avec leur RPE moyen
   // Clé sans casse : « Back Squat » et « back squat » sont le même mouvement (nom affiché : le premier rencontré)
   const byExercise = new Map<string, { name: string; best: number; rpes: number[] }>()
   for (const e of sessions.flatMap(s => s.planned_exercises)) {
-    const f = e.exercise_feedback[0]
-    const load = parseDoneLoad(f?.done_load ?? null) ?? (e.load_unit === 'kg' ? Number(e.load_value) : null)
-    if (!load) continue
+    const load = doneLoad(e)
+    if (load === null) continue
     const key = e.exercises.name.trim().toLowerCase()
     const cur = byExercise.get(key) ?? { name: e.exercises.name, best: 0, rpes: [] }
     cur.best = Math.max(cur.best, load)
-    if (f?.rpe != null) cur.rpes.push(Number(f.rpe))
+    const rpe = e.exercise_feedback[0]?.rpe
+    if (rpe != null) cur.rpes.push(Number(rpe))
     byExercise.set(key, cur)
   }
   const heaviest = [...byExercise.values()].sort((a, b) => b.best - a.best).slice(0, 5)
@@ -65,7 +85,8 @@ export function cycleReport(input: {
     const total = logs.filter(l => l.session_date >= w.start_date && l.session_date <= addDays(w.start_date, 6))
       .reduce((s, l) => s + Number(l.srpe ?? 0), 0)
     // Semaine pas terminée : pas de statut (un mercredi, tout le monde serait en sous-charge), comme dans la vue Semaine
-    return { code: w.code, total, target: wt?.target_srpe ?? 0, status: addDays(w.start_date, 6) >= today ? null : loadStatus(total, wt) }
+    const inProgress = addDays(w.start_date, 6) >= today
+    return { code: inProgress ? `${w.code} (en cours)` : w.code, total, target: wt?.target_srpe ?? 0, status: inProgress ? null : loadStatus(total, wt) }
   })
 
   return {

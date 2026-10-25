@@ -9,7 +9,7 @@ export function usePlayerTargets(playerId: string, season: string) {
     enabled: !!playerId && !!season,
     queryKey: ['staff', 'targets', playerId, season],
     queryFn: async () => check(await supabase.from('player_targets')
-      .select('target_value, label, test_definitions(id, name, exercise_id, exercises(name))')
+      .select('target_value, label, test_definitions(id, name, unit, higher_is_better, exercise_id, exercises(name))')
       .eq('player_id', playerId).eq('season', season)),
   })
 }
@@ -18,8 +18,10 @@ export function usePlayerTargets(playerId: string, season: string) {
 export function useLinkTestExercise() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ testId, exerciseId }: { testId: string; exerciseId: string | null }) =>
-      check(await supabase.from('test_definitions').update({ exercise_id: exerciseId }).eq('id', testId).select('id')),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['staff'] }),
+    mutationFn: async ({ testId, exerciseId }: { testId: string; exerciseId: string | null }) => {
+      // La RLS ne lève pas d'erreur sur un update refusé : aucune ligne renvoyée = non enregistré
+      if (!check(await supabase.from('test_definitions').update({ exercise_id: exerciseId }).eq('id', testId).select('id')).length) throw new Error('lien refusé')
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['staff', 'targets'] }),
   })
 }

@@ -10,6 +10,8 @@ import type { cycleReport, weekReport } from './report'
 
 const hex = (c: string) => c.replace('#', '')
 const INK = '1A1A1A', GREY = '6B7280', LINE = 'E5E7EB', RED = hex(BRAND.rnr), GREEN = hex(BRAND.ok), MUTED = hex(BRAND.muted)
+// Textes sur fond blanc : versions foncées (contraste lisible) ; couleurs vives réservées aux barres
+const GREEN_TEXT = '047857'
 // L'or de la charte (#FFD700) est illisible sur fond blanc : or foncé pour les textes et barres des diapos
 const GOLD = 'B8860B'
 const STATUS_COLOR = { 'sous-charge': GOLD, conforme: GREEN, surcharge: RED } as const
@@ -31,7 +33,7 @@ function slide(pptx: PptxGenJS, title: string, subtitle?: string) {
   s.addText(title, { x: 0.6, y: 0.35, w: 12.2, h: 0.6, fontFace: FONT, fontSize: 26, bold: true, color: INK })
   if (subtitle) s.addText(subtitle, { x: 0.6, y: 0.95, w: 12.2, h: 0.4, fontFace: FONT, fontSize: 14, color: GREY })
   s.addText(`Rouen Normandie Rugby · Pôle Espoir PER · généré le ${formatDay(parisDate())}`,
-    { x: 0.6, y: 7.0, w: 12.2, h: 0.3, fontFace: FONT, fontSize: 9, color: MUTED })
+    { x: 0.6, y: 7.0, w: 12.2, h: 0.3, fontFace: FONT, fontSize: 9, color: GREY })
   return s
 }
 
@@ -66,40 +68,43 @@ export async function downloadCycleReport(r: ReturnType<typeof cycleReport>, fil
   const s = r.summary
   kpis(cover, pptx, [
     { value: String(s.sessions), label: 'séances programmées' },
-    { value: `${s.completionPct} %`, label: `exercices faits (${s.done}/${s.exercises})`, color: s.completionPct >= 80 ? GREEN : s.completionPct >= 50 ? GOLD : RED },
+    { value: `${s.completionPct} %`, label: `exercices faits (${s.done}/${s.exercises})`, color: s.completionPct >= 80 ? GREEN_TEXT : s.completionPct >= 50 ? GOLD : RED },
     { value: s.sessionRpe === null ? '—' : String(s.sessionRpe).replace('.', ','), label: 'RPE de séance moyen' },
-    { value: `${s.respected}`, label: `charges respectées (${s.partial} partielles, ${s.notRespected} non)`, color: GREEN },
+    { value: `${s.respected}`, label: `charges respectées (${s.partial} part., ${s.notRespected} non)`, color: s.respected ? GREEN_TEXT : INK },
   ])
   cover.addText(r.summary.hardest ? `Exercice le plus dur : ${r.summary.hardest.name} (RPE ${r.summary.hardest.rpe})` : '',
     { x: 0.6, y: 3.6, w: 12.2, h: 0.4, fontFace: FONT, fontSize: 14, color: INK })
 
-  // 2. Objectifs chiffrés : progression sur les mouvements prioritaires
-  const goals = slide(pptx, 'Objectifs du cycle', 'Charge réalisée sur l\'exercice lié à chaque objectif : première séance → dernière séance du cycle')
+  // 2. Objectifs chiffrés : 1RM estimée (Epley) sur l'exercice lié, comparée à l'objectif
+  const goals = slide(pptx, 'Objectifs du cycle',
+    '1RM estimée (formule d\'Epley : charge × (1 + reps/30), jusqu\'à 10 reps) à partir de la meilleure série de chaque séance — une estimation, pas un test')
+  const work = (p: { load: number; reps: number | null } | null) => (p ? `${kg(p.load)}${p.reps ? ` × ${p.reps}` : ''}` : '—')
   if (!r.objectives.length) empty(goals, 'Aucun objectif chiffré pour ce joueur cette saison.')
   else {
-    goals.addTable(table(['Objectif', 'Exercice suivi', 'Début', 'Fin', 'Gain', 'Meilleure', '% de l\'objectif'],
+    goals.addTable(table(['Objectif', 'Exercice suivi', 'Début du cycle', 'Fin du cycle', 'Gain (1RM est.)', '1RM estimée max', '% de l\'objectif'],
       r.objectives.map(o => [`${o.test} : ${o.value.toLocaleString('fr-FR')}${o.label ? ` (${o.label})` : ''}`, o.exercise ?? 'non lié',
-        kg(o.start), kg(o.end), o.gainPct === null ? '—' : `${o.gainPct > 0 ? '+' : ''}${pct(o.gainPct)}`, kg(o.best), pct(o.targetPct)])),
-    { ...tableStyle, x: 0.6, y: 1.6, w: 12.2, colW: [3.4, 2.4, 1.1, 1.1, 1.2, 1.4, 1.6] })
-    const linked = r.objectives.filter(o => o.best !== null)
-    if (linked.length) goals.addChart(pptx.ChartType.bar, [
-      { name: 'Meilleure charge du cycle', labels: linked.map(o => o.test), values: linked.map(o => o.best!) },
+        work(o.first), work(o.last), o.gainPct === null ? '—' : `${o.gainPct > 0 ? '+' : ''}${pct(o.gainPct)}`, kg(o.bestE1rm), pct(o.targetPct)])),
+    { ...tableStyle, x: 0.6, y: 1.6, w: 12.2, colW: [3.2, 2.2, 1.4, 1.4, 1.3, 1.3, 1.4], autoPage: true })
+    // Graphique seulement s'il tient sous le tableau (au-delà de 4 objectifs, le tableau suffit)
+    const linked = r.objectives.filter(o => o.bestE1rm !== null)
+    if (linked.length && r.objectives.length <= 4) goals.addChart(pptx.ChartType.bar, [
+      { name: '1RM estimée (max du cycle)', labels: linked.map(o => o.test), values: linked.map(o => o.bestE1rm!) },
       { name: 'Objectif', labels: linked.map(o => o.test), values: linked.map(o => o.value) },
-    ], { ...axis, x: 0.6, y: 1.9 + 0.45 * (r.objectives.length + 1), w: 12.2, h: Math.max(2.2, 4.9 - 0.45 * (r.objectives.length + 1)),
+    ], { ...axis, x: 0.6, y: 2.2 + 0.5 * (r.objectives.length + 1), w: 12.2, h: 4.6 - 0.5 * (r.objectives.length + 1),
       barGrouping: 'clustered', chartColors: [RED, MUTED], showLegend: true, legendPos: 'b', showValue: true, dataLabelFontSize: 10, valAxisTitle: 'kg' })
   }
 
-  // 3. Courbes de progression des mouvements prioritaires (sinon des plus gros exercices)
-  const tracked = r.objectives.filter(o => o.points.length > 1)
-  const prog = slide(pptx, 'Progression des charges', tracked.length
-    ? 'Charge maximale réalisée à chaque séance, mouvements liés aux objectifs' : 'Pas assez de séances renseignées sur les mouvements des objectifs')
+  // 3. Courbes de progression des mouvements prioritaires (1RM estimée par séance)
+  const tracked = r.objectives.filter(o => o.points.filter(p => p.e1rm !== null).length > 1)
+  const prog = slide(pptx, 'Progression des mouvements prioritaires', tracked.length
+    ? '1RM estimée à chaque séance (meilleure série), exercices liés aux objectifs' : 'Pas assez de séances renseignées sur les mouvements des objectifs')
   if (tracked.length) {
     const dates = [...new Set(tracked.flatMap(o => o.points.map(p => p.date)))].sort()
     prog.addChart(pptx.ChartType.line, tracked.map(o => ({
       name: o.exercise!, labels: dates.map(d => formatDay(d).replace(/ \d{4}$/, '')),
-      values: dates.map(d => o.points.find(p => p.date === d)?.load ?? null) as number[],
+      values: dates.map(d => o.points.find(p => p.date === d)?.e1rm ?? null) as number[],
     })), { ...axis, x: 0.6, y: 1.5, w: 12.2, h: 5.3, chartColors: [RED, INK, GOLD, GREEN], lineSize: 3, lineDataSymbolSize: 8,
-      showLegend: true, legendPos: 'b', valAxisTitle: 'kg', showValAxisTitle: true, displayBlanksAs: 'span' })
+      showLegend: true, legendPos: 'b', valAxisTitle: 'kg (1RM estimée)', showValAxisTitle: true, displayBlanksAs: 'span' })
   } else empty(prog, 'Lie chaque objectif à son exercice et renseigne les charges réalisées pour voir les courbes.')
 
   // 4. Plus gros exercices et leur RPE moyen
@@ -132,7 +137,7 @@ export async function downloadWeekReport(
 
   // 1. Chiffres clés
   const cover = slide(pptx, `Résumé collectif — ${week.label || week.code}`, subtitle)
-  const color = m.groupStatus ? STATUS_COLOR[m.groupStatus] : INK
+  const color = m.groupStatus ? { ...STATUS_COLOR, conforme: GREEN_TEXT }[m.groupStatus] : INK
   kpis(cover, pptx, [
     { value: `${m.groupMean.toLocaleString('fr-FR')} UA`, label: 'charge moyenne du groupe', color },
     { value: `${(wt?.target_srpe ?? 0).toLocaleString('fr-FR')} UA`, label: 'charge visée' },
@@ -140,10 +145,10 @@ export async function downloadWeekReport(
     { value: m.groupStatus ?? (m.inProgress ? 'en cours' : '—'), label: 'statut collectif', color },
   ])
   kpis(cover, pptx, [
-    { value: String(counts.ok), label: 'joueurs dans la plage', color: GREEN },
+    { value: String(counts.ok), label: 'joueurs dans la plage', color: GREEN_TEXT },
     { value: String(counts.under), label: 'en sous-charge', color: GOLD },
     { value: String(counts.over), label: 'en surcharge', color: RED },
-    { value: String(counts.injured), label: 'blessés (hors calcul)', color: MUTED },
+    { value: String(counts.injured), label: 'blessés (hors calcul)', color: GREY },
   ], 3.6)
 
   // 2. Charge par joueur, couleur selon le statut (séries empilées : une par statut)

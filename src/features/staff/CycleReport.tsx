@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
+import { Loading } from '../../components/ui/Loading'
 import { ViewSelect } from '../../components/ui/ViewSelect'
 import { addDays, parisDate } from '../../lib/week'
 import { MUSCULATION } from '../rpe/activities'
@@ -35,7 +36,11 @@ export function CycleReport() {
   const logs = useAllLogs(start, end, player?.id)
   const targets = usePlayerTargets(player?.id ?? '', group.data?.season ?? '')
 
-  if (!ref.data || !roster.data || !player || !current) return null
+  const title = 'Bilan de cycle (PowerPoint)'
+  if (ref.isError || roster.isError || group.isError) return <Card boxed title={title}><p role="alert" className="text-sm text-rnr">Impossible de préparer le bilan.</p></Card>
+  if (!ref.data || !roster.data || !group.data) return <Card boxed title={title}><Loading /></Card>
+  if (!player || !current) return <Card boxed title={title}><p className="text-sm text-ink/70">Aucun joueur ou aucune semaine au calendrier.</p></Card>
+  const loadError = sessions.isError || logs.isError || targets.isError
   const ready = sessions.data && logs.data && targets.data && range.length > 0
 
   const download = async () => {
@@ -59,8 +64,8 @@ export function CycleReport() {
   }
 
   return (
-    <Card boxed title="Bilan de cycle (PowerPoint)"
-      help="Un fichier par joueur, prêt à présenter : chiffres clés, objectifs (gain sur l'exercice lié), courbes de charge, plus gros exercices et charge par semaine.">
+    <Card boxed title={title}
+      help="Un fichier par joueur, prêt à présenter : chiffres clés, objectifs (1RM estimée sur l'exercice lié), courbes, plus gros exercices et charge par semaine.">
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
         <ViewSelect label="Joueur" value={player.id} onChange={setPlayerId}>
           {roster.data.map(p => <option key={p.id} value={p.id}>{fullName(p)}</option>)}
@@ -73,15 +78,21 @@ export function CycleReport() {
         </ViewSelect>
         <Button size="sm" disabled={!ready || busy} onClick={download}>{busy ? 'Préparation…' : 'Télécharger le bilan'}</Button>
       </div>
-      {range.length === 0 && <p className="text-sm text-rnr">La semaine de début doit précéder celle de fin.</p>}
+      {range.length === 0 && <p role="alert" className="text-sm text-rnr">La semaine de début doit précéder celle de fin.</p>}
+      {loadError && <p role="alert" className="text-sm text-rnr">Impossible de charger les séances de ce joueur.</p>}
+      {!ready && !loadError && range.length > 0 && <Loading />}
       {failed && <p role="alert" className="text-sm text-rnr">Création du fichier impossible, réessaie.</p>}
       {targets.data && (
         <div className="text-sm">
+          {targets.data.length > 0 && <p className="mb-1 text-ink/60">Exercice suivi pour chaque objectif : le choix s'applique à toute l'équipe.</p>}
           {targets.data.length === 0
             ? <p className="text-ink/70">Aucun objectif chiffré cette saison : le bilan n'aura pas de diapo objectifs (à saisir dans la fiche joueur ou via l'import du cycle).</p>
             : (
               <ul className="flex flex-col gap-1">
-                {targets.data.flatMap(t => t.test_definitions ? [t.test_definitions] : []).map(t => (
+                {targets.data.flatMap(t => t.test_definitions ? [t.test_definitions] : []).map(t => (t.unit !== 'kg' || !t.higher_is_better)
+                  // Sprint, CMJ… : pas de charge à suivre en salle, l'objectif se lit sur les tests
+                  ? <li key={t.id} className="text-ink/60">{t.name} : suivi par les tests (pas de charge en kg)</li>
+                  : (
                   <li key={t.id} className="flex flex-wrap items-center gap-2">
                     <span>{t.name} : suivi sur</span>
                     <select aria-label={`Exercice suivi pour ${t.name}`} value={t.exercise_id ?? ''} disabled={link.isPending}
@@ -92,7 +103,7 @@ export function CycleReport() {
                     </select>
                     {!t.exercise_id && <span className="text-ink/60">(sans lien, pas de % gagné)</span>}
                   </li>
-                ))}
+                  ))}
               </ul>
             )}
           {link.isError && <p role="alert" className="text-rnr">Lien impossible à enregistrer.</p>}

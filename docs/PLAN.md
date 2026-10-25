@@ -152,6 +152,32 @@ Trois vues (barre du haut) : **Aujourd'hui · Semaine · Joueur**, plus Réglage
   pgTAP (un coach ne change pas le statut, le staff corrige une saisie avec `source = 'staff'`, un joueur ne voit rien
   d'autrui) ; parcours sur données fictives ; un coach ne voit ni le ratio ni le bouton blessé / apte.
 
+## Étape 8 — Dupliquer une semaine avec progression des charges — en ligne le 25/10/2026
+Programmation > Semaines > « Dupliquer une semaine » : la semaine en cours (ou une autre) est recopiée sur la suivante
+du calendrier — planning du groupe + séances individuelles de ses joueurs, avec leurs exercices. Fonction SQL
+`duplicate_week` (migration `0014`, une transaction, staff seulement). Jamais touchés : séances déjà programmées,
+jours passés, collectif d'une semaine OFF ; dupliquer deux fois ne crée pas de doublon.
+Règle de progression (kg et %RM, arrondi au 0,5 ; PDC et libre inchangés), calculée dans `programming.ts` (testée) :
+- validé (fait, charge réalisée ≥ prescrite) avec RPE < 5 : **+2,5 %** ; avec RPE ≥ 5 (ou sans RPE) : **+1,25 %** ;
+- non validé (partiel, non fait, charge pas atteinte) avec RPE ≥ 7 : **−2,5 %** ;
+- sinon (pas de retour, « fait » sans charge lisible, RPE plus bas) : charge identique.
+Avant de confirmer : nombre de charges en hausse / en baisse et d'exercices sans retour du joueur.
+
+## Étape 9 — Extractions PowerPoint (à faire)
+Fichiers créés dans le navigateur (aucune donnée vers un service tiers), propres sans retouche, graphiques natifs modifiables.
+- **Bilan de cycle muscu d'un joueur** : semaines choisies à l'export (ex. S1 → S6) ; % gagné sur les mouvements de ses
+  **objectifs chiffrés** (lien test ↔ exercice à saisir une fois, ex. DC 1RM ↔ Développé couché ; charge réalisée début →
+  fin de cycle et % de l'objectif atteint) ; RPE moyen des plus gros exercices ; complétion et respect des charges.
+- **Résumé collectif RPE de la semaine** : le Résumé coach actuel, plus graphique (charge par joueur vs plage,
+  répartition par pilier, jour par jour). L'export Excel reste disponible pour les tableaux bruts.
+
+## Étape 10 — Programme d'un nouveau cycle (à décider)
+Toutes les 6 semaines, chaque joueur change de séances type (fiche « Prénom NOM_PER MUSCULATION.xlsx » : objectifs,
+séances type du cycle, réhab des blessés). La duplication (étape 8) couvre ensuite les semaines 2 à 6 du cycle.
+Mode de saisie du cycle à choisir : import du classeur, éditeur dans l'app (déjà en place pour une séance), ou les deux.
+Les cycles sont gardés dans la même base (pas d'onglet par cycle) : table `cycles` (dates, focus) et bilan
+`player_cycle_reviews` ; les vues staff et les exports filtrent par cycle.
+
 ---
 
 ## Décisions prises

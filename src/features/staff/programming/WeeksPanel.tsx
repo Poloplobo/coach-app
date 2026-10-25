@@ -3,6 +3,7 @@ import { Badge } from '../../../components/ui/Badge'
 import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
 import { Loading } from '../../../components/ui/Loading'
+import { ViewSelect } from '../../../components/ui/ViewSelect'
 import { ConfirmButton } from '../../../components/ui/ConfirmButton'
 import { addDays, parisDate } from '../../../lib/week'
 import { rangeLabel } from '../load'
@@ -142,13 +143,10 @@ function DuplicateWeek({ groupId, weeks, today }: { groupId: string; weeks: { co
       Recopie le planning du groupe et les séances individuelles sur la semaine suivante. Charges kg / %RM : +2,5 % si validée
       avec RPE &lt; 5, +1,25 % si RPE ≥ 5, −2,5 % si non validée avec RPE ≥ 7, sinon identiques. Séances déjà prévues et jours passés intacts.
     </>}>
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1 text-sm">
-          Copier
-          <select value={pair.from.code} onChange={e => { setFromCode(e.target.value); duplicate.reset() }} className={field}>
-            {pairs.map(p => <option key={p.from.code} value={p.from.code}>{p.from.code} → {p.to.code}</option>)}
-          </select>
-        </label>
+      <div className="flex flex-wrap items-center gap-3">
+        <ViewSelect label="Copier" value={pair.from.code} onChange={c => { setFromCode(c); duplicate.reset() }}>
+          {pairs.map(p => <option key={p.from.code} value={p.from.code}>{p.from.code} → {p.to.code}</option>)}
+        </ViewSelect>
         <ConfirmButton size="sm" confirmLabel={`Confirmer : remplir ${pair.to.code}`} disabled={!muscu.data || duplicate.isPending}
           onClick={() => duplicate.mutate({ groupId, from: pair.from.start_date, to: pair.to.start_date, loads })}>
           {duplicate.isPending ? 'Copie…' : `Dupliquer vers ${pair.to.code}`}

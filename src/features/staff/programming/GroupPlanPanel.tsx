@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Card } from '../../../components/ui/Card'
 import { Loading } from '../../../components/ui/Loading'
-import { addDays, formatDay, parisDate } from '../../../lib/week'
+import { ViewSelect } from '../../../components/ui/ViewSelect'
+import { addDays, parisDate } from '../../../lib/week'
 import { MUSCULATION } from '../../rpe/activities'
 import { weekOf } from '../load'
 import { useReference } from '../useStaff'
@@ -9,6 +10,10 @@ import { planByDay } from './programming'
 import { useAddGroupActivity, useGroup, useGroupPlan, useRemovePlanned, useSetDuration, useWeeksFull } from './useProgramming'
 
 const field = 'rounded-lg bg-field border border-line px-2 py-1.5 text-sm'
+
+// « Mer. 21 » : tient sur une ligne dans les 7 colonnes
+const shortDay = (date: string) =>
+  new Date(date).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', timeZone: 'UTC' }).replace(/^./, c => c.toUpperCase())
 
 export function GroupPlanPanel() {
   const group = useGroup()
@@ -28,17 +33,16 @@ export function GroupPlanPanel() {
   const days = planByDay(plan.data ?? [], week.start_date)
 
   return (
-    <>
-      <label className="flex flex-col gap-1 text-sm self-start">
-        Semaine
-        <select value={week.code} onChange={e => setCode(e.target.value)} className="rounded-lg bg-field border border-line px-3 py-2">
-          {weeks.data.map(w => <option key={w.code} value={w.code}>{w.code} · {w.label} · {w.start_date}{w.is_off ? ' · OFF' : ''}</option>)}
-        </select>
-      </label>
+    <Card title="Planning du groupe" help="Les joueurs voient ces activités dans leur onglet Rugby et dans « À venir ». Retirer une activité ne supprime pas les RPE déjà saisis."
+      aside={(
+        <ViewSelect label="Semaine" value={week.code} onChange={setCode}>
+          {weeks.data.map(w => <option key={w.code} value={w.code}>{w.code} · {w.label}{w.is_off ? ' · OFF' : ''}</option>)}
+        </ViewSelect>
+      )}>
       {week.is_off && <p className="rounded-lg border border-gold px-3 py-2 text-sm">{week.code} est une semaine OFF : pas d'entraînement collectif.</p>}
       <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-7">
         {days.map(d => (
-          <Card boxed key={d.date} title={formatDay(d.date).replace(/^./, c => c.toUpperCase())}>
+          <Card boxed key={d.date} title={shortDay(d.date)}>
             <ul className="flex flex-col gap-2">
               {d.items.map(item => <PlannedItem key={item.id} id={item.id} name={item.activity_types?.name ?? '—'} minutes={item.planned_duration_min} past={d.date < today} />)}
             </ul>
@@ -46,8 +50,7 @@ export function GroupPlanPanel() {
           </Card>
         ))}
       </div>
-      <p className="text-xs text-ink/60">Les joueurs voient ces activités dans leur onglet Rugby et dans « À venir ». Retirer une activité ne supprime pas les RPE déjà saisis.</p>
-    </>
+    </Card>
   )
 }
 

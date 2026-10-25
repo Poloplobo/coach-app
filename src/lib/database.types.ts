@@ -1005,6 +1005,15 @@ export type Database = {
         Args: { p_from: string; p_group: string; p_loads?: Json; p_to: string }
         Returns: Json
       }
+      import_muscu_program: {
+        Args: {
+          p_player: string
+          p_season: string
+          p_sessions: Json
+          p_targets?: Json
+        }
+        Returns: Json
+      }
       is_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
       paris_today: { Args: never; Returns: string }

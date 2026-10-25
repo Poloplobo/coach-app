@@ -2,15 +2,17 @@ import { useState } from 'react'
 import { WeeksPanel } from './WeeksPanel'
 import { GroupPlanPanel } from './GroupPlanPanel'
 import { MuscuEditor } from './MuscuEditor'
+import { ImportPanel } from './ImportPanel'
 
 const TABS = [
   { id: 'semaines', label: 'Semaines' },
   { id: 'planning', label: 'Planning du groupe' },
   { id: 'muscu', label: 'Séance de musculation' },
+  { id: 'import', label: 'Import d\'un cycle' },
 ] as const
 type TabId = (typeof TABS)[number]['id']
 
-// Programmation : l'app est la seule source (l'import ne touche plus aux semaines, au planning ni aux programmes)
+// Programmation : l'app est la seule source ; les fiches musculation d'un nouveau cycle s'importent depuis l'onglet Import
 export function ProgrammingView() {
   const [tab, setTab] = useState<TabId>('semaines')
   return (
@@ -28,6 +30,7 @@ export function ProgrammingView() {
         {tab === 'semaines' && <WeeksPanel />}
         {tab === 'planning' && <GroupPlanPanel />}
         {tab === 'muscu' && <MuscuEditor />}
+        {tab === 'import' && <ImportPanel />}
       </div>
     </>
   )

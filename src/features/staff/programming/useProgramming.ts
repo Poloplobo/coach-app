@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../../lib/supabaseClient'
+import type { Json } from '../../../lib/database.types'
 import { MUSCULATION } from '../../rpe/activities'
 import type { StaffMuscuSession } from '../muscu'
 
@@ -154,4 +155,22 @@ export function useSaveTarget() {
 export function useDuplicateWeek() {
   return useStaffMutation(async ({ groupId, from, to, loads }: { groupId: string; from: string; to: string; loads: Record<string, number> }) =>
     check(await supabase.rpc('duplicate_week', { p_group: groupId, p_from: from, p_to: to, p_loads: loads })) as { group: number; individual: number; skipped: number })
+}
+
+// Joueurs avec leur nom d'import (« NOM Prénom ») : rapprochement de la fiche musculation importée
+export function useImportPlayers() {
+  return useQuery({
+    queryKey: ['staff', 'import-players'],
+    queryFn: async () => rows(await supabase.from('profiles').select('id, first_name, last_name, import_name').eq('role', 'player')),
+  })
+}
+
+export type ImportResult = { created: number; replaced: number; kept: number; past: number; targets: number }
+
+// Séances + objectifs d'une fiche, en une transaction (fonction SQL import_muscu_program)
+export function useImportProgram() {
+  return useStaffMutation(async (v: { playerId: string; season: string; sessions: unknown[]; targets: unknown[] }) =>
+    check(await supabase.rpc('import_muscu_program', {
+      p_player: v.playerId, p_season: v.season, p_sessions: v.sessions as Json, p_targets: v.targets as Json,
+    })) as ImportResult)
 }

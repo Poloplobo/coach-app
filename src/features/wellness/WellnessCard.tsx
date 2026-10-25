@@ -31,12 +31,14 @@ export function WellnessCard({ playerId, date }: { playerId: string; date: strin
       <Card title="Mon état de forme">
         {/* le joueur voit son % de fatigue, pas le score sur 30 (réservé au staff) */}
         {entry.score !== null ? <FatigueBody wellness={entry} score={entry.score} /> : <p>État de forme enregistré.</p>}
-        <SavedFlash shown={flash} label="État de forme enregistré" />
-        <Button variant="ghost" onClick={() => setDraft(Object.fromEntries(
-          WELLNESS_ITEMS.flatMap(i => entry[i.key] === null ? [] : [[i.key, entry[i.key]]]),
-        ))}>
-          Modifier
-        </Button>
+        <div className="flex items-center justify-between gap-3">
+          <SavedFlash shown={flash} label="État de forme enregistré" />
+          <Button variant="ghost" size="sm" onClick={() => setDraft(Object.fromEntries(
+            WELLNESS_ITEMS.flatMap(i => entry[i.key] === null ? [] : [[i.key, entry[i.key]]]),
+          ))}>
+            Modifier
+          </Button>
+        </div>
       </Card>
     )
   }
@@ -47,20 +49,21 @@ export function WellnessCard({ playerId, date }: { playerId: string; date: strin
   const submit = () => save.mutate({ date, items: values as WellnessItems }, { onSuccess: () => { setDraft(null); showFlash() } })
 
   return (
-    <Card title="Mon état de forme">
-      <p className="text-sm text-ink/70">À remplir chaque jour. 5 = meilleur état pour chaque question.</p>
-      {WELLNESS_ITEMS.map(item => (
-        <ScalePicker
-          key={item.key} label={item.label} min={1} max={5} low={item.low} high={item.high}
-          value={values[item.key] ?? null}
-          onChange={v => setDraft({ ...values, [item.key as WellnessKey]: v })}
-        />
-      ))}
+    <Card title="Mon état de forme" help="Chaque jour, 6 questions. 5 = meilleur état, pour toutes.">
+      <div className="flex flex-col gap-3">
+        {WELLNESS_ITEMS.map(item => (
+          <ScalePicker inline
+            key={item.key} label={item.label} min={1} max={5} low={item.low} high={item.high}
+            value={values[item.key] ?? null}
+            onChange={v => setDraft({ ...values, [item.key as WellnessKey]: v })}
+          />
+        ))}
+      </div>
       {save.isError && <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">Enregistrement impossible, réessaie.</p>}
       <Button onClick={submit} disabled={!complete || save.isPending}>
         {save.isPending ? 'Enregistrement…' : complete ? 'Enregistrer' : `Réponds aux ${WELLNESS_ITEMS.length} questions (${answered}/${WELLNESS_ITEMS.length})`}
       </Button>
-      {entry && <Button variant="ghost" onClick={() => setDraft(null)}>Annuler</Button>}
+      {entry && <Button variant="quiet" className="self-center" onClick={() => setDraft(null)}>Annuler</Button>}
     </Card>
   )
 }

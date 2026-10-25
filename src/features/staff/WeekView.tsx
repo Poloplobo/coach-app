@@ -5,6 +5,7 @@ import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Kpi } from '../../components/ui/Kpi'
+import { ViewSelect } from '../../components/ui/ViewSelect'
 import { BRAND } from '../../lib/brand'
 import { parisDate } from '../../lib/week'
 import { pct } from '../../lib/format'
@@ -50,14 +51,16 @@ export function WeekView() {
 
   return (
     <>
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <label className="flex flex-col gap-1 text-sm">
-          Semaine
-          <select value={week.code} onChange={e => setCode(e.target.value)} className="rounded-lg bg-surface border border-line px-3 py-2">
-            {weeks.map(w => <option key={w.code} value={w.code}>{w.code} · {w.label} · {w.start_date}</option>)}
-          </select>
-        </label>
-        <Button disabled={exporting} onClick={async () => {
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <ViewSelect label="Semaine" value={week.code} onChange={setCode}>
+            {weeks.map(w => <option key={w.code} value={w.code}>{w.code} · {w.label}</option>)}
+          </ViewSelect>
+          <ViewSelect label="Afficher" value={tab} onChange={setTab}>
+            {TABS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+          </ViewSelect>
+        </div>
+        <Button variant="ghost" size="sm" disabled={exporting} onClick={async () => {
           setExporting(true)
           try { await downloadWeek(week, wt, roster.data, weekLogs, types) } finally { setExporting(false) }
         }}>
@@ -65,28 +68,20 @@ export function WeekView() {
         </Button>
       </div>
 
-      <div role="tablist" aria-label="Vues de la semaine" className="flex flex-wrap gap-1 border-b border-line">
-        {TABS.map(t => (
-          <button key={t.id} id={`tab-${t.id}`} type="button" role="tab" aria-selected={tab === t.id} aria-controls="week-panel" onClick={() => setTab(t.id)}
-            className={`-mb-px rounded-t-lg border-b-2 px-3 py-2 text-sm font-semibold ${tab === t.id ? 'border-rnr text-ink' : 'border-transparent text-ink/60'}`}>
-            {t.label}
-          </button>
-        ))}
-      </div>
 
-      <div id="week-panel" role="tabpanel" aria-labelledby={`tab-${tab}`} className="flex flex-col gap-4">
+      <div className="flex flex-col gap-8">
       {tab === 'resume' && <CoachSummary m={m} wt={wt} code={week.code} pillars={pillarSplit(weekLogs, types, wt)} />}
       {tab === 'charge' && <LoadTable m={m} />}
       {tab === 'rpe' && <RpeTable data={rpeMatrix(roster.data, weekLogs, week.start_date)} />}
       {tab === 'jours' && (
-        <Card title="Synthèse collective jour par jour">
+        <Card title="Synthèse collective jour par jour" help="Pour chaque jour : combien de joueurs ont déclaré, durée et charge moyennes. UA/min : intensité moyenne de la journée.">
           <SimpleTable header={['Jour', 'Déclarants', 'Durée moy. (min)', 'Rugby', 'Physique', 'sRPE moyen', 'sRPE cumulé', 'UA/min']}
             rows={dailySynthesis(weekLogs, types, week.start_date).filter(d => d.declarants > 0)
               .map(d => [d.day, d.declarants, d.avgMinutes, d.rugbyMinutes, d.physiqueMinutes, d.avgSrpe, d.cumulSrpe, d.intensity])} />
         </Card>
       )}
       {tab === 'piliers' && (
-        <Card title="Répartition par pilier (minutes moyennes par joueur)">
+        <Card title="Répartition par pilier" help="Minutes moyennes par joueur dans chaque pilier, comparées à la répartition visée pour ce type de semaine.">
           <SimpleTable header={['Pilier', 'Réalisé (min)', '% réalisé', '% cible', 'Écart']}
             rows={pillarSplit(weekLogs, types, wt).map(p => [PILLAR_LABEL[p.pillar], p.minutes, pct(p.pct), pct(p.targetPct), pct(p.gap, true)])} />
         </Card>
@@ -107,8 +102,15 @@ function CoachSummary({ m, wt, code, pillars }: { m: ReturnType<typeof weekMatri
   const injured = m.rows.filter(r => r.player.injured)
   const shownPillars = pillars.filter(p => p.pct > 0)
 
+  const verdict = m.groupStatus ? { 'sous-charge': 'en sous-charge', conforme: 'dans la plage visée', surcharge: 'en surcharge' }[m.groupStatus] : null
   return (
     <>
+      <p className="max-w-4xl text-lg leading-snug">
+        {m.inProgress ? 'Semaine en cours : pour l\'instant, le' : 'Le'} groupe est à <strong>{m.groupMean.toLocaleString('fr-FR')} UA</strong> en moyenne
+        {wt ? <>, soit <strong>{pct(m.groupPct)}</strong> de la charge visée en {code} ({wt.name.toLowerCase()}, {wt.target_srpe.toLocaleString('fr-FR')} UA)</> : ''}
+        {verdict && <> — <strong className={STATUS_TONE[m.groupStatus!] === 'ok' ? 'text-ok' : STATUS_TONE[m.groupStatus!] === 'bad' ? 'text-rnr' : 'text-gold'}>{verdict}</strong></>}.
+        {!m.inProgress && <> {under.length} joueur{under.length > 1 ? 's' : ''} en sous-charge, {over.length} en surcharge.</>}
+      </p>
       <div className="flex flex-wrap gap-3">
         <Kpi label="Charge moyenne du groupe" value={`${m.groupMean} UA`} hint="Joueurs aptes" />
         <Kpi label={`Charge visée ${code}`} value={`${wt?.target_srpe ?? '—'} UA`} hint={wt ? `${wt.name} · plage ${rangeLabel(wt)}` : 'Hors calendrier'} />
@@ -119,7 +121,7 @@ function CoachSummary({ m, wt, code, pillars }: { m: ReturnType<typeof weekMatri
 
       <div className="grid gap-4 xl:grid-cols-3">
         <div className="xl:col-span-2">
-          <Card title="Charge de chaque joueur vs charge visée">
+          <Card title="Charge de chaque joueur" help="Une barre par joueur, du plus chargé au moins chargé. Bande verte : plage visée · pointillés : charge visée. Vert conforme, jaune sous-charge, rouge surcharge, gris blessé ou semaine en cours.">
             <div className="text-ink/60" style={{ height: Math.max(220, bars.length * 28) }}>
               <ResponsiveContainer>
                 <BarChart data={bars} layout="vertical" margin={{ left: 8, right: 16 }}>
@@ -134,12 +136,11 @@ function CoachSummary({ m, wt, code, pillars }: { m: ReturnType<typeof weekMatri
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <p className="text-xs text-ink/60">Bande verte : plage conforme. Vert conforme · jaune sous-charge · rouge surcharge · gris blessé ou semaine en cours.</p>
           </Card>
         </div>
 
         <div className="flex flex-col gap-4">
-          <Card title="Joueurs hors plage">
+          <Card title="Joueurs hors plage" help="Joueurs aptes dont la charge de la semaine sort de la plage visée. Un nom ouvre sa fiche.">
             {m.inProgress && <p className="text-sm text-ink/70">Semaine en cours : la liste se remplit une fois la semaine terminée.</p>}
             <Group title={`En sous-charge (${under.length})`} rows={under} tone="warn" />
             <Group title={`En surcharge (${over.length})`} rows={over} tone="bad" />
@@ -147,7 +148,7 @@ function CoachSummary({ m, wt, code, pillars }: { m: ReturnType<typeof weekMatri
             {!m.inProgress && !under.length && !over.length && <p className="text-sm text-ok">Tous les joueurs aptes sont dans la plage.</p>}
           </Card>
 
-          <Card title="Répartition de l'activité">
+          <Card title="Répartition de l'activité" help="Part du temps passé dans chaque pilier ; la cible du type de semaine entre parenthèses.">
             {shownPillars.length === 0 ? <p className="text-sm text-ink/70">Aucune activité déclarée.</p> : (
               <div className="h-48">
                 <ResponsiveContainer>
@@ -198,7 +199,7 @@ function Group({ title, rows, tone }: { title: string; rows: MatrixRow[]; tone: 
 
 function LoadTable({ m }: { m: ReturnType<typeof weekMatrix> }) {
   return (
-    <Card title="Charge par joueur (sRPE)">
+    <Card title="Charge par joueur" help="Charge (sRPE = RPE × minutes) jour par jour et sur la semaine. % cible : total ÷ charge visée. vs groupe : écart à la moyenne des joueurs aptes.">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="text-left text-ink/60">
@@ -239,7 +240,7 @@ const rpeTone = (v: number | null) => (v === null ? null : v >= 8 ? 'bad' : v >=
 function RpeTable({ data }: { data: ReturnType<typeof rpeMatrix> }) {
   const cell = (v: number | null): ReactNode => { const t = rpeTone(v); return t ? <Badge tone={t}>{v}</Badge> : '—' }
   return (
-    <Card title="RPE moyen de la semaine (activités avec RPE)">
+    <Card title="RPE moyen" help="Effort ressenti moyen (échelle de Borg 1 à 10) des activités avec RPE. Vert sous 6, jaune de 6 à 7,9, rouge à partir de 8.">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="text-left text-ink/60">
@@ -260,7 +261,6 @@ function RpeTable({ data }: { data: ReturnType<typeof rpeMatrix> }) {
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-ink/60">Vert &lt; 6 · jaune 6 à 7,9 · rouge ≥ 8 (échelle CR-10).</p>
     </Card>
   )
 }

@@ -32,7 +32,7 @@ export function TodayActivities({ playerId, date }: { playerId: string; date: st
   const addable = types.data.filter(t => !shown.has(t.id) && t.name !== MUSCULATION)
 
   return (
-    <Card title="Mes activités du jour">
+    <Card title="Mes activités du jour" help="Pour chaque activité : ton effort ressenti et la durée. Vidéo et soins : un simple « J'y étais ».">
       {availability.data === 'blessé' && (
         <p className="rounded-lg border border-gold px-3 py-2 text-sm">Tu es noté blessé : seul ton programme individuel apparaît.</p>
       )}
@@ -47,7 +47,7 @@ export function TodayActivities({ playerId, date }: { playerId: string; date: st
       {addable.length > 0 && (
         <label className="flex flex-col gap-1 text-sm border-t border-line pt-3">
           Tu as fait une autre activité ?
-          <select value="" onChange={e => setExtraIds(ids => [...ids, e.target.value])} className="rounded-lg bg-app border border-line px-3 py-3 text-base">
+          <select value="" onChange={e => setExtraIds(ids => [...ids, e.target.value])} className="rounded-lg bg-field border border-line px-3 py-3 text-base">
             <option value="">Choisir une activité…</option>
             {addable.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>

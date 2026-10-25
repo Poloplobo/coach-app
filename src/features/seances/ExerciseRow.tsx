@@ -29,7 +29,7 @@ export function ExerciseRow({ playerId, exercise, editable }: { playerId: string
 
   const header = (
     <div className="flex gap-3">
-      <span className="shrink-0 rounded bg-app border border-line px-2 py-0.5 text-xs font-bold h-fit">{exercise.block_label}</span>
+      <span className="w-11 shrink-0 rounded bg-field border border-line py-0.5 text-center text-xs font-bold h-fit">{exercise.block_label}</span>
       <div>
         <p className="font-semibold">{exercise.exercises.name}</p>
         <p className="text-sm text-ink/70">{prescription(exercise)}</p>
@@ -39,16 +39,21 @@ export function ExerciseRow({ playerId, exercise, editable }: { playerId: string
 
   if (!editable || (saved?.status && !editing)) {
     return (
-      <li className="flex flex-col gap-2 border-t border-line pt-3">
-        {header}
-        {saved?.status && (
-          <p className="text-sm">
-            {STATUS_LABEL[saved.status]}{saved.rpe !== null ? ` · RPE ${saved.rpe}` : ''}{saved.done_load ? ` · ${saved.done_load}` : ''}
-            {saved.comment && <span className="block text-ink/60">« {saved.comment} »</span>}
-          </p>
-        )}
-        <SavedFlash shown={flash} />
-        {editable && <Button variant="ghost" onClick={startEditing}>Modifier</Button>}
+      <li className="flex items-start justify-between gap-3 border-t border-line pt-3">
+        <div className="flex flex-col gap-1">
+          {header}
+          {saved?.status && (
+            <p className="text-sm pl-14">
+              <span className={saved.status === 'fait' ? 'text-ok font-semibold' : saved.status === 'partiel' ? 'text-gold font-semibold' : 'text-ink/60 font-semibold'}>
+                {STATUS_LABEL[saved.status]}
+              </span>
+              {saved.rpe !== null ? ` · RPE ${saved.rpe}` : ''}{saved.done_load ? ` · ${saved.done_load}` : ''}
+              {saved.comment && <span className="block text-ink/60">« {saved.comment} »</span>}
+            </p>
+          )}
+          <span className="pl-14"><SavedFlash shown={flash} /></span>
+        </div>
+        {editable && <Button variant="quiet" onClick={startEditing}>Modifier</Button>}
       </li>
     )
   }
@@ -64,7 +69,7 @@ export function ExerciseRow({ playerId, exercise, editable }: { playerId: string
       <div role="radiogroup" aria-label="Statut" className="grid grid-cols-3 gap-1.5">
         {STATUSES.map(s => (
           <button key={s.value} type="button" role="radio" aria-checked={status === s.value} onClick={() => setStatus(s.value)}
-            className={`h-11 rounded-lg border font-semibold ${status === s.value ? 'bg-rnr border-rnr text-white' : 'bg-app border-line'}`}>
+            className={`h-9 rounded-md border text-sm font-semibold ${status === s.value ? 'bg-rnr border-rnr text-white' : 'bg-field border-line'}`}>
             {s.label}
           </button>
         ))}
@@ -74,7 +79,7 @@ export function ExerciseRow({ playerId, exercise, editable }: { playerId: string
           <label className="flex flex-col gap-1 text-sm">
             Charge réalisée
             <input value={doneLoad} onChange={e => setDoneLoad(e.target.value)} placeholder="ex. 2x125 1x120"
-              className="rounded-lg bg-app border border-line px-3 py-2 text-base" />
+              className="rounded-lg bg-field border border-line px-3 py-2 text-base" />
           </label>
           <RpePicker label="RPE de l'exercice" value={rpe} onChange={setRpe} />
         </>
@@ -85,12 +90,12 @@ export function ExerciseRow({ playerId, exercise, editable }: { playerId: string
           <label className="flex flex-col gap-1 text-sm">
             Commentaire (facultatif)
             <input value={comment} onChange={e => setComment(e.target.value)} placeholder="ex. douleur, manque de temps"
-              className="rounded-lg bg-app border border-line px-3 py-2 text-base" />
+              className="rounded-lg bg-field border border-line px-3 py-2 text-base" />
           </label>
           {save.isError && <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">Enregistrement impossible, réessaie.</p>}
           <div className="flex gap-2">
             <Button className="flex-1" onClick={submit} disabled={save.isPending}>{save.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>
-            {saved?.status && <Button variant="ghost" onClick={() => setEditing(false)}>Annuler</Button>}
+            {saved?.status && <Button variant="quiet" onClick={() => setEditing(false)}>Annuler</Button>}
           </div>
         </>
       )}

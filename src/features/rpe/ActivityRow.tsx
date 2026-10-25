@@ -31,7 +31,7 @@ export function ActivityRow({ playerId, date, activity, log, onRemove }: {
           <SavedFlash shown={flash} />
         </div>
         {/* une séance validée est verrouillée ; sinon modifiable toute la journée */}
-        {!log.validated_at && <Button variant="ghost" onClick={() => setEditing(true)}>Modifier</Button>}
+        {!log.validated_at && <Button variant="quiet" onClick={() => setEditing(true)}>Modifier</Button>}
       </li>
     )
   }
@@ -51,7 +51,7 @@ export function ActivityRow({ playerId, date, activity, log, onRemove }: {
         Durée
         <input
           type="number" inputMode="numeric" min={1} max={300} value={duration} onChange={e => setDuration(e.target.value)}
-          className="w-20 rounded-lg bg-app border border-line px-3 py-2 text-base"
+          className="w-20 rounded-lg bg-field border border-line px-3 py-2 text-base"
         />
         min
       </label>
@@ -61,8 +61,8 @@ export function ActivityRow({ playerId, date, activity, log, onRemove }: {
           {save.isPending ? 'Enregistrement…' : activity.requiresRpe ? 'Enregistrer' : 'J\'y étais'}
         </Button>
         {/* Annuler repart de la saisie enregistrée ; une activité ajoutée mais pas encore déclarée peut être retirée */}
-        {log && <Button variant="ghost" onClick={() => { setRpe(log.rpe); setDuration(String(log.duration_min)); setEditing(false) }}>Annuler</Button>}
-        {!log && onRemove && <Button variant="ghost" onClick={onRemove}>Retirer</Button>}
+        {log && <Button variant="quiet" onClick={() => { setRpe(log.rpe); setDuration(String(log.duration_min)); setEditing(false) }}>Annuler</Button>}
+        {!log && onRemove && <Button variant="quiet" onClick={onRemove}>Retirer</Button>}
       </div>
     </li>
   )

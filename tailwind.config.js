@@ -14,6 +14,8 @@ export default {
         ink: 'rgb(var(--ink) / <alpha-value>)',
         ...BRAND,
         gold: 'rgb(var(--gold) / <alpha-value>)', // or plus foncé en thème clair (lisibilité du texte)
+        // fond des champs et boutons d'échelle : translucide, lisible sur la page comme dans un bloc
+        field: 'rgb(var(--ink) / 0.06)',
       },
       fontFamily: {
         // Barlow : texte courant ; Barlow Condensed : chiffres, titres, navigation (esprit tableau d'affichage)

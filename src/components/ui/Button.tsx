@@ -10,7 +10,7 @@ const LOOK = {
   ghost: 'border border-line text-ink hover:border-ink/40 disabled:opacity-40',
   quiet: 'text-ink/70 hover:text-ink underline-offset-4 hover:underline disabled:opacity-40',
 }
-const SIZE = { md: 'px-4 py-3 text-lg', sm: 'px-3 py-1.5 text-base' }
+const SIZE = { md: 'px-4 py-2.5 text-base', sm: 'px-3 py-1.5 text-sm' } // compacts : un écran doit tenir sans défiler sans fin
 
 export function Button({ variant = 'primary', size = 'md', className = '', ...props }: Props) {
   const box = variant === 'quiet' ? 'px-2 py-1.5 text-sm' : SIZE[size]

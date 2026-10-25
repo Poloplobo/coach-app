@@ -9,7 +9,7 @@ import { WELLNESS_ITEMS, type WellnessItems } from '../wellness/items'
 import type { ActivityType, Log, Player } from './load'
 import { useAvailabilityDetail, useSetAvailability, useStaffSaveLog, useStaffSaveWellness } from './useStaff'
 
-const field = 'rounded-lg bg-app border border-line px-3 py-2 text-base'
+const field = 'rounded-lg bg-field border border-line px-3 py-2 text-base'
 const Saved = ({ ok, error }: { ok: boolean; error: boolean }) => (
   <>
     {ok && <p role="status" className="rounded-lg border border-ok px-3 py-2 text-sm">Enregistré.</p>}

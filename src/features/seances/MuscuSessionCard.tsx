@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { ConfirmButton } from '../../components/ui/ConfirmButton'
 import { addDays, formatDay, isoWeekStart } from '../../lib/week'
@@ -20,6 +21,7 @@ export function MuscuSessionCard({ playerId, date }: { playerId: string; date: s
   const markNotDone = useMarkNotDone(playerId)
   const [rpe, setRpe] = useState<number | null>(null)
   const [duration, setDuration] = useState('')
+  const [finishing, setFinishing] = useState(false) // 2e étape : effort de la séance et validation
 
   if (program.isPending || logs.isPending || types.isPending) return <Card title="Musculation"><Loading /></Card>
   if (program.isError || logs.isError || types.isError) return <Card title="Musculation"><p>Impossible de charger ton programme.</p></Card>
@@ -53,8 +55,8 @@ export function MuscuSessionCard({ playerId, date }: { playerId: string; date: s
   const validDuration = Number.isInteger(minutes) && minutes > 0 && minutes <= 300
 
   return (
-    <Card title="Ma séance de musculation">
-      <p className="text-sm text-ink/70">{c.done}/{c.total} exercices faits · {c.pct} %</p>
+    <Card title="Ma séance de musculation" aside={<span className="text-sm text-ink/60 tabular-nums">{c.done}/{c.total} faits</span>}
+      help="1. Pour chaque exercice : fait, partiel ou non fait. 2. Terminer la séance : ton effort global, puis Valider.">
       <ul className="flex flex-col gap-3">
         {exercises.map(e => <ExerciseRow key={e.id} playerId={playerId} exercise={e} editable={!log} />)}
       </ul>
@@ -62,16 +64,27 @@ export function MuscuSessionCard({ playerId, date }: { playerId: string; date: s
       {log ? (
         <p className="rounded-lg border border-ok px-3 py-2 text-sm">Séance validée · RPE {log.rpe} · {log.duration_min} min · {log.srpe} UA</p>
       ) : (
+        !finishing ? (
+          <div className="flex flex-col gap-2 border-t border-line pt-3">
+            <Button onClick={() => setFinishing(true)}>Terminer la séance</Button>
+            {/* écrase aussi les exercices déjà notés « fait » : confirmation obligatoire */}
+            <ConfirmButton variant="quiet" className="self-center" confirmLabel="Confirmer : tout passer en « non fait »" disabled={markNotDone.isPending}
+              onClick={() => markNotDone.mutate(exercises.map(e => e.id))}>
+              Séance non faite
+            </ConfirmButton>
+            {markNotDone.isError && <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">Enregistrement impossible, réessaie.</p>}
+          </div>
+        ) : (
         <div className="flex flex-col gap-3 border-t border-line pt-3">
           <RpePicker label="RPE de la séance" value={rpe} onChange={setRpe} />
           <label className="flex items-center gap-3 text-sm">
             Durée
             <input type="number" inputMode="numeric" min={1} max={300} value={duration} placeholder={String(plannedMinutes ?? '')} onChange={e => setDuration(e.target.value)}
-              className="w-20 rounded-lg bg-app border border-line px-3 py-2 text-base" />
+              className="w-20 rounded-md bg-field border border-line px-3 py-2 text-base" />
             min
           </label>
           <p className="text-xs text-ink/60">Une fois validée, la séance ne peut plus être modifiée. Les exercices sans réponse seront notés « non fait ».</p>
-          {(validate.isError || markNotDone.isError) && (
+          {validate.isError && (
             <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">Enregistrement impossible, réessaie.</p>
           )}
           <ConfirmButton confirmLabel="Confirmer : la séance sera verrouillée" disabled={rpe === null || !validDuration || validate.isPending}
@@ -81,12 +94,9 @@ export function MuscuSessionCard({ playerId, date }: { playerId: string; date: s
             })}>
             {validate.isPending ? 'Validation…' : 'Valider la séance'}
           </ConfirmButton>
-          {/* écrase aussi les exercices déjà notés « fait » : confirmation obligatoire */}
-          <ConfirmButton variant="ghost" confirmLabel="Confirmer : tout passer en « non fait »" disabled={markNotDone.isPending}
-            onClick={() => markNotDone.mutate(exercises.map(e => e.id))}>
-            Séance non faite
-          </ConfirmButton>
+          <Button variant="quiet" className="self-center" onClick={() => setFinishing(false)}>Retour aux exercices</Button>
         </div>
+        )
       )}
       {weekList}
     </Card>

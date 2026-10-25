@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Button } from '../../components/ui/Button'
+import { ChevronRight } from 'lucide-react'
 import { Card } from '../../components/ui/Card'
 import { MIN_PASSWORD_LENGTH, isWrongCredentials, useChangePassword, useProfile, useSession, useSignOut } from '../auth/useAuth'
 import { PRIVACY_CONTACT, PRIVACY_SECTIONS } from './privacy'
@@ -13,28 +14,30 @@ export function SettingsTab() {
   const email = session.data?.user.email ?? ''
   const identifier = email.endsWith('@joueurs.rnr') ? email.split('@')[0] : email
 
+  // Liste de réglages façon téléphone : une ligne par réglage, le détail se déplie sur demande
+  const row = 'flex items-center justify-between gap-3 py-3'
+  const fold = 'group py-3 [&_summary]:cursor-pointer [&_summary]:list-none'
   return (
-    <>
-      <Card title="Mon compte">
-        <p>{profile.data?.first_name} {profile.data?.last_name}</p>
-        <p className="text-sm text-ink/70">Identifiant : {identifier}</p>
-      </Card>
-
-      <Card title="Apparence">
-        <label className="flex items-center justify-between gap-3">
-          Mode sombre
+    <Card title="Réglages">
+      <div className="divide-y divide-line border-y border-line">
+        <div className={row}>
+          <span className="text-ink/60">Compte</span>
+          <span className="text-right"><span className="font-semibold">{profile.data?.first_name} {profile.data?.last_name}</span>
+            <span className="block text-sm text-ink/60">{identifier}</span></span>
+        </div>
+        <label className={row}>
+          <span>Mode sombre</span>
           <button type="button" role="switch" aria-checked={theme === 'dark'} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className={`relative h-7 w-12 rounded-full border border-line ${theme === 'dark' ? 'bg-rnr' : 'bg-app'}`}>
+            className={`relative h-7 w-12 rounded-full border border-line ${theme === 'dark' ? 'bg-rnr' : 'bg-field'}`}>
             <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white border border-line shadow transition-all ${theme === 'dark' ? 'left-6' : 'left-0.5'}`} />
           </button>
         </label>
-      </Card>
-
-      <ChangePassword />
-
-      <Card title="Mes données (RGPD)">
-        <details>
-          <summary className="cursor-pointer text-sm font-semibold">Lire la notice d'information</summary>
+        <details className={fold}>
+          <summary className="flex items-center justify-between">Changer mon mot de passe <Chevron /></summary>
+          <div className="mt-3"><ChangePassword /></div>
+        </details>
+        <details className={fold}>
+          <summary className="flex items-center justify-between">Mes données (RGPD) <Chevron /></summary>
           <div className="mt-3 flex flex-col gap-3 text-sm">
             {PRIVACY_SECTIONS.map(s => (
               <div key={s.title}>
@@ -48,12 +51,13 @@ export function SettingsTab() {
             </p>
           </div>
         </details>
-      </Card>
-
-      <Button variant="ghost" onClick={() => signOut.mutate()}>Se déconnecter</Button>
-    </>
+      </div>
+      <Button variant="quiet" className="self-start" onClick={() => signOut.mutate()}>Se déconnecter</Button>
+    </Card>
   )
 }
+
+const Chevron = () => <ChevronRight size={18} aria-hidden="true" className="text-ink/50 transition-transform group-open:rotate-90" />
 
 function ChangePassword() {
   const change = useChangePassword()
@@ -70,22 +74,22 @@ function ChangePassword() {
   }
 
   return (
-    <Card title="Changer mon mot de passe">
+    <>
       <form onSubmit={submit} className="flex flex-col gap-3">
         <label className="flex flex-col gap-1 text-sm">
           Mot de passe actuel
           <input type="password" autoComplete="current-password" value={current} onChange={e => setCurrent(e.target.value)}
-            className="rounded-lg bg-app border border-line px-3 py-3 text-base" />
+            className="rounded-md bg-field border border-line px-3 py-2.5 text-base" />
         </label>
         <label className="flex flex-col gap-1 text-sm">
           Nouveau mot de passe ({MIN_PASSWORD_LENGTH} caractères minimum)
           <input type="password" autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)}
-            className="rounded-lg bg-app border border-line px-3 py-3 text-base" />
+            className="rounded-md bg-field border border-line px-3 py-2.5 text-base" />
         </label>
         <label className="flex flex-col gap-1 text-sm">
           Confirmer
           <input type="password" autoComplete="new-password" value={confirm} onChange={e => setConfirm(e.target.value)}
-            className="rounded-lg bg-app border border-line px-3 py-3 text-base" />
+            className="rounded-md bg-field border border-line px-3 py-2.5 text-base" />
         </label>
         {tooShort && <p className="text-sm text-ink/70">Encore {MIN_PASSWORD_LENGTH - password.length} caractère(s).</p>}
         {mismatch && <p className="text-sm text-ink/70">Les deux mots de passe ne sont pas identiques.</p>}
@@ -97,6 +101,6 @@ function ChangePassword() {
         )}
         <Button type="submit" disabled={!ready || change.isPending}>{change.isPending ? 'Enregistrement…' : 'Changer'}</Button>
       </form>
-    </Card>
+    </>
   )
 }

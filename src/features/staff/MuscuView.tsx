@@ -2,6 +2,7 @@ import { Fragment, useState } from 'react'
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Badge } from '../../components/ui/Badge'
 import { Card } from '../../components/ui/Card'
+import { ViewSelect } from '../../components/ui/ViewSelect'
 import { BRAND } from '../../lib/brand'
 import { addDays, formatDay, parisDate } from '../../lib/week'
 import { MUSCULATION } from '../rpe/activities'
@@ -15,7 +16,6 @@ const RESPECT: Record<Exclude<Respect, null>, { tone: 'ok' | 'warn' | 'bad'; lab
   oui: { tone: 'ok', label: 'respectée' }, partiel: { tone: 'warn', label: 'partielle' }, non: { tone: 'bad', label: 'non respectée' },
 }
 const STATUS_LABEL: Record<string, string> = { fait: 'Fait', partiel: 'Partiel', 'non fait': 'Non fait' }
-const select = 'rounded-lg bg-surface border border-line px-3 py-2'
 
 export function MuscuView() {
   const today = parisDate()
@@ -43,14 +43,11 @@ export function MuscuView() {
 
   return (
     <>
-      <label className="flex flex-col gap-1 text-sm self-start">
-        Semaine
-        <select value={week.code} onChange={e => setCode(e.target.value)} className={select}>
-          {weeks.map(w => <option key={w.code} value={w.code}>{w.code} · {w.label} · {w.start_date}</option>)}
-        </select>
-      </label>
+      <div><ViewSelect label="Semaine" value={week.code} onChange={setCode}>
+        {weeks.map(w => <option key={w.code} value={w.code}>{w.code} · {w.label}</option>)}
+      </ViewSelect></div>
 
-      <Card title={`Vue d'ensemble musculation — ${week.code}`}>
+      <Card title={`Musculation — ${week.code}`} help="Par joueur : part des exercices faits, effort moyen et charges respectées (✓ fait à la charge prescrite ou plus, ~ partiel, ✗ non respectée). « Détail » ouvre les séances.">
         {rows.length === 0 && <p className="text-sm text-ink/70">Aucune séance de musculation programmée cette semaine.</p>}
         {rows.length > 0 && (
           <div className="overflow-x-auto">
@@ -74,7 +71,7 @@ export function MuscuView() {
                       </td>
                       <td>
                         <button type="button" aria-expanded={open === player.id} onClick={() => setOpen(open === player.id ? null : player.id)}
-                          className="rounded-lg border border-line px-3 py-1.5">{open === player.id ? 'Masquer' : 'Détail'}</button>
+                          className="rounded-md border border-line px-2.5 py-1 text-sm hover:border-ink/40">{open === player.id ? 'Masquer' : 'Détail'}</button>
                       </td>
                     </tr>
                     {open === player.id && (
@@ -86,10 +83,6 @@ export function MuscuView() {
             </table>
           </div>
         )}
-        <p className="text-xs text-ink/60">
-          Charge respectée : exercice fait et, si la prescription est en kg, charge réalisée ≥ charge prescrite.
-          En %RM ou charge libre, seul le statut compte.
-        </p>
       </Card>
 
       <Progression players={roster.data} seasonStart={weeks[0]?.start_date ?? addDays(today, -90)} today={today} />
@@ -99,7 +92,7 @@ export function MuscuView() {
 
 function SessionsDetail({ sessions }: { sessions: StaffMuscuSession[] }) {
   return (
-    <div className="flex flex-col gap-3 rounded-xl bg-app p-3">
+    <div className="flex flex-col gap-3 rounded-xl bg-field p-3">
       {sessions.map(s => (
         <div key={s.id}>
           <p className="font-semibold first-letter:uppercase">{formatDay(s.session_date)}</p>
@@ -138,21 +131,17 @@ function Progression({ players, seasonStart, today }: { players: { id: string; f
   const points = loadProgression(season.data ?? [], chosen).map(p => ({ ...p, date: p.date.slice(5) }))
 
   return (
-    <Card title="Progression de charge">
-      <div className="flex flex-wrap gap-3">
-        <label className="flex flex-col gap-1 text-sm">
-          Joueur
-          <select value={playerId} onChange={e => setPlayerId(e.target.value)} className={select}>
+    <Card title="Progression de charge" help="Trait plein : la charge la plus lourde saisie par le joueur (« 2x125 1x120 » → 125 kg). Pointillés : la charge prescrite."
+      aside={(
+        <div className="flex flex-wrap gap-x-5 gap-y-2">
+          <ViewSelect label="Joueur" value={playerId} onChange={setPlayerId}>
             {players.map(p => <option key={p.id} value={p.id}>{fullName(p)}</option>)}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Exercice
-          <select value={chosen} onChange={e => setExercise(e.target.value)} className={select} disabled={!options.length}>
+          </ViewSelect>
+          <ViewSelect label="Exercice" value={chosen} onChange={setExercise}>
             {options.map(o => <option key={o} value={o}>{o}</option>)}
-          </select>
-        </label>
-      </div>
+          </ViewSelect>
+        </div>
+      )}>
       {season.isPending && <Loading />}
       {season.isSuccess && points.length === 0 && <p className="text-sm text-ink/70">Aucune charge réalisée lisible pour ce joueur.</p>}
       {points.length > 0 && (
@@ -170,7 +159,6 @@ function Progression({ players, seasonStart, today }: { players: { id: string; f
           </ResponsiveContainer>
         </div>
       )}
-      <p className="text-xs text-ink/60">Charge réalisée lue dans la saisie du joueur (ex. « 2x125 1x120 » → 125 kg).</p>
     </Card>
   )
 }

@@ -56,7 +56,7 @@ export function PlayerLayout() {
           </p>
         )}
         {/* « page » : seul le contenu s'anime au changement d'onglet (index.css) ; en-tête et barre restent fixes */}
-        <div className="flex flex-col gap-4 [view-transition-name:page]">
+        <div className="flex flex-col gap-7 [view-transition-name:page]">
           {locked ? <Loading /> : <Outlet key={today} context={{ playerId, today } satisfies PlayerDay} />}
         </div>
       </main>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Bar, CartesianGrid, ComposedChart, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Bar, CartesianGrid, Cell, ComposedChart, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Badge } from '../../components/ui/Badge'
 import { Card } from '../../components/ui/Card'
 import { Kpi } from '../../components/ui/Kpi'
@@ -11,15 +11,21 @@ import { completion } from '../seances/program'
 import { useWeekProgram } from '../seances/useSeance'
 import { MyGoals } from '../tests/MyGoals'
 import { fatiguePercent } from '../wellness/fatigue'
-import { DAY_NAMES, STATUS_TONE, WELLNESS_ALERT_SCORE, acwr, fullName, playerDays, weekMatrix, weekOf, type Log } from './load'
+import { DAY_NAMES, STATUS_TONE, WELLNESS_ALERT_SCORE, acwr, fullName, loadStatus, playerDays, weekMatrix, weekOf, type Log, type WeekType } from './load'
 import { AvailabilityPanel, CorrectionPanel } from './PlayerAdmin'
 import { TestsPanel } from './programming/TestsPanel'
 import { useAllLogs, useAllWellness, useIsAdmin, useReference, useRoster } from './useStaff'
 import { Loading } from '../../components/ui/Loading'
+import { ViewSelect } from '../../components/ui/ViewSelect'
 
 const SOURCE = { app: 'joueur', staff: 'staff', import_form: 'formulaire' } as Record<string, string>
 const ZONE_TONE = { bas: 'warn', optimal: 'ok', vigilance: 'warn', risque: 'bad' } as const
 const ZONE_LABEL = { bas: 'sous-entraînement', optimal: 'zone optimale', vigilance: 'vigilance', risque: 'risque' }
+const STATUS_TEXT = { ok: 'text-ok', warn: 'text-gold', bad: 'text-rnr', neutral: '' } as const
+
+type Section = 'semaine' | 'saison' | 'muscu' | 'gestion'
+const STATUS_WORD = { 'sous-charge': 'en sous-charge', conforme: 'dans la plage visée', surcharge: 'en surcharge' } as const
+const n = (v: number) => v.toLocaleString('fr-FR')
 
 export function PlayerView() {
   const { playerId } = useParams()
@@ -29,6 +35,7 @@ export function PlayerView() {
   const ref = useReference()
   const roster = useRoster()
   const [code, setCode] = useState<string | null>(null)
+  const [section, setSection] = useState<Section>('semaine')
   const weeks = ref.data?.weeks ?? []
   const week = weeks.find(w => w.code === code) ?? weekOf(weeks, today)
   const seasonStart = weeks[0]?.start_date ?? addDays(today, -60)
@@ -53,142 +60,178 @@ export function PlayerView() {
 
   return (
     <>
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1 text-sm">
-          Joueur
-          <select value={player.id} onChange={e => navigate(`/staff/joueur/${e.target.value}`)} className="rounded-lg bg-surface border border-line px-3 py-2">
-            {roster.data.map(p => <option key={p.id} value={p.id}>{fullName(p)}{p.injured ? ' (blessé)' : ''}</option>)}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Semaine
-          <select value={week?.code ?? ''} onChange={e => setCode(e.target.value)} className="rounded-lg bg-surface border border-line px-3 py-2">
-            {weeks.map(w => <option key={w.code} value={w.code}>{w.code} · {w.label}</option>)}
-          </select>
-        </label>
-        <p className="text-sm text-ink/70 pb-2">{player.position ?? '—'}{player.injured && <> · <Badge tone="warn">blessé</Badge></>}</p>
+      {/* Ce qu'on regarde : un joueur, une semaine, une partie de sa fiche */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+        <ViewSelect label="Joueur" value={player.id} onChange={id => navigate(`/staff/joueur/${id}`)}>
+          {roster.data.map(p => <option key={p.id} value={p.id}>{fullName(p)}{p.injured ? ' (blessé)' : ''}</option>)}
+        </ViewSelect>
+        <ViewSelect label="Semaine" value={week?.code ?? ''} onChange={setCode}>
+          {weeks.map(w => <option key={w.code} value={w.code}>{w.code} · {w.label}</option>)}
+        </ViewSelect>
+        <ViewSelect label="Afficher" value={section} onChange={setSection}>
+          <option value="semaine">La semaine, jour par jour</option>
+          <option value="saison">La saison (charge et fatigue)</option>
+          <option value="muscu">Musculation et tests</option>
+          <option value="gestion">Gestion (statut, corrections, tests)</option>
+        </ViewSelect>
+        <span className="text-sm text-ink/60">{player.position ?? ''}{player.injured && <> · <Badge tone="warn">blessé</Badge></>}</span>
       </div>
 
-      {row && (
-        <div className="flex flex-wrap gap-3">
-          <Kpi label="Séances déclarées" value={String(row.sessions)} />
-          <Kpi label={`sRPE total ${week?.code}`} value={`${row.total} UA`} hint={wt ? `Cible ${wt.target_srpe} UA` : 'Hors calendrier'} />
-          <Kpi label="% de la cible" value={pct(row.pct)} tone={row.status ? STATUS_TONE[row.status] : 'neutral'} hint={row.status ?? (m?.inProgress ? 'semaine en cours' : undefined)} />
-          <Kpi label="Vs moyenne du groupe" value={pct(row.vsGroupPct, true)} />
-          <Kpi label="Temps total" value={`${row.minutes} min`} />
-          {isAdmin && (
-            <Kpi label="Ratio aigu / chronique" value={ratio.ratio === null ? '—' : ratio.ratio.toLocaleString('fr-FR')}
-              tone={ratio.zone ? ZONE_TONE[ratio.zone] : 'neutral'}
-              hint={ratio.zone ? `${ZONE_LABEL[ratio.zone]} · 7 j ${ratio.acute} / 28 j ${ratio.chronic} UA` : 'Pas assez d\'historique'} />
-          )}
+      {row && week && (
+        <section className="flex flex-col gap-4">
+          <p className="max-w-4xl text-lg leading-snug">
+            <strong>{fullName(player)}</strong> a déclaré {row.sessions} séance{row.sessions > 1 ? 's' : ''} en {week.code}
+            {wt && <> ({wt.name.toLowerCase()})</>} : <strong>{n(row.total)} UA</strong>
+            {wt && <>, soit {pct(row.pct)} de la charge visée ({n(wt.target_srpe)} UA)</>}
+            {row.status
+              ? <> — <strong className={STATUS_TEXT[STATUS_TONE[row.status]]}>{STATUS_WORD[row.status]}</strong>.</>
+              : m?.inProgress ? <> — semaine en cours.</> : '.'}
+            {' '}{row.vsGroupPct === 0 ? 'Comme la moyenne du groupe.' : `${pct(Math.abs(row.vsGroupPct))} ${row.vsGroupPct > 0 ? 'au-dessus' : 'en dessous'} de la moyenne du groupe.`}
+            {isAdmin && ratio.zone && <> Ratio aigu/chronique {ratio.ratio?.toLocaleString('fr-FR')} : <strong className={STATUS_TEXT[ZONE_TONE[ratio.zone]]}>{ZONE_LABEL[ratio.zone]}</strong>.</>}
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Kpi label="Séances déclarées" value={String(row.sessions)} />
+            <Kpi label={`Charge ${week.code}`} value={`${n(row.total)} UA`} hint={wt ? `Visée ${n(wt.target_srpe)} UA` : 'Hors calendrier'} />
+            <Kpi label="% de la charge visée" value={pct(row.pct)} tone={row.status ? STATUS_TONE[row.status] : 'neutral'} hint={row.status ?? (m?.inProgress ? 'semaine en cours' : undefined)} />
+            <Kpi label="Écart au groupe" value={pct(row.vsGroupPct, true)} />
+            <Kpi label="Temps total" value={`${n(row.minutes)} min`} />
+            {isAdmin && (
+              <Kpi label="Ratio aigu / chronique" value={ratio.ratio === null ? '—' : ratio.ratio.toLocaleString('fr-FR')}
+                tone={ratio.zone ? ZONE_TONE[ratio.zone] : 'neutral'}
+                hint={ratio.zone ? `7 j ${n(ratio.acute)} / 28 j ${n(ratio.chronic)} UA` : 'Pas assez d\'historique'} />
+            )}
+          </div>
+        </section>
+      )}
+
+      {section === 'semaine' && (
+        <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_22rem]">
+          <Card title={`Jour par jour${week ? ` — ${week.code}` : ''}`}
+            help="Minutes par pilier, effort moyen (RPE) et charge du jour (sRPE = RPE × minutes). Écart : différence avec la moyenne du groupe ce jour-là.">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-xs text-ink/55">
+                  <tr>{['Jour', 'Activités', 'Min', 'Rugby', 'Physique', 'Accomp.', 'RPE moy.', 'sRPE', 'Groupe', 'Écart'].map(h => <th key={h} className="py-2 pr-3 font-normal">{h}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {days.map(d => (
+                    <tr key={d.date} className="border-t border-line">
+                      <td className="py-1.5 pr-3 font-semibold">{d.day}</td><td className="pr-3 text-ink/75">{d.activities || '—'}</td><td className="pr-3">{d.minutes || '—'}</td>
+                      <td className="pr-3">{d.rugby || '—'}</td><td className="pr-3">{d.physique || '—'}</td><td className="pr-3">{d.accompagnement || '—'}</td>
+                      <td className="pr-3">{d.avgRpe ?? '—'}</td><td className="pr-3 font-semibold">{d.srpe || '—'}</td>
+                      <td className="pr-3 text-ink/60">{d.groupMean || '—'}</td>
+                      <td className={d.gap > 0 ? 'text-gold' : d.gap < 0 ? 'text-ink/60' : ''}>{d.srpe || d.groupMean ? `${d.gap > 0 ? '+' : ''}${d.gap}` : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+          <Card title="Journal des saisies" help="Chaque déclaration de la semaine, quand et par qui (joueur, staff ou formulaire).">
+            {!own.data.some(inWeek) && <p className="text-sm text-ink/70">Aucune déclaration cette semaine.</p>}
+            <ul className="text-sm flex flex-col max-h-96 overflow-y-auto">
+              {own.data.filter(inWeek).sort((a, b) => a.created_at.localeCompare(b.created_at)).map((l, i) => (
+                <li key={i} className="flex justify-between gap-2 border-t border-line py-1">
+                  <span>{DAY_NAMES[(new Date(`${l.session_date}T00:00:00Z`).getUTCDay() + 6) % 7].slice(0, 3)}. {ref.data.types.find(t => t.id === l.activity_type_id)?.name}</span>
+                  <span className="text-ink/60 tabular-nums whitespace-nowrap">{Number(l.srpe ?? 0)} UA · {SOURCE[l.source] ?? l.source}</span>
+                </li>
+              ))}
+            </ul>
+          </Card>
         </div>
       )}
 
-      <Card title={`Détail jour par jour${week ? ` — ${week.code}` : ''}`}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-left text-ink/60">
-              <tr>{['Jour', 'Activités', 'Min', 'Rugby', 'Physique', 'Vidéo / kiné', 'RPE moy.', 'sRPE', 'Moy. groupe', 'Écart'].map(h => <th key={h} className="py-2 pr-3 font-normal">{h}</th>)}</tr>
-            </thead>
-            <tbody>
-              {days.map(d => (
-                <tr key={d.date} className="border-t border-line">
-                  <td className="py-2 pr-3">{d.day}</td><td className="pr-3">{d.activities || '—'}</td><td className="pr-3">{d.minutes || '—'}</td>
-                  <td className="pr-3">{d.rugby || '—'}</td><td className="pr-3">{d.physique || '—'}</td><td className="pr-3">{d.accompagnement || '—'}</td>
-                  <td className="pr-3">{d.avgRpe ?? '—'}</td><td className="pr-3 font-semibold">{d.srpe || '—'}</td>
-                  <td className="pr-3">{d.groupMean || '—'}</td><td>{d.srpe || d.groupMean ? `${d.gap > 0 ? '+' : ''}${d.gap}` : '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {section === 'saison' && <SeasonCharts own={own.data} wellness={wellness.data} weeks={weeks} weekTypes={ref.data.weekTypes} today={today} />}
+
+      {section === 'muscu' && (
+        <div className="grid items-start gap-8 lg:grid-cols-2">
+          {week && <MuscuWeek playerId={player.id} from={week.start_date} />}
+          <MyGoals playerId={player.id} date={today} title="Objectifs et tests" />
         </div>
-      </Card>
+      )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <SeasonCharts own={own.data} wellness={wellness.data} weeks={weeks}
-          targets={new Map(ref.data.weekTypes.map(t => [t.code, t.target_srpe]))} />
-        <Card title="Journal des déclarations de la semaine">
-          {!own.data.some(inWeek) && <p className="text-sm text-ink/70">Aucune déclaration cette semaine.</p>}
-          <ul className="text-sm flex flex-col gap-1 max-h-80 overflow-y-auto">
-            {own.data.filter(inWeek).sort((a, b) => a.created_at.localeCompare(b.created_at)).map((l, i) => (
-              <li key={i} className="flex justify-between gap-2 border-t border-line pt-1">
-                <span>{DAY_NAMES[(new Date(`${l.session_date}T00:00:00Z`).getUTCDay() + 6) % 7]} · {ref.data.types.find(t => t.id === l.activity_type_id)?.name}</span>
-                <span className="text-ink/70">{Number(l.srpe ?? 0)} UA · {new Date(l.created_at).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'short', timeStyle: 'short' })} · {SOURCE[l.source] ?? l.source}</span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        {week && <MuscuWeek playerId={player.id} from={week.start_date} />}
-        <MyGoals playerId={player.id} date={today} />
-      </div>
-
-      {isAdmin && <AvailabilityPanel player={player} today={today} />}
-      <CorrectionPanel player={player} types={ref.data.types} today={today} logs={own.data} wellness={wellness.data} />
-      <TestsPanel player={player} today={today} />
+      {section === 'gestion' && (
+        <div className="flex flex-col gap-8">
+          {isAdmin && <AvailabilityPanel player={player} today={today} />}
+          <CorrectionPanel player={player} types={ref.data.types} today={today} logs={own.data} wellness={wellness.data} />
+          <TestsPanel player={player} today={today} />
+        </div>
+      )}
     </>
   )
 }
 
-function SeasonCharts({ own, wellness, weeks, targets }: {
+const STATUS_FILL = { 'sous-charge': BRAND.gold, conforme: BRAND.ok, surcharge: BRAND.rnr } as const
+
+function SeasonCharts({ own, wellness, weeks, weekTypes, today }: {
   own: Log[]; wellness: { entry_date: string; score: number | null }[]
-  weeks: { code: string; start_date: string; week_type_code: string }[]; targets: Map<string, number>
+  weeks: { code: string; start_date: string; week_type_code: string }[]; weekTypes: WeekType[]; today: string
 }) {
-  const load = weeks.map(w => ({
-    week: w.code,
-    srpe: own.filter(l => l.session_date >= w.start_date && l.session_date <= addDays(w.start_date, 6)).reduce((s, l) => s + Number(l.srpe ?? 0), 0),
-    cible: targets.get(w.week_type_code) ?? null,
-  }))
-  const form = [...wellness].sort((a, b) => a.entry_date.localeCompare(b.entry_date))
+  const load = weeks.map(w => {
+    const wt = weekTypes.find(t => t.code === w.week_type_code) ?? null
+    const srpe = own.filter(l => l.session_date >= w.start_date && l.session_date <= addDays(w.start_date, 6)).reduce((s, l) => s + Number(l.srpe ?? 0), 0)
+    const status = loadStatus(srpe, wt)
+    // semaine en cours ou à venir : pas encore de verdict, barre neutre
+    const fill = addDays(w.start_date, 6) >= today || !status ? BRAND.muted : STATUS_FILL[status]
+    return { week: w.code, srpe, cible: wt?.target_srpe ?? null, fill }
+  })
+  const daily = [...wellness].sort((a, b) => a.entry_date.localeCompare(b.entry_date))
     .flatMap(w => (w.score === null ? [] : [{ date: w.entry_date.slice(5), fatigue: fatiguePercent(w.score) }]))
+  // moyenne glissante sur 7 saisies : la tendance se lit mieux que le jour par jour
+  const form = daily.map((d, i) => {
+    const win = daily.slice(Math.max(0, i - 6), i + 1)
+    return { ...d, tendance: Math.round(win.reduce((s, x) => s + x.fatigue, 0) / win.length) }
+  })
   return (
-    <Card title="Saison">
-      <p className="text-xs text-ink/60">Charge par semaine (UA) et cible du type de semaine</p>
-      <div className="h-48 text-ink/60">
-        <ResponsiveContainer>
-          <ComposedChart data={load}>
-            <CartesianGrid strokeOpacity={0.15} vertical={false} />
-            <XAxis dataKey="week" tick={{ fill: 'currentColor', fontSize: 12 }} />
-            <YAxis tick={{ fill: 'currentColor', fontSize: 12 }} width={40} />
-            <Tooltip />
-            <Bar dataKey="srpe" name="sRPE" fill={BRAND.rnr} radius={[4, 4, 0, 0]} />
-            {/* la cible change avec le type de semaine (DEV, COMP, REG) */}
-            <Line type="stepAfter" dataKey="cible" name="Cible" stroke={BRAND.gold} strokeDasharray="4 4" dot={false} />
-          </ComposedChart>
-        </ResponsiveContainer>
-      </div>
-      <p className="text-xs text-ink/60">Fatigue estimée (%) d'après l'état de forme</p>
-      {form.length === 0 ? <p className="text-sm text-ink/70">Aucun état de forme rempli depuis le début de la saison.</p> : (
-      <div className="h-40 text-ink/60">
-        <ResponsiveContainer>
-          <LineChart data={form}>
-            <CartesianGrid strokeOpacity={0.15} vertical={false} />
-            <XAxis dataKey="date" tick={{ fill: 'currentColor', fontSize: 11 }} minTickGap={20} />
-            <YAxis domain={[0, 100]} tick={{ fill: 'currentColor', fontSize: 12 }} width={40} />
-            <Tooltip />
-            <ReferenceLine y={fatiguePercent(WELLNESS_ALERT_SCORE)} stroke={BRAND.rnr} strokeDasharray="4 4" label={{ value: 'alerte', fill: 'currentColor', fontSize: 11 }} />
-            <Line dataKey="fatigue" name="Fatigue %" stroke={BRAND.gold} dot={false} strokeWidth={2} />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-      )}
-    </Card>
+    <div className="grid items-start gap-8 lg:grid-cols-2">
+      <Card title="Charge par semaine"
+        help="Barre verte : dans la plage visée · jaune : sous-charge · rouge : surcharge · grise : semaine en cours. Pointillés : charge visée selon le type de semaine.">
+        <div className="h-64 text-ink/60">
+          <ResponsiveContainer>
+            <ComposedChart data={load}>
+              <CartesianGrid strokeOpacity={0.15} vertical={false} />
+              <XAxis dataKey="week" tick={{ fill: 'currentColor', fontSize: 12 }} />
+              <YAxis tick={{ fill: 'currentColor', fontSize: 12 }} width={44} />
+              <Tooltip formatter={(v, name) => [`${v} UA`, name === 'srpe' ? 'Charge' : 'Visée']} />
+              <Bar dataKey="srpe" name="srpe" radius={[4, 4, 0, 0]}>{load.map(l => <Cell key={l.week} fill={l.fill} />)}</Bar>
+              <Line type="stepAfter" dataKey="cible" name="cible" stroke={BRAND.gold} strokeDasharray="4 4" dot={false} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+      <Card title="Fatigue estimée"
+        help="D'après l'état de forme : 0 % = en pleine forme, 100 % = épuisé. Trait plein : moyenne sur 7 jours. Pointillés rouges : seuil d'alerte.">
+        {form.length === 0 ? <p className="text-sm text-ink/70">Aucun état de forme rempli depuis le début de la saison.</p> : (
+          <div className="h-64 text-ink/60">
+            <ResponsiveContainer>
+              <LineChart data={form}>
+                <CartesianGrid strokeOpacity={0.15} vertical={false} />
+                <XAxis dataKey="date" tick={{ fill: 'currentColor', fontSize: 11 }} minTickGap={24} />
+                <YAxis domain={[0, 100]} tick={{ fill: 'currentColor', fontSize: 12 }} width={36} unit="%" />
+                <Tooltip formatter={(v, name) => [`${v} %`, name === 'tendance' ? 'Moyenne 7 j' : 'Jour']} />
+                <ReferenceLine y={fatiguePercent(WELLNESS_ALERT_SCORE)} stroke={BRAND.rnr} strokeDasharray="4 4" />
+                <Line dataKey="fatigue" name="fatigue" stroke={BRAND.muted} strokeOpacity={0.5} dot={false} strokeWidth={1} />
+                <Line dataKey="tendance" name="tendance" stroke={BRAND.gold} dot={false} strokeWidth={2.5} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </Card>
+    </div>
   )
 }
 
 function MuscuWeek({ playerId, from }: { playerId: string; from: string }) {
   const program = useWeekProgram(playerId, from, addDays(from, 6))
   return (
-    <Card title="Musculation de la semaine">
+    <Card title="Musculation de la semaine" help="Part des exercices notés « fait » par le joueur, séance par séance.">
       {!program.data?.length && <p className="text-sm text-ink/70">Pas de séance de musculation cette semaine.</p>}
       <ul className="text-sm flex flex-col gap-1">
         {program.data?.map(s => {
           const c = completion(s.planned_exercises)
           return (
             <li key={s.id} className="flex justify-between border-t border-line pt-1">
-              <span className="capitalize">{DAY_NAMES[(new Date(`${s.session_date}T00:00:00Z`).getUTCDay() + 6) % 7]}</span>
+              <span>{DAY_NAMES[(new Date(`${s.session_date}T00:00:00Z`).getUTCDay() + 6) % 7]}</span>
               <span>{c.done}/{c.total} exercices faits · <Badge tone={c.pct >= 80 ? 'ok' : c.pct >= 50 ? 'warn' : 'bad'}>{c.pct} %</Badge></span>
             </li>
           )

@@ -193,6 +193,34 @@ pour les retouches. Programmation > Afficher « Import d'un cycle » (`ImportPan
 - **Cycles conservés** dans la même base (pas d'onglet par cycle) : toutes les séances restent datées. À venir : sélecteur
   « Cycle » dans la vue Musculation, la fiche joueur et le bilan PowerPoint (tables `cycles`, `player_cycle_reviews`).
 
+## Jalon — Identifiants joueurs (31/10/2026)
+Les 16 mots de passe joueurs ont été régénérés en production (les anciens étaient perdus), avec un message prêt à
+envoyer par joueur : `data/import/IDENTIFIANTS-joueurs-2026-10-31.csv` (lisible par l'admin seul, à supprimer une fois
+envoyés). Envoi en message privé (D9). Staff : connexion avec l'adresse e-mail complète (rappel affiché à l'écran).
+
+## Étape 11 — Onglet « Performance » : maxi, objectifs, GPS des matchs, note de match (à faire) — décisions du 31/10/2026
+Un nouvel onglet joueur « Performance » et une vue staff, en sous-étapes validées une par une :
+- **11a. Schéma** (migration) : `matches` (date, adversaire, libellé « J3 - R92 »), `gps_records` (match, joueur, poste saisi,
+  minutes, distance totale, distance HI > 21 km/h, accélérations, Vmax), `gps_reference` (attendu par groupe de poste,
+  durée de référence 70 min, correspondance poste saisi → groupe ; modifiable par le staff), `match_ratings` (match, joueur,
+  auteur joueur ou staff, couleur). RLS : un joueur lit ses GPS et ses notes, écrit sa propre note ; le staff lit tout,
+  écrit les GPS, le référentiel et sa note.
+- **11b. Calculs GPS** (fonctions pures, testées) repris du classeur « GPS - MATCH » (attendus A. Peters 2023) :
+  coefficient = 70 / minutes jouées ; % de l'attendu = réalisé × coefficient / attendu du poste, pour la distance totale,
+  la distance HI et les accélérations ; attendu rempli si ≥ 100 % ; **couleur GPS** selon les attendus remplis :
+  0 rouge, 1 jaune, 2 vert, 3 bleu ; Vmax : record personnel, % de la Vmax max, record battu.
+- **11c. Import GPS** (staff, bouton comme l'import d'un cycle) : export brut du match (POSTE, NOM, KM Total, DHI,
+  Accélération, Vmax, Temps), match saisi à l'import (date, adversaire, journée), joueurs rapprochés par le nom, aperçu
+  puis import ; un joueur inconnu ou ambigu bloque.
+- **11d. Maxi et objectifs** : saisie existante dans la fiche joueur + import d'un fichier pour tout le groupe
+  (Joueur | Test | Maxi | Objectif).
+- **11e. Note de match** (indépendante des GPS) : 4 couleurs — rouge = en dessous du niveau, jaune = niveau moyen,
+  vert = bon niveau Crabos, bleu = a dominé le niveau. Le joueur s'auto-évalue, le staff note aussi : les deux sont
+  comparés, et rapprochés de la couleur GPS.
+- **11f. Écrans** : joueur (mobile) — maxi vs objectifs, derniers matchs avec ses chiffres, % de l'attendu à son poste,
+  attendus remplis, record Vmax, sa note et celle du staff ; staff (desktop) — tableau du match (GPS + couleur GPS +
+  notes joueur / staff), import GPS, import des maxi.
+
 ---
 
 ## Décisions prises

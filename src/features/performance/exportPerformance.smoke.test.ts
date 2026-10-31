@@ -4,9 +4,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import JSZip from 'jszip'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { downloadMatchReport, downloadPlayerReport } from './exportPerformance'
+import { downloadMatchReport, downloadPlayerReport, downloadTeamBlockReport } from './exportPerformance'
 import type { GpsRecord, GpsReference } from './gps'
-import { matchReport, playerReport } from './report'
+import { matchReport, playerReport, teamBlockReport } from './report'
 
 const ref = {
   refs: new Map<string, GpsReference>([['Pilier', { position_group: 'Pilier', distance_m: 4970, accelerations: 15, hi_distance_m: 10, ref_minutes: 70 }]]),
@@ -33,6 +33,12 @@ describe('PowerPoint Performance', () => {
     const r = matchReport({ match: matches[0], players, records, ratings, ref, allRecords: records, matches })
     const file = join(dir, 'match.pptx')
     await downloadMatchReport(r, matches[0], file)
+    expect(await open(file)).toEqual({ slides: 1, charts: 1 })
+  })
+  it('rendu collectif d\'un bloc : 1 diapo, 1 graphique (répartition des couleurs de bloc)', async () => {
+    const r = teamBlockReport({ matches, players, records, ratings, ref })
+    const file = join(dir, 'bloc-equipe.pptx')
+    await downloadTeamBlockReport(r, file)
     expect(await open(file)).toEqual({ slides: 1, charts: 1 })
   })
   it('bilan individuel d\'un bloc : 1 diapo, 1 graphique (évolution, 2 matchs analysés)', async () => {

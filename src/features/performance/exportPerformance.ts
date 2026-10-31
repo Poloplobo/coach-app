@@ -1,12 +1,13 @@
 // PowerPoint Performance (étape 11g) : une diapo par rendu, lisible d'un coup d'œil.
 // - Rendu collectif d'un match : carte de chaleur des attendus GPS de tout l'effectif + répartition des couleurs.
+// - Rendu collectif d'un bloc de matchs : moyennes de chaque joueur, couleur du bloc, régularité match par match.
 // - Rendu individuel (un match, un bloc de matchs ou un cycle) : profil du joueur, jauges des attendus, évolution, regards croisés.
 // Même charte et mêmes briques que les extractions de charge (staff/exportPptx.ts) ; créés dans le navigateur.
 import type PptxGenJS from 'pptxgenjs'
 import { formatDay } from '../../lib/week'
 import { C, DISPLAY, FONT, chart, deck, empty, pct, slide } from '../staff/exportPptx'
 import { COLOR_LABEL, GPS_COLORS, type RatingColor } from './gps'
-import type { matchReport, playerReport } from './report'
+import type { matchReport, playerReport, teamBlockReport } from './report'
 
 const COLOR_HEX: Record<RatingColor, string> = { rouge: C.red, jaune: C.gold, vert: C.green, bleu: '3B82F6', gris: C.grey } // gris : n'a pas joué
 const INK_ON: Record<RatingColor, string> = { rouge: C.ink, jaune: '1A1A1A', vert: '1A1A1A', bleu: C.ink, gris: C.ink }
@@ -99,6 +100,78 @@ export async function downloadMatchReport(r: ReturnType<typeof matchReport>, mat
   ], { x: px, y: 4.2, w: pw, h: 2.35, fontFace: FONT, margin: 0, valign: 'top', paraSpaceAfter: 2 })
   if (r.rows.some(x => x.record_vmax)) s.addText('★ record de Vmax battu', { x: 6.9, y: 6.38, w: 2.45, h: 0.28, align: 'right', fontFace: FONT, fontSize: 9, color: C.gold, margin: 0 })
   scaleLegend(s, pptx, 0.6, 6.68, 2.2) // sous le tableau seulement : la colonne de droite descend jusqu'au pied
+
+  await pptx.writeFile({ fileName })
+}
+
+// Rendu collectif d'un bloc de matchs : moyennes de chaque joueur sur le bloc (carte de chaleur), couleur du bloc,
+// régularité match par match (une pastille GPS par match), répartition des couleurs et groupes de poste à droite
+export async function downloadTeamBlockReport(r: ReturnType<typeof teamBlockReport>, fileName: string) {
+  const d = await deck()
+  const { pptx } = d
+  const first = r.matches[0], last = r.matches.at(-1)
+  const s = slide(d, 'Rendu collectif — bloc de matchs',
+    first && last ? `${r.matches.length} match${r.matches.length > 1 ? 's' : ''} · ${formatDay(first.match_date)} → ${formatDay(last.match_date)} · moyennes du bloc, % de l'attendu au poste · case verte = attendu atteint` : 'Aucun match dans le bloc')
+
+  const rows = r.players.filter(x => x.report.played > 0)
+  const shown = r.matches.slice(-6) // au-delà de 6 matchs, les 6 derniers : la régularité se lit encore
+  const top = 1.9, bottom = 6.35
+  const rowH = Math.min(0.3, (bottom - top - 0.3) / Math.max(1, rows.length))
+  const font = rowH < 0.22 ? 8 : 10
+  const col = { name: 0.6, grp: 2.85, nb: 4.0, cells: 4.55, bloc: 7.35, games: 8.05 }
+  const cellW = 0.86, step = Math.min(0.22, 1.3 / Math.max(1, shown.length))
+  const head = (t: string, x: number, w: number, align: 'left' | 'center' = 'center', size = 9) =>
+    s.addText(t, { x, y: top, w, h: 0.28, fontFace: FONT, fontSize: size, color: C.muted, align, margin: 0, valign: 'bottom' })
+  head('Joueur', col.name, 2.2, 'left'); head('Groupe', col.grp, 1.1, 'left'); head('Matchs', col.nb, 0.55)
+  ;['Distance', 'Haute int.', 'Accél.'].forEach((t, i) => head(t, col.cells + i * (cellW + 0.05), cellW))
+  head('Bloc', col.bloc, 0.6)
+  shown.forEach((m, i) => head(m.label ?? m.opponent.slice(0, 3), col.games + i * step, step, 'center', 7))
+  if (!rows.length) empty(s, 'Aucun GPS importé sur ce bloc de matchs.')
+  rows.forEach((x, i) => {
+    const y = top + 0.32 + i * rowH, mid = y + rowH / 2, rep = x.report
+    if (i % 2) s.addShape(pptx.ShapeType.rect, { x: 0.6, y, w: 8.75, h: rowH, fill: { color: C.surface }, line: { color: C.surface } })
+    const text = (t: string, tx: number, w: number, o: Partial<PptxGenJS.TextPropsOptions> = {}) =>
+      s.addText(t, { x: tx, y, w, h: rowH, fontFace: FONT, fontSize: font, color: C.soft, margin: 0, valign: 'middle', ...o })
+    text(`${x.player.last_name} ${x.player.first_name}`, col.name + 0.05, 2.2, { color: C.ink, bold: true })
+    text(x.group ?? '—', col.grp, 1.1)
+    text(`${rep.played}/${rep.history.length}`, col.nb, 0.55, { align: 'center' })
+    AXES.forEach(([k], j) => {
+      const v = rep.pcts[k]
+      const ok = v !== null && v >= 100
+      s.addShape(pptx.ShapeType.rect, { x: col.cells + j * (cellW + 0.05), y: y + 0.03, w: cellW, h: rowH - 0.06,
+        fill: { color: ok ? C.green : C.bg }, line: { color: ok ? C.green : C.line, width: 0.5 } })
+      text(v === null ? (j === 1 ? '< 20 min' : '') : `${v} %`, col.cells + j * (cellW + 0.05), cellW, { align: 'center', color: ok ? '1A1A1A' : C.soft, bold: ok })
+    })
+    dot(s, pptx, col.bloc + 0.3, mid, rep.color, 0.19)
+    shown.forEach((m, j) => dot(s, pptx, col.games + j * step + step / 2, mid, rep.history.find(h => h.match.id === m.id)?.analysis?.color ?? null, Math.min(0.15, step - 0.05)))
+  })
+  const absent = r.players.filter(x => x.report.played === 0)
+  if (absent.length) s.addText(`Sans GPS sur le bloc : ${absent.map(x => `${x.player.last_name} ${x.player.first_name}`).join(', ')}`,
+    { x: 0.6, y: 6.38, w: 8.75, h: 0.28, fontFace: FONT, fontSize: 9, color: C.muted, margin: 0, fit: 'shrink' })
+
+  // Colonne de droite : couleurs de bloc, attendus remplis, groupes de poste, matchs du bloc
+  const px = 9.75, pw = 2.98
+  s.addShape(pptx.ShapeType.roundRect, { x: px - 0.15, y: 1.85, w: pw + 0.3, h: 4.75, fill: { color: C.surface }, line: { color: C.surface }, rectRadius: 0.12 })
+  s.addText([
+    { text: r.possible ? `${r.filled}/${r.possible}` : '—', options: { fontFace: DISPLAY, fontSize: 28, bold: true, color: C.ink } },
+    { text: '  attendus remplis sur le bloc', options: { fontSize: 10, color: C.muted } }, // joueurs sans GPS : listés sous le tableau
+  ], { x: px, y: 1.95, w: pw, h: 0.55, fontFace: FONT, margin: 0, valign: 'middle' })
+  const colors = GPS_COLORS.filter(c => r.blockColors[c] > 0)
+  if (colors.length) s.addChart(pptx.ChartType.doughnut, [{ name: 'Couleur du bloc', labels: colors.map(c => COLOR_LABEL[c]), values: colors.map(c => r.blockColors[c]) }],
+    { ...chart, x: px, y: 2.5, w: 1.6, h: 1.6, holeSize: 55, chartColors: colors.map(c => COLOR_HEX[c]), dataBorder: { pt: 1.5, color: C.surface },
+      plotArea: { fill: { color: C.surface } }, chartArea: { fill: { color: C.surface } }, showLegend: false, showValue: true, showPercent: false,
+      dataLabelColor: '1A1A1A', dataLabelFontSize: 10, dataLabelFontBold: true })
+  s.addText(GPS_COLORS.map(c => ({ text: `${r.blockColors[c]}  ${COLOR_LABEL[c]}`, options: { color: r.blockColors[c] ? COLOR_HEX[c] : C.muted, bold: r.blockColors[c] > 0, breakLine: true } })),
+    { x: px + 1.65, y: 2.55, w: pw - 1.65, h: 1.5, fontFace: FONT, fontSize: 9, margin: 0, valign: 'middle', paraSpaceAfter: 3 })
+  s.addText([
+    { text: 'Par groupe de poste', options: { bold: true, color: C.gold, fontSize: 12, breakLine: true } },
+    ...(r.groups.length ? r.groups.map(g => ({ text: `${g.group} · ${n(g.filled)}/3 attendus · dist. ${pct(g.distance)}`, options: { color: C.soft, fontSize: 9, breakLine: true } }))
+      : [{ text: 'Aucun joueur analysé.', options: { color: C.muted, fontSize: 9, breakLine: true } }]),
+    { text: ' ', options: { fontSize: 6, breakLine: true } },
+    { text: 'Matchs du bloc', options: { bold: true, color: C.gold, fontSize: 12, breakLine: true } },
+    { text: r.matches.map(m => `${m.label ? `${m.label} ` : ''}${m.opponent}`).join(' · ') || '—', options: { color: C.soft, fontSize: 9 } },
+  ], { x: px, y: 4.2, w: pw, h: 2.35, fontFace: FONT, margin: 0, valign: 'top', paraSpaceAfter: 2 })
+  scaleLegend(s, pptx, 0.6, 6.68, 2.2)
 
   await pptx.writeFile({ fileName })
 }

@@ -12,8 +12,11 @@ export const GPS_COLORS: GpsColor[] = ['rouge', 'jaune', 'vert', 'bleu']
 export const positionGroup = (position: string | null, positions: Map<string, string>) =>
   (position ? positions.get(position.trim().toUpperCase()) : undefined) ?? null
 
+// Sous 20 min jouées, ramener à 70 min n'a pas de sens (2 min → 500 %) : chiffres affichés, ni % ni couleur
+export const MIN_MINUTES = 20
+
 export function gpsAnalysis(r: Pick<GpsRecord, 'minutes' | 'distance_m' | 'hi_distance_m' | 'accelerations'>, ref: GpsReference | null) {
-  if (!ref || r.minutes <= 0) return null
+  if (!ref || r.minutes < MIN_MINUTES) return null
   // Ramené à un match de ref_minutes (70) : un joueur sorti à la 40e est comparé à l'attendu sur 70 minutes
   const coefficient = ref.ref_minutes / r.minutes
   const pct = (value: number, expected: number) => (100 * value * coefficient) / expected

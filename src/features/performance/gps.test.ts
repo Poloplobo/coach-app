@@ -28,7 +28,7 @@ describe('gpsAnalysis : mêmes résultats que le classeur « GPS - MATCH »', ()
     expect(a).toMatchObject({ filled: 3, color: 'bleu' }) // HI 350 %, accélérations 117 %
   })
   it('99,5 % s\'affiche 100 % mais ne remplit pas l\'attendu', () => {
-    const a = gpsAnalysis({ minutes: 16, distance_m: 1290, hi_distance_m: 0, accelerations: 0 }, deuxieme)!
+    const a = gpsAnalysis({ minutes: 32, distance_m: 2580, hi_distance_m: 0, accelerations: 0 }, deuxieme)!
     expect(a.pct.distance).toBe(100)
     expect(a).toMatchObject({ filled: 0, color: 'rouge' })
   })
@@ -39,11 +39,10 @@ describe('gpsAnalysis : mêmes résultats que le classeur « GPS - MATCH »', ()
   it('plus de 70 minutes : coefficient < 1', () => {
     expect(gpsAnalysis({ minutes: 80, distance_m: 5670, hi_distance_m: 20, accelerations: 30 }, deuxieme)).toMatchObject({ coefficient: 0.88, filled: 0 })
   })
-  it('1 minute jouée : coefficient 70, pourcentages énormes (pas de garde-fou dans le calcul)', () => {
-    const a = gpsAnalysis({ minutes: 1, distance_m: 100, hi_distance_m: 1, accelerations: 1 }, pilier)!
-    expect(a.coefficient).toBe(70)
-    expect(a.pct).toEqual({ distance: 141, hi: 700, accelerations: 467 }) // 100 m en 1 min = 141 % de l'attendu
-    expect(a).toMatchObject({ filled: 3, color: 'bleu' }) // 3 attendus « remplis » sur 1 minute : trompeur
+  it('moins de 20 minutes jouées : pas de % ni de couleur (2 min → 500 % n\'a pas de sens) ; 20 min : analysé', () => {
+    expect(gpsAnalysis({ minutes: 1, distance_m: 100, hi_distance_m: 1, accelerations: 1 }, pilier)).toBeNull()
+    expect(gpsAnalysis({ minutes: 19.5, distance_m: 2000, hi_distance_m: 10, accelerations: 10 }, pilier)).toBeNull()
+    expect(gpsAnalysis({ minutes: 20, distance_m: 2000, hi_distance_m: 10, accelerations: 10 }, pilier)).toMatchObject({ coefficient: 3.5 })
   })
   it('valeurs à 0 : 0 %, rouge', () => {
     const a = gpsAnalysis({ minutes: 70, distance_m: 0, hi_distance_m: 0, accelerations: 0 }, pilier)!

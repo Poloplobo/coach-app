@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Loading } from '../../components/ui/Loading'
 import { ViewSelect } from '../../components/ui/ViewSelect'
@@ -18,6 +19,11 @@ export function MatchBoard() {
   const reference = useGpsReference()
   const rate = useRateMatch()
   const [matchId, setMatchId] = useState('')
+  const [exporting, setExporting] = useState<'match' | 'player' | null>(null)
+  const [exportFailed, setExportFailed] = useState(false)
+  const [playerId, setPlayerId] = useState('')
+  const [fromId, setFromId] = useState('')
+  const [toId, setToId] = useState('')
 
   if (matches.isPending || roster.isPending || gps.isPending || ratings.isPending || reference.isPending) return <Loading />
   if (matches.isError || roster.isError || gps.isError || ratings.isError || reference.isError) return <p role="alert">Impossible de charger les matchs.</p>
@@ -25,6 +31,17 @@ export function MatchBoard() {
   if (!match) return <Card title="Matchs"><p className="text-sm text-ink/70">Aucun match : importe les GPS d'un match (menu Afficher).</p></Card>
 
   const { refs, positions } = reference.data
+  // PowerPoint créés au clic (pptxgenjs chargé seulement ici) ; module absent (hors ligne, nouvelle version) : message
+  const run = async (kind: 'match' | 'player', task: () => Promise<void>) => {
+    setExporting(kind)
+    setExportFailed(false)
+    try { await task() } catch { setExportFailed(true) } finally { setExporting(null) }
+  }
+  const chrono = [...matches.data].reverse() // du plus ancien au plus récent, pour choisir un bloc
+  const player = roster.data.find(p => p.id === playerId) ?? roster.data[0]
+  const from = chrono.find(m => m.id === fromId) ?? chrono[0]
+  const to = chrono.find(m => m.id === toId) ?? chrono.at(-1)!
+  const block = chrono.filter(m => m.match_date >= from.match_date && m.match_date <= to.match_date)
   const dateOf = new Map(matches.data.map(m => [m.id, m.match_date]))
   const rows = roster.data.map(p => {
     const record = gps.data.find(g => g.match_id === match.id && g.player_id === p.id)
@@ -40,9 +57,17 @@ export function MatchBoard() {
 
   return (
     <>
-      <ViewSelect label="Match" value={match.id} onChange={setMatchId}>
-        {matches.data.map(m => <option key={m.id} value={m.id}>{m.label ? `${m.label} · ` : ''}{m.opponent} · {formatDay(m.match_date)}</option>)}
-      </ViewSelect>
+      <div className="flex flex-wrap items-center gap-3">
+        <ViewSelect label="Match" value={match.id} onChange={setMatchId}>
+          {matches.data.map(m => <option key={m.id} value={m.id}>{m.label ? `${m.label} · ` : ''}{m.opponent} · {formatDay(m.match_date)}</option>)}
+        </ViewSelect>
+        <Button variant="ghost" size="sm" disabled={!!exporting} onClick={() => run('match', async () => {
+          const [{ matchReport }, { downloadMatchReport }] = await Promise.all([import('./report'), import('./exportPerformance')])
+          const r = matchReport({ match, players: roster.data, records: gps.data, ratings: ratings.data, ref: reference.data, allRecords: gps.data, matches: matches.data })
+          await downloadMatchReport(r, match, `Match_${match.match_date}_${match.opponent.replace(/\W+/g, '-')}.pptx`)
+        })}>{exporting === 'match' ? 'Préparation…' : 'Rendu équipe (PowerPoint)'}</Button>
+      </div>
+      {exportFailed && <p role="alert" className="text-sm text-rnr">Création du fichier impossible : recharge la page et réessaie.</p>}
       <p className="text-sm">
         {withGps.length} joueur{withGps.length > 1 ? 's' : ''} avec GPS · couleur GPS : {count(r => r.analysis?.color)} ·
         notes joueurs : {rows.filter(r => r.own).length}/{rows.length} · notes staff : {rows.filter(r => r.staff).length}/{rows.length}
@@ -84,6 +109,26 @@ export function MatchBoard() {
           </table>
         </div>
         {rate.isError && <p role="alert" className="text-sm text-rnr">Note non enregistrée, réessaie.</p>}
+      </Card>
+      <Card boxed title="Bilan individuel (PowerPoint)" help="Un joueur sur un bloc de matchs, comme l'onglet « Bilan bloc » : match par match, moyennes, attendus remplis, couleur du bloc, axe de travail et regards croisés.">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          <ViewSelect label="Joueur" value={player?.id ?? ''} onChange={setPlayerId}>
+            {roster.data.map(p => <option key={p.id} value={p.id}>{fullName(p)}</option>)}
+          </ViewSelect>
+          <ViewSelect label="Du" value={from.id} onChange={setFromId}>
+            {chrono.map(m => <option key={m.id} value={m.id}>{m.label ? `${m.label} · ` : ''}{m.opponent}</option>)}
+          </ViewSelect>
+          <ViewSelect label="Au" value={to.id} onChange={setToId}>
+            {chrono.map(m => <option key={m.id} value={m.id}>{m.label ? `${m.label} · ` : ''}{m.opponent}</option>)}
+          </ViewSelect>
+          <Button size="sm" disabled={!!exporting || !player || !block.length} onClick={() => run('player', async () => {
+            const [{ playerReport }, { downloadPlayerReport }] = await Promise.all([import('./report'), import('./exportPerformance')])
+            const r = playerReport({ player, matches: block, records: gps.data, ratings: ratings.data, ref: reference.data })
+            const period = `${block.length} match${block.length > 1 ? 's' : ''} · ${formatDay(block[0].match_date)} → ${formatDay(block.at(-1)!.match_date)}`
+            await downloadPlayerReport(r, player, period, `Bilan_GPS_${player.last_name}_${player.first_name}.pptx`)
+          })}>{exporting === 'player' ? 'Préparation…' : 'Télécharger le bilan'}</Button>
+        </div>
+        {!block.length && <p role="alert" className="text-sm text-rnr">Le premier match du bloc doit précéder le dernier.</p>}
       </Card>
     </>
   )

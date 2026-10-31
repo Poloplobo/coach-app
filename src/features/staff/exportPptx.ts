@@ -11,7 +11,7 @@ import type { cycleReport, weekReport } from './report'
 
 const hex = (c: string) => c.replace('#', '')
 // Fond sombre : textes clairs ; le rouge RNR seulement en grands chiffres gras (contraste insuffisant en petit texte)
-const C = {
+export const C = {
   cover: '0E0E10', // fond exact du logo Pôle Espoir sombre
   bg: '1A1A1A', surface: '242424', line: '3A3A3A',
   ink: 'FFFFFF', soft: 'D4D4D8', muted: 'A1A1AA',
@@ -20,10 +20,10 @@ const C = {
 const STATUS_COLOR = { 'sous-charge': C.gold, conforme: C.green, surcharge: C.red } as const
 // Mêmes couleurs de piliers que l'anneau de l'app (vue Semaine)
 const PILLAR_FILL = { rugby: C.red, physique: C.gold, accompagnement: C.green, ppid: C.grey } as const
-const DISPLAY = 'Arial Narrow' // titres et chiffres : étroite et grasse, fournie avec Office sur PC et Mac
-const FONT = 'Arial'
+export const DISPLAY = 'Arial Narrow' // titres et chiffres : étroite et grasse, fournie avec Office sur PC et Mac
+export const FONT = 'Arial'
 
-type Deck = { pptx: PptxGenJS; crest: string | null; cover: string | null }
+export type Deck = { pptx: PptxGenJS; crest: string | null; cover: string | null }
 
 // Images de public/, lues sur notre propre domaine et passées en données (aucun appel vers un tiers).
 // Hors navigateur (test), pas d'adresse relative : diapos sans logo.
@@ -38,7 +38,7 @@ async function asset(path: string) {
   } catch { return null }
 }
 
-async function deck(): Promise<Deck> {
+export async function deck(): Promise<Deck> {
   const { default: Pptx } = await import('pptxgenjs')
   const pptx = new Pptx()
   pptx.layout = 'LAYOUT_WIDE' // 13,33 × 7,5 pouces
@@ -54,7 +54,7 @@ const footer = (s: PptxGenJS.Slide, d: Deck) => {
 }
 
 // Diapo de contenu : titre, trait rouge (comme l'onglet actif de l'app), phrase de lecture, blason, pied de page
-function slide(d: Deck, title: string, subtitle?: string) {
+export function slide(d: Deck, title: string, subtitle?: string) {
   const s = d.pptx.addSlide()
   s.background = { color: C.bg }
   s.addText(title, { x: 0.6, y: 0.32, w: 11, h: 0.7, fontFace: DISPLAY, fontSize: 30, bold: true, color: C.ink, margin: 0 })
@@ -66,7 +66,7 @@ function slide(d: Deck, title: string, subtitle?: string) {
 }
 
 // Couverture : logo Pôle Espoir à gauche, titre et chiffres clés à droite
-function coverSlide(d: Deck, kicker: string, title: string, period: string) {
+export function coverSlide(d: Deck, kicker: string, title: string, period: string) {
   const s = d.pptx.addSlide()
   s.background = { color: C.cover }
   if (d.cover) s.addImage({ data: d.cover, x: 0.45, y: 1.3, w: 5.4, h: 4.57 })
@@ -80,7 +80,7 @@ function coverSlide(d: Deck, kicker: string, title: string, period: string) {
 }
 
 // Chiffres clés sans encadré : grand chiffre, libellé dessous, filet à gauche (comme les indicateurs de l'app)
-function kpis(s: PptxGenJS.Slide, d: Deck, items: { value: string; label: string; color?: string }[],
+export function kpis(s: PptxGenJS.Slide, d: Deck, items: { value: string; label: string; color?: string }[],
   { x = 6.75, y = 2.9, w = 6.0, cols = 2, rowH = 1.0 } = {}) {
   const cw = w / cols
   items.forEach((k, i) => {
@@ -91,11 +91,11 @@ function kpis(s: PptxGenJS.Slide, d: Deck, items: { value: string; label: string
   })
 }
 
-const empty = (s: PptxGenJS.Slide, text: string) =>
+export const empty = (s: PptxGenJS.Slide, text: string) =>
   s.addText(text, { x: 0.6, y: 3.3, w: 12.2, h: 0.6, align: 'center', fontFace: FONT, fontSize: 16, color: C.muted })
 
 // Graphiques sur fond sombre : axes discrets, étiquettes claires
-const chart = {
+export const chart = {
   catAxisLabelFontFace: FONT, valAxisLabelFontFace: FONT, catAxisLabelFontSize: 12, valAxisLabelFontSize: 10,
   catAxisLabelColor: C.soft, valAxisLabelColor: C.muted, catAxisLineColor: C.line, valAxisLineShow: false,
   valGridLine: { color: C.line, size: 0.5 }, catGridLine: { style: 'none' as const },
@@ -103,13 +103,13 @@ const chart = {
   dataLabelFontFace: FONT, dataLabelColor: C.ink, valAxisTitleColor: C.muted, valAxisTitleFontFace: FONT,
   plotArea: { fill: { color: C.bg } }, chartArea: { fill: { color: C.bg } },
 }
-const pct = (v: number | null) => (v === null ? '—' : `${v.toLocaleString('fr-FR')} %`)
+export const pct = (v: number | null) => (v === null ? '—' : `${v.toLocaleString('fr-FR')} %`)
 const kg = (v: number | null) => (v === null ? '—' : `${v.toLocaleString('fr-FR')} kg`)
-const table = (header: string[], rows: (string | number)[][]) => [
+export const table = (header: string[], rows: (string | number)[][]) => [
   header.map(h => ({ text: h, options: { bold: true, color: C.gold, fill: { color: C.surface } } })),
   ...rows.map((r, i) => r.map(c => ({ text: String(c), options: { fill: { color: i % 2 ? C.surface : C.bg } } }))),
 ]
-const tableStyle = { fontFace: FONT, fontSize: 12, color: C.ink, border: { type: 'solid' as const, color: C.line, pt: 0.5 }, valign: 'middle' as const }
+export const tableStyle = { fontFace: FONT, fontSize: 12, color: C.ink, border: { type: 'solid' as const, color: C.line, pt: 0.5 }, valign: 'middle' as const }
 
 export async function downloadCycleReport(r: ReturnType<typeof cycleReport>, fileName: string) {
   const d = await deck()

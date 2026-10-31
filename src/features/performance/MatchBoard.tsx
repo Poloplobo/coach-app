@@ -8,7 +8,7 @@ import { fullName } from '../staff/load'
 import { useRoster } from '../staff/useStaff'
 import { COLOR_LABEL, GPS_COLORS, MIN_MINUTES, RATING_COLORS, gpsAnalysis, positionGroup, vmaxTimeline, type RatingColor } from './gps'
 import { MatchColor } from './MatchColor'
-import { useGpsRecords, useGpsReference, useMatches, useRateMatch, useRatings } from './usePerformance'
+import { playerPhoto, useGpsRecords, useGpsReference, useMatches, useRateMatch, useRatings } from './usePerformance'
 
 // Vue staff d'un match : GPS et couleur GPS de chaque joueur, sa note et celle du staff (saisie ici)
 export function MatchBoard() {
@@ -125,7 +125,7 @@ export function MatchBoard() {
             const [{ playerReport }, { downloadPlayerReport }] = await Promise.all([import('./report'), import('./exportPerformance')])
             const r = playerReport({ player, matches: block, records: gps.data, ratings: ratings.data, ref: reference.data })
             const period = `${block.length} match${block.length > 1 ? 's' : ''} · ${formatDay(block[0].match_date)} → ${formatDay(block.at(-1)!.match_date)}`
-            await downloadPlayerReport(r, player, period, `Bilan_GPS_${player.last_name}_${player.first_name}.pptx`)
+            await downloadPlayerReport(r, player, period, `Bilan_GPS_${player.last_name}_${player.first_name}.pptx`, await playerPhoto(player.id))
           })}>{exporting === 'player' ? 'Préparation…' : 'Télécharger le bilan'}</Button>
         </div>
         {!block.length && <p role="alert" className="text-sm text-rnr">Le premier match du bloc doit précéder le dernier.</p>}

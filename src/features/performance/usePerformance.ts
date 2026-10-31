@@ -93,3 +93,14 @@ export function useRateMatch() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['performance', 'ratings'] }),
   })
 }
+
+// Photo du joueur pour le PowerPoint, lue dans le stockage privé (staff seulement, RLS) au moment de l'export ;
+// format attendu par pptxgenjs : « image/png;base64,… ». Pas de photo (ou refus) : null, le PowerPoint met les initiales.
+export async function playerPhoto(playerId: string): Promise<string | null> {
+  const { data, error } = await supabase.storage.from('player-photos').download(`${playerId}.png`)
+  if (error || !data) return null
+  const bytes = new Uint8Array(await data.arrayBuffer())
+  let bin = ''
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+  return `image/png;base64,${btoa(bin)}`
+}

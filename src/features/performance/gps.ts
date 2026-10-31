@@ -4,13 +4,16 @@
 export type GpsReference = { position_group: string; distance_m: number; accelerations: number; hi_distance_m: number; ref_minutes: number }
 export type GpsRecord = { match_id: string; player_id: string; position: string; minutes: number; distance_m: number; hi_distance_m: number; accelerations: number; vmax: number | null }
 export type GpsColor = 'rouge' | 'jaune' | 'vert' | 'bleu'
+// Note de match : les 4 couleurs du coq, plus le gris « je n'ai pas joué » (jamais une couleur GPS)
+export type RatingColor = GpsColor | 'gris'
 
 // Couleur selon le nombre d'attendus remplis (distance totale, distance HI, accélérations) : 0 → rouge … 3 → bleu
 export const GPS_COLORS: GpsColor[] = ['rouge', 'jaune', 'vert', 'bleu']
 
 // Échelle commune à la couleur GPS (attendus remplis) et aux notes de match (joueur, staff)
-export const COLOR_LABEL: Record<GpsColor, string> = {
-  rouge: 'En dessous du niveau', jaune: 'Niveau moyen', vert: 'Bon niveau Crabos', bleu: 'A dominé le niveau',
+export const RATING_COLORS: RatingColor[] = [...GPS_COLORS, 'gris']
+export const COLOR_LABEL: Record<RatingColor, string> = {
+  rouge: 'En dessous du niveau', jaune: 'Niveau moyen', vert: 'Bon niveau Crabos', bleu: 'A dominé le niveau', gris: 'Je n\'ai pas joué',
 }
 
 // Poste saisi (export GPS ou fiche joueur) → groupe de poste du référentiel ; null si poste inconnu (à ajouter par le staff)

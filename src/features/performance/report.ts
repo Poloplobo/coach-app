@@ -1,10 +1,10 @@
 // Contenu des PowerPoint Performance (étape 11g), calqué sur les onglets « Fiche joueur » et « Bilan bloc » du classeur
 // « GPS - MATCH ». Fonctions pures, testées : mêmes calculs que l'écran (gps.ts).
-import { GPS_COLORS, gpsAnalysis, positionGroup, vmaxTimeline, type GpsColor, type GpsRecord, type GpsReference } from './gps'
+import { GPS_COLORS, gpsAnalysis, positionGroup, vmaxTimeline, type GpsColor, type GpsRecord, type GpsReference, type RatingColor } from './gps'
 
 type Match = { id: string; match_date: string; opponent: string; label: string | null }
 type Player = { id: string; first_name: string; last_name: string }
-type Rating = { match_id: string; player_id: string; rater: 'player' | 'staff'; color: GpsColor }
+type Rating = { match_id: string; player_id: string; rater: 'player' | 'staff'; color: RatingColor }
 type Ref = { refs: Map<string, GpsReference>; positions: Map<string, string> }
 
 const round = (v: number, d = 0) => Math.round(v * 10 ** d) / 10 ** d
@@ -33,7 +33,7 @@ export function matchReport(input: { match: Match; players: Player[]; records: G
     return { group, players: g.length, distance: round(mean(g.map(a => a.pct.distance))!), hi: round(mean(g.map(a => a.pct.hi))!),
       accelerations: round(mean(g.map(a => a.pct.accelerations))!), filled: round(mean(g.map(a => a.filled))!, 1) }
   })
-  const count = (pick: (r: typeof rows[number]) => GpsColor | null | undefined) => Object.fromEntries(GPS_COLORS.map(c => [c, rows.filter(r => pick(r) === c).length])) as Record<GpsColor, number>
+  const count = (pick: (r: typeof rows[number]) => RatingColor | null | undefined) => Object.fromEntries(GPS_COLORS.map(c => [c, rows.filter(r => pick(r) === c).length])) as Record<GpsColor, number>
   return {
     rows, groups,
     withGps: rows.filter(r => r.record).length,

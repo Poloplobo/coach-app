@@ -64,7 +64,7 @@ create table public.match_ratings (
   match_id   uuid not null references public.matches(id) on delete cascade,
   player_id  uuid not null references public.profiles(id) on delete cascade,
   rater      text not null check (rater in ('player', 'staff')),
-  color      text not null check (color in ('rouge', 'jaune', 'vert', 'bleu')),
+  color      text not null check (color in ('rouge', 'jaune', 'vert', 'bleu', 'gris')), -- gris : n'a pas joué
   comment    text,
   rated_by   uuid references public.profiles(id) default auth.uid(),
   updated_at timestamptz not null default now(),

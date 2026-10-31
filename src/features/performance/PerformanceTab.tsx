@@ -6,11 +6,9 @@ import { ViewSelect } from '../../components/ui/ViewSelect'
 import { formatDay } from '../../lib/week'
 import { usePlayerDay } from '../player/playerDay'
 import { MyGoals } from '../tests/MyGoals'
-import { COLOR_LABEL, GPS_COLORS, gpsAnalysis, MIN_MINUTES, positionGroup, vmaxTimeline, type GpsColor } from './gps'
-import { MatchColor } from './MatchColor'
+import { COLOR_LABEL, RATING_COLORS, gpsAnalysis, MIN_MINUTES, positionGroup, vmaxTimeline, type RatingColor } from './gps'
+import { Coq, MatchColor } from './MatchColor'
 import { useGpsRecords, useGpsReference, useMatches, useRateMatch, useRatings } from './usePerformance'
-
-const BG: Record<GpsColor, string> = { rouge: 'bg-rnr', jaune: 'bg-gold', vert: 'bg-ok', bleu: 'bg-blue' }
 
 // Onglet joueur : après le match, il se note, découvre la note du staff, son GPS (8 boîtiers : pas toujours), ses maxi
 export function PerformanceTab() {
@@ -22,7 +20,7 @@ export function PerformanceTab() {
   const rate = useRateMatch()
   const [matchId, setMatchId] = useState('')
   // Choix en cours, pas encore validé (lié au match : changer de match l'efface)
-  const [choice, setChoice] = useState<{ match: string; color: GpsColor } | null>(null)
+  const [choice, setChoice] = useState<{ match: string; color: RatingColor } | null>(null)
 
   const loading = matches.isPending || gps.isPending || ratings.isPending || reference.isPending
   const failed = matches.isError || gps.isError || ratings.isError || reference.isError
@@ -50,13 +48,13 @@ export function PerformanceTab() {
           <Card boxed title="Ma note du match" help="Comment as-tu joué par rapport au niveau du match ? Une fois validée, ta note ne change plus et celle du staff s'affiche.">
             {/* Note figée une fois validée : on ne s'aligne pas sur la note du staff découverte ensuite */}
             <div role="radiogroup" aria-label="Ma note du match" className="grid grid-cols-2 gap-2">
-              {GPS_COLORS.map(c => {
+              {RATING_COLORS.map(c => {
                 const selected = own ? own.color === c : choice?.match === match.id && choice.color === c
                 return (
                   <button key={c} type="button" role="radio" aria-checked={selected} disabled={!!own || rate.isPending}
                     onClick={() => setChoice({ match: match.id, color: c })}
                     className={`flex min-h-12 items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm font-semibold disabled:cursor-default ${selected ? 'border-ink bg-field' : 'border-line'} ${own && !selected ? 'opacity-40' : ''}`}>
-                    <span aria-hidden="true" className={`h-4 w-4 shrink-0 rounded-full ${BG[c]}`} />{COLOR_LABEL[c]}
+                    <Coq color={c} className="h-8 w-8" />{COLOR_LABEL[c]}
                   </button>
                 )
               })}

@@ -6,7 +6,7 @@ import { ViewSelect } from '../../components/ui/ViewSelect'
 import { formatDay } from '../../lib/week'
 import { fullName } from '../staff/load'
 import { useRoster } from '../staff/useStaff'
-import { COLOR_LABEL, GPS_COLORS, MIN_MINUTES, gpsAnalysis, positionGroup, vmaxTimeline, type GpsColor } from './gps'
+import { COLOR_LABEL, GPS_COLORS, MIN_MINUTES, RATING_COLORS, gpsAnalysis, positionGroup, vmaxTimeline, type RatingColor } from './gps'
 import { MatchColor } from './MatchColor'
 import { useGpsRecords, useGpsReference, useMatches, useRateMatch, useRatings } from './usePerformance'
 
@@ -52,7 +52,7 @@ export function MatchBoard() {
     return { player: p, record, analysis, vmax, own: note('player'), staff: note('staff') }
   })
   const withGps = rows.filter(r => r.record)
-  const count = (pick: (r: typeof rows[number]) => GpsColor | null | undefined) =>
+  const count = (pick: (r: typeof rows[number]) => RatingColor | null | undefined) =>
     GPS_COLORS.map(c => `${rows.filter(r => pick(r) === c).length} ${c}`).join(', ')
 
   return (
@@ -97,10 +97,10 @@ export function MatchBoard() {
                   <td className="pr-3 whitespace-nowrap">{own ? <MatchColor color={own} /> : <span className="text-ink/50">—</span>}</td>
                   <td>
                     <select aria-label={`Note staff pour ${fullName(player)}`} value={staff ?? ''} disabled={rate.isPending}
-                      onChange={e => e.target.value && rate.mutate({ match_id: match.id, player_id: player.id, rater: 'staff', color: e.target.value as GpsColor })}
+                      onChange={e => e.target.value && rate.mutate({ match_id: match.id, player_id: player.id, rater: 'staff', color: e.target.value as RatingColor })}
                       className="rounded-md bg-field border border-line px-2 py-1">
                       <option value="">—</option>
-                      {GPS_COLORS.map(c => <option key={c} value={c}>{c} · {COLOR_LABEL[c].toLowerCase()}</option>)}
+                      {RATING_COLORS.map(c => <option key={c} value={c}>{c === 'gris' ? 'gris · n\'a pas joué' : `${c} · ${COLOR_LABEL[c].toLowerCase()}`}</option>)}
                     </select>
                   </td>
                 </tr>

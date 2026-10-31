@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabaseClient'
 import { parisDate } from '../../lib/week'
-import type { GpsColor, GpsRecord, GpsReference } from './gps'
+import type { GpsRecord, GpsReference, RatingColor } from './gps'
 import type { GpsRow } from './importGps'
 import type { MaxiRow } from './importMaxi'
 
@@ -49,7 +49,7 @@ export function useImportMaxi() {
 }
 
 export type Match = { id: string; match_date: string; opponent: string; label: string | null }
-export type Rating = { match_id: string; player_id: string; rater: 'player' | 'staff'; color: GpsColor }
+export type Rating = { match_id: string; player_id: string; rater: 'player' | 'staff'; color: RatingColor }
 
 // shortcut: un seul groupe (PER) : tous les matchs sont ceux du joueur ; filtrer par group_members s'il y en a plusieurs
 export function useMatches() {

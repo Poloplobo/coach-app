@@ -47,7 +47,7 @@ describe('PerformanceTab', () => {
     render(<PerformanceTab />)
     expect(screen.getByText('Pas de GPS pour toi sur ce match.')).toBeTruthy()
     const radios = screen.getAllByRole('radio') as HTMLButtonElement[]
-    expect(radios).toHaveLength(4)
+    expect(radios).toHaveLength(5) // 4 coqs + gris « je n'ai pas joué »
     expect(radios.every(r => !r.disabled)).toBe(true)
   })
 

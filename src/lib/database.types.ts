@@ -208,6 +208,110 @@ export type Database = {
         }
         Relationships: []
       }
+      gps_positions: {
+        Row: {
+          position: string
+          position_group: string
+        }
+        Insert: {
+          position: string
+          position_group: string
+        }
+        Update: {
+          position?: string
+          position_group?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gps_positions_position_group_fkey"
+            columns: ["position_group"]
+            isOneToOne: false
+            referencedRelation: "gps_reference"
+            referencedColumns: ["position_group"]
+          },
+        ]
+      }
+      gps_records: {
+        Row: {
+          accelerations: number
+          created_at: string
+          distance_m: number
+          hi_distance_m: number
+          id: string
+          match_id: string
+          minutes: number
+          player_id: string
+          position: string
+          vmax: number | null
+        }
+        Insert: {
+          accelerations: number
+          created_at?: string
+          distance_m: number
+          hi_distance_m: number
+          id?: string
+          match_id: string
+          minutes: number
+          player_id: string
+          position: string
+          vmax?: number | null
+        }
+        Update: {
+          accelerations?: number
+          created_at?: string
+          distance_m?: number
+          hi_distance_m?: number
+          id?: string
+          match_id?: string
+          minutes?: number
+          player_id?: string
+          position?: string
+          vmax?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gps_records_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gps_records_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gps_reference: {
+        Row: {
+          accel_threshold: string | null
+          accelerations: number
+          distance_m: number
+          hi_distance_m: number
+          position_group: string
+          ref_minutes: number
+        }
+        Insert: {
+          accel_threshold?: string | null
+          accelerations: number
+          distance_m: number
+          hi_distance_m: number
+          position_group: string
+          ref_minutes?: number
+        }
+        Update: {
+          accel_threshold?: string | null
+          accelerations?: number
+          distance_m?: number
+          hi_distance_m?: number
+          position_group?: string
+          ref_minutes?: number
+        }
+        Relationships: []
+      }
       group_members: {
         Row: {
           group_id: string
@@ -255,6 +359,96 @@ export type Database = {
           season?: string
         }
         Relationships: []
+      }
+      match_ratings: {
+        Row: {
+          color: string
+          comment: string | null
+          id: string
+          match_id: string
+          player_id: string
+          rated_by: string | null
+          rater: string
+          updated_at: string
+        }
+        Insert: {
+          color: string
+          comment?: string | null
+          id?: string
+          match_id: string
+          player_id: string
+          rated_by?: string | null
+          rater: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          comment?: string | null
+          id?: string
+          match_id?: string
+          player_id?: string
+          rated_by?: string | null
+          rater?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_ratings_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_ratings_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_ratings_rated_by_fkey"
+            columns: ["rated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      matches: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          label: string | null
+          match_date: string
+          opponent: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          label?: string | null
+          match_date: string
+          opponent: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          label?: string | null
+          match_date?: string
+          opponent?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matches_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       planned_exercises: {
         Row: {
@@ -1016,6 +1210,7 @@ export type Database = {
         Args: { p_from: string; p_group: string; p_loads?: Json; p_to: string }
         Returns: Json
       }
+      has_rated: { Args: { p_match: string }; Returns: boolean }
       import_muscu_program: {
         Args: {
           p_player: string

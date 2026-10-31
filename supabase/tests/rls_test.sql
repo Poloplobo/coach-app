@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(72);
+select plan(82);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -64,6 +64,16 @@ insert into public.planned_sessions (session_date, title, group_id, activity_typ
   ('2019-12-31', 'Jeu au Poste', '00000000-0000-0000-0000-000000000002', (select id from public.activity_types where name = 'Jeu au Poste'));
 insert into public.planned_exercises (id, planned_session_id, exercise_id, position, load_value, load_unit) values
   ('00000000-0000-0000-0000-0000000000f4', '00000000-0000-0000-0000-0000000000c2', '00000000-0000-0000-0000-0000000000e1', 1, 100, 'kg');
+
+-- Performance (étape 11) : un match joué (GPS de A et B, note staff de B) et un match à venir
+insert into public.matches (id, group_id, match_date, opponent) values
+  ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-000000000002', public.paris_today() - 2, 'R92'),
+  ('00000000-0000-0000-0000-0000000000d2', '00000000-0000-0000-0000-000000000002', public.paris_today() + 3, 'USON');
+insert into public.gps_records (match_id, player_id, position, minutes, distance_m, hi_distance_m, accelerations, vmax) values
+  ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-00000000000b', 'PILIER', 60, 4000, 20, 12, 26),
+  ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-00000000000a', 'CENTRE', 70, 6000, 80, 30, 30);
+insert into public.match_ratings (match_id, player_id, rater, color) values
+  ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-00000000000b', 'staff', 'vert');
 
 -- Retour de B (pour vérifier qu'A ne le lit pas)
 insert into public.exercise_feedback (player_id, planned_exercise_id, status, done_load) values
@@ -261,6 +271,14 @@ select is(public.import_muscu_program('00000000-0000-0000-0000-00000000000b',
 select isnt_empty($$update public.test_definitions set exercise_id = '00000000-0000-0000-0000-0000000000e1'
                     where name = 'CMJ' returning 1$$, 'le staff lie un test à un exercice');
 
+-- Performance : le staff note en tant que staff, jamais à la place du joueur
+select throws_ok($$insert into public.match_ratings (match_id, player_id, rater, color)
+                   values ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-00000000000a', 'player', 'bleu')$$,
+                 '42501', null, 'le staff ne peut pas écrire l''auto-évaluation d''un joueur');
+select lives_ok($$insert into public.match_ratings (match_id, player_id, rater, color)
+                  values ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-00000000000a', 'staff', 'jaune')$$,
+                'le staff note un joueur');
+
 -- ---------- Admin M ----------
 reset role;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000d","role":"authenticated"}', true);
@@ -311,6 +329,28 @@ select throws_ok($$select public.import_muscu_program('00000000-0000-0000-0000-0
                  '42501', null, 'un joueur ne peut pas importer de programme');
 select is_empty($$update public.test_definitions set exercise_id = null where name = 'CMJ' returning 1$$,
                 'un joueur ne peut pas modifier le lien test ↔ exercice');
+
+-- ---------- Joueur B : performance ----------
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}', true);
+set local role authenticated;
+
+select is((select count(*)::int from public.gps_records), 1, 'B ne voit que ses propres GPS');
+select is_empty($$select 1 from public.match_ratings where rater = 'staff'$$, 'B ne voit pas la note du staff tant qu''il ne s''est pas noté');
+select throws_ok($$insert into public.match_ratings (match_id, player_id, rater, color)
+                   values ('00000000-0000-0000-0000-0000000000d2', '00000000-0000-0000-0000-00000000000b', 'player', 'bleu')$$,
+                 '42501', null, 'B ne peut pas noter un match pas encore joué');
+select throws_ok($$insert into public.match_ratings (match_id, player_id, rater, color)
+                   values ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-00000000000b', 'staff', 'bleu')$$,
+                 '42501', null, 'B ne peut pas écrire une note staff');
+select lives_ok($$insert into public.match_ratings (match_id, player_id, rater, color)
+                  values ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-00000000000b', 'player', 'jaune')$$,
+                'B note son match');
+select is((select color from public.match_ratings where rater = 'staff'), 'vert', 'une fois noté, B découvre la note du staff');
+select throws_ok($$insert into public.gps_records (match_id, player_id, position, minutes, distance_m, hi_distance_m, accelerations)
+                   values ('00000000-0000-0000-0000-0000000000d2', '00000000-0000-0000-0000-00000000000b', 'PILIER', 70, 9000, 500, 50)$$,
+                 '42501', null, 'B ne peut pas écrire de GPS');
+select is_empty($$select 1 from public.match_ratings where player_id = '00000000-0000-0000-0000-00000000000a'$$, 'B ne voit pas les notes de A');
 
 -- ---------- Visiteur non connecté ----------
 reset role;

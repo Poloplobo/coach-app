@@ -8,6 +8,7 @@ import { usePlayerDay } from '../player/playerDay'
 import { MyGoals } from '../tests/MyGoals'
 import { COLOR_LABEL, RATING_COLORS, gpsAnalysis, MIN_MINUTES, positionGroup, vmaxTimeline, type RatingColor } from './gps'
 import { Coq, MatchColor } from './MatchColor'
+import { playerReport } from './report'
 import { useGpsRecords, useGpsReference, useGuidelines, useMatches, useRateMatch, useRatings } from './usePerformance'
 
 // Onglet joueur : après le match, il se note, découvre la note du staff, son GPS (8 boîtiers : pas toujours), ses maxi
@@ -40,6 +41,10 @@ export function PerformanceTab() {
       {loading && <Loading />}
       {failed && <p role="alert">Impossible de charger tes matchs.</p>}
       {!loading && !failed && !match && <Card title="Mes matchs"><p className="text-sm text-ink/70">Aucun match enregistré pour l'instant.</p></Card>}
+      {match && reference.data && (
+        <LastMatches report={playerReport({ player: { id: playerId, first_name: '', last_name: '' }, matches: matches.data!.slice(0, 3),
+          records: gps.data!, ratings: ratings.data!, ref: reference.data })} />
+      )}
       {match && (
         <>
           <ViewSelect label="Match" value={match.id} onChange={setMatchId}>
@@ -120,5 +125,38 @@ export function PerformanceTab() {
       )}
       <MyGoals playerId={playerId} date={today} title="Mes maxi et objectifs" />
     </div>
+  )
+}
+
+// Vue d'ensemble de ses 3 derniers matchs (calque du « Bilan bloc ») : couleur GPS de chacun, moyennes face aux
+// attendus de son poste, record Vmax, axe de travail. Sans GPS sur ces matchs : bloc grisé.
+function LastMatches({ report: r }: { report: ReturnType<typeof playerReport> }) {
+  const chrono = [...r.history]
+  return (
+    <Card boxed title="Mes 3 derniers matchs" help="GPS comparé aux attendus de ton poste, ramené à 70 min. Le coq donne le nombre d'attendus remplis (0 à 3).">
+      <ul className="grid grid-cols-3 gap-2 text-center text-xs">
+        {chrono.map(h => (
+          <li key={h.match.id} className={`flex flex-col items-center gap-1 rounded-lg bg-field px-1 py-2 ${h.analysis ? '' : 'opacity-50'}`}>
+            {h.analysis ? <Coq color={h.analysis.color} className="h-9 w-9" /> : <span className="flex h-9 items-center text-ink/50">—</span>}
+            <span className="font-semibold">{h.match.label ?? h.match.opponent}</span>
+            <span className="text-ink/60">{h.analysis ? `${h.analysis.filled}/3` : h.record ? '< 20 min' : 'pas de GPS'}</span>
+          </li>
+        ))}
+      </ul>
+      {r.analysed > 0 ? (
+        <dl className="grid grid-cols-3 gap-2 text-sm">
+          {([['Distance', r.pcts.distance], ['Haute intensité', r.pcts.hi], ['Accélérations', r.pcts.accelerations]] as const).map(([label, pct]) => (
+            <div key={label} className="rounded-lg bg-field px-2 py-2">
+              <dt className="text-xs text-ink/60">{label}</dt>
+              <dd className={`font-display text-xl font-semibold ${pct !== null && pct >= 100 ? 'text-ok' : ''}`}>{pct ?? '—'} %</dd>
+            </div>
+          ))}
+        </dl>
+      ) : <p className="text-sm text-ink/60">Pas encore de match analysé (GPS et au moins 20 minutes jouées).</p>}
+      <p className="text-sm">
+        {r.vmaxMax ? <>Vmax max : <strong>{String(r.vmaxMax).replace('.', ',')} km/h</strong></> : null}
+        {r.axis && <span className="block text-ink/70">Axe de travail : {r.axis.toLowerCase()}, l'attendu le moins atteint.</span>}
+      </p>
+    </Card>
   )
 }

@@ -155,7 +155,9 @@ function LastMatches({ report: r }: { report: ReturnType<typeof playerReport> })
       ) : <p className="text-sm text-ink/60">Pas encore de match analysé (GPS et au moins 20 minutes jouées).</p>}
       <p className="text-sm">
         {r.vmaxMax ? <>Vmax max : <strong>{String(r.vmaxMax).replace('.', ',')} km/h</strong></> : null}
-        {r.axis && <span className="block text-ink/70">Axe de travail : {r.axis.toLowerCase()}, l'attendu le moins atteint.</span>}
+        {r.axis && (Object.values(r.pcts).every(p => p !== null && p >= 100)
+          ? <span className="block text-ink/70">Tous les attendus de ton poste sont atteints en moyenne.</span>
+          : <span className="block text-ink/70">Axe de travail : {r.axis.toLowerCase()}, l'attendu le moins atteint.</span>)}
       </p>
     </Card>
   )

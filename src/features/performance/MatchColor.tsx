@@ -1,10 +1,14 @@
 import type { RatingColor } from './gps'
 
 // Coq de couleur (GPS ou note de match), toujours avec un libellé texte : la couleur seule ne suffit pas à la lecture.
-// Gris (« je n'ai pas joué ») : le coq vert passé en niveaux de gris, estompé.
+// Une seule silhouette (coq FFR) teintée par masque CSS : les 5 couleurs ont la même forme, un fond transparent, et
+// suivent la charte (le gris « je n'ai pas joué » compris). -webkit-mask pour Safari sur iPhone.
+const TINT: Record<RatingColor, string> = { rouge: 'bg-rnr', jaune: 'bg-gold', vert: 'bg-ok', bleu: 'bg-blue', gris: 'bg-muted' }
+const MASK = { WebkitMaskImage: 'url(/coq/silhouette.png)', maskImage: 'url(/coq/silhouette.png)', WebkitMaskSize: 'contain', maskSize: 'contain',
+  WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat', WebkitMaskPosition: 'center', maskPosition: 'center' } as const
+
 export function Coq({ color, className = 'h-5 w-5' }: { color: RatingColor; className?: string }) {
-  return <img src={`/coq/${color === 'gris' ? 'vert' : color}.png`} alt="" aria-hidden="true"
-    className={`${className} shrink-0 object-contain ${color === 'gris' ? 'grayscale opacity-50' : ''}`} />
+  return <span aria-hidden="true" style={MASK} className={`${className} inline-block shrink-0 ${TINT[color]}`} />
 }
 
 export function MatchColor({ color, label }: { color: RatingColor | null; label?: string }) {

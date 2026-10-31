@@ -29,22 +29,28 @@ const open = async (file: string) => {
 }
 
 describe('PowerPoint Performance', () => {
-  it('rendu équipe d\'un match : 4 diapos, 2 graphiques (groupes de poste, trois regards)', async () => {
+  it('rendu collectif d\'un match : 1 diapo, 1 graphique (répartition des couleurs GPS)', async () => {
     const r = matchReport({ match: matches[0], players, records, ratings, ref, allRecords: records, matches })
     const file = join(dir, 'match.pptx')
     await downloadMatchReport(r, matches[0], file)
-    expect(await open(file)).toEqual({ slides: 4, charts: 2 })
+    expect(await open(file)).toEqual({ slides: 1, charts: 1 })
   })
-  it('bilan individuel : 4 diapos, 1 graphique (évolution, 2 matchs analysés)', async () => {
+  it('bilan individuel d\'un bloc : 1 diapo, 1 graphique (évolution, 2 matchs analysés)', async () => {
     const r = playerReport({ player: players[0], matches, records, ratings, ref })
     const file = join(dir, 'joueur.pptx')
     await downloadPlayerReport(r, players[0], '2 matchs', file)
-    expect(await open(file)).toEqual({ slides: 4, charts: 1 })
+    expect(await open(file)).toEqual({ slides: 1, charts: 1 })
   })
-  it('joueur sans match analysé : diapos générées, sans graphique d\'évolution', async () => {
+  it('joueur sans match analysé : 1 diapo, sans graphique d\'évolution', async () => {
     const r = playerReport({ player: players[1], matches, records, ratings, ref })
     const file = join(dir, 'joueur-vide.pptx')
     await downloadPlayerReport(r, players[1], '2 matchs', file)
-    expect(await open(file)).toEqual({ slides: 4, charts: 0 })
+    expect(await open(file)).toEqual({ slides: 1, charts: 0 })
+  })
+  it('rendu individuel d\'un seul match : 1 diapo, pas de courbe (chiffres du match en tuiles)', async () => {
+    const r = playerReport({ player: players[0], matches: [matches[0]], records, ratings, ref })
+    const file = join(dir, 'joueur-match.pptx')
+    await downloadPlayerReport(r, players[0], '1 match', file)
+    expect(await open(file)).toEqual({ slides: 1, charts: 0 })
   })
 })

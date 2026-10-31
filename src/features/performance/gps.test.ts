@@ -39,6 +39,22 @@ describe('gpsAnalysis : mêmes résultats que le classeur « GPS - MATCH »', ()
   it('plus de 70 minutes : coefficient < 1', () => {
     expect(gpsAnalysis({ minutes: 80, distance_m: 5670, hi_distance_m: 20, accelerations: 30 }, deuxieme)).toMatchObject({ coefficient: 0.88, filled: 0 })
   })
+  it('1 minute jouée : coefficient 70, pourcentages énormes (pas de garde-fou dans le calcul)', () => {
+    const a = gpsAnalysis({ minutes: 1, distance_m: 100, hi_distance_m: 1, accelerations: 1 }, pilier)!
+    expect(a.coefficient).toBe(70)
+    expect(a.pct).toEqual({ distance: 141, hi: 700, accelerations: 467 }) // 100 m en 1 min = 141 % de l'attendu
+    expect(a).toMatchObject({ filled: 3, color: 'bleu' }) // 3 attendus « remplis » sur 1 minute : trompeur
+  })
+  it('valeurs à 0 : 0 %, rouge', () => {
+    const a = gpsAnalysis({ minutes: 70, distance_m: 0, hi_distance_m: 0, accelerations: 0 }, pilier)!
+    expect(a).toMatchObject({ pct: { distance: 0, hi: 0, accelerations: 0 }, filled: 0, color: 'rouge' })
+  })
+  it('exactement 100 % : attendu rempli', () => {
+    expect(gpsAnalysis({ minutes: 70, distance_m: 4970, hi_distance_m: 10, accelerations: 15 }, pilier)).toMatchObject({ filled: 3, color: 'bleu' })
+  })
+  it('minutes négatives : pas d\'analyse', () => {
+    expect(gpsAnalysis({ minutes: -5, distance_m: 5000, hi_distance_m: 10, accelerations: 15 }, pilier)).toBeNull()
+  })
   it('sans référentiel (poste inconnu) ou sans minutes : pas d\'analyse', () => {
     expect(gpsAnalysis({ minutes: 70, distance_m: 5000, hi_distance_m: 10, accelerations: 15 }, null)).toBeNull()
     expect(gpsAnalysis({ minutes: 0, distance_m: 5000, hi_distance_m: 10, accelerations: 15 }, pilier)).toBeNull()
@@ -60,4 +76,15 @@ describe('vmaxTimeline', () => {
   it('Vmax de référence (test ou historique) : le premier match peut battre le record', () => {
     expect(vmaxTimeline([{ date: '2026-10-04', vmax: 29 }], 28.5)[0]).toMatchObject({ record: true, first: false, recordBefore: 28.5 })
   })
+  it('Vmax égale au record : ce n\'est pas un record, 100 %', () => {
+    const t = vmaxTimeline([{ date: '2026-10-04', vmax: 27 }, { date: '2026-10-11', vmax: 27 }])
+    expect(t[1]).toMatchObject({ record: false, first: false, recordBefore: 27, bestToDate: 27, pctOfBest: 100 })
+    expect(vmaxTimeline([{ date: '2026-10-04', vmax: 28.5 }], 28.5)[0].record).toBe(false)
+  })
+  it('toutes les Vmax nulles : aucun record, aucun %, meilleure à date inchangée', () => {
+    const t = vmaxTimeline([{ date: '2026-10-04', vmax: null }, { date: '2026-10-11', vmax: null }])
+    expect(t.every(x => !x.record && !x.first && x.pctOfBest === null && x.bestToDate === null)).toBe(true)
+    expect(vmaxTimeline([{ date: '2026-10-04', vmax: null }], 28)[0]).toMatchObject({ bestToDate: 28, pctOfBest: null })
+  })
+  it('liste vide', () => { expect(vmaxTimeline([])).toEqual([]) })
 })

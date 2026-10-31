@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(82);
+select plan(107);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -279,6 +279,12 @@ select lives_ok($$insert into public.match_ratings (match_id, player_id, rater, 
                   values ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-00000000000a', 'staff', 'jaune')$$,
                 'le staff note un joueur');
 
+-- Performance (revue) : le staff note aussi un match à venir et peut modifier le référentiel GPS
+select lives_ok($$insert into public.match_ratings (match_id, player_id, rater, color)
+                  values ('00000000-0000-0000-0000-0000000000d2', '00000000-0000-0000-0000-00000000000b', 'staff', 'rouge')$$, 'le staff pose une note sur un autre match de B');
+select isnt_empty($$update public.gps_reference set ref_minutes = 70 where position_group = 'Pilier' returning 1$$,
+                  'le staff peut modifier le référentiel GPS');
+
 -- ---------- Admin M ----------
 reset role;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000d","role":"authenticated"}', true);
@@ -330,6 +336,17 @@ select throws_ok($$select public.import_muscu_program('00000000-0000-0000-0000-0
 select is_empty($$update public.test_definitions set exercise_id = null where name = 'CMJ' returning 1$$,
                 'un joueur ne peut pas modifier le lien test ↔ exercice');
 
+-- Performance (revue) : joueur A
+select is_empty($$update public.gps_reference set distance_m = 1 returning 1$$, 'A ne peut pas modifier le référentiel GPS');
+select is_empty($$select 1 from public.match_ratings where rater = 'staff'$$, 'A, pas encore noté, ne voit aucune note du staff');
+select throws_ok($$insert into public.matches (group_id, match_date, opponent)
+                   values ('00000000-0000-0000-0000-000000000002', current_date, 'X')$$, '42501', null, 'A ne peut pas créer de match');
+select is_empty($$update public.gps_records set minutes = 10 where player_id = '00000000-0000-0000-0000-00000000000a' returning 1$$, 'A ne peut pas modifier son GPS');
+select is(public.has_rated('00000000-0000-0000-0000-0000000000d1'), false, 'has_rated est faux pour A avant sa note');
+select throws_ok($$insert into public.match_ratings (match_id, player_id, rater, color) values ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-00000000000a', 'player', 'vert')$$,
+                 '42501', null, 'A ne peut pas noter un match d''un groupe dont il n''est pas membre');
+select is_empty($$select 1 from public.match_ratings where rater = 'staff'$$, 'sans note de sa part, A ne voit aucune note staff (ni la sienne ni celles de B)');
+
 -- ---------- Joueur B : performance ----------
 reset role;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}', true);
@@ -352,11 +369,36 @@ select throws_ok($$insert into public.gps_records (match_id, player_id, position
                  '42501', null, 'B ne peut pas écrire de GPS');
 select is_empty($$select 1 from public.match_ratings where player_id = '00000000-0000-0000-0000-00000000000a'$$, 'B ne voit pas les notes de A');
 
+-- Performance (revue) : B, déjà noté sur d1, essaie de détourner sa note
+savepoint move_rating;
+select throws_ok($$update public.match_ratings set match_id = '00000000-0000-0000-0000-0000000000d2' where player_id = '00000000-0000-0000-0000-00000000000b' and rater = 'player'$$,
+                 '42501', null, 'B ne peut pas déplacer sa note vers un match pas encore joué');
+rollback to savepoint move_rating;
+savepoint steal_rating;
+select throws_ok($$update public.match_ratings set player_id = '00000000-0000-0000-0000-00000000000a' where player_id = '00000000-0000-0000-0000-00000000000b' and rater = 'player'$$,
+                 '42501', null, 'B ne peut pas réattribuer sa note à A');
+rollback to savepoint steal_rating;
+select is_empty($$delete from public.match_ratings where rater = 'player' returning 1$$, 'B ne peut pas supprimer sa note');
+select is_empty($$delete from public.match_ratings where rater = 'staff' returning 1$$, 'B ne peut pas supprimer une note staff');
+select is_empty($$update public.match_ratings set color = 'bleu' where rater = 'staff' returning 1$$, 'B ne peut pas modifier une note staff');
+select is(public.has_rated('00000000-0000-0000-0000-0000000000d1'), true, 'has_rated vrai pour B sur d1');
+select is(public.has_rated('00000000-0000-0000-0000-0000000000d2'), false, 'has_rated faux pour B sur d2');
+select is_empty($$select 1 from public.match_ratings where match_id = '00000000-0000-0000-0000-0000000000d2'$$, 'B noté sur d1 ne lit pas la note staff de d2');
+select throws_ok($$insert into public.match_ratings (match_id, player_id, rater, color) values ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-00000000000a', 'player', 'bleu')$$,
+                 '42501', null, 'B ne peut pas noter à la place de A');
+select is_empty($$update public.gps_reference set distance_m = 1 returning 1$$, 'B ne peut pas modifier le référentiel GPS');
+select is_empty($$update public.gps_positions set position_group = 'Centre' returning 1$$, 'B ne peut pas modifier la table des postes');
+
 -- ---------- Visiteur non connecté ----------
 reset role;
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
 set local role anon;
 select throws_ok($$select 1 from public.wellness_entries$$, '42501', null, 'un visiteur non connecté n''a aucun accès aux données');
+select throws_ok($$select 1 from public.matches$$, '42501', null, 'anonyme : matches inaccessible');
+select throws_ok($$select 1 from public.gps_reference$$, '42501', null, 'anonyme : gps_reference inaccessible');
+select throws_ok($$select 1 from public.gps_positions$$, '42501', null, 'anonyme : gps_positions inaccessible');
+select throws_ok($$select 1 from public.gps_records$$, '42501', null, 'anonyme : gps_records inaccessible');
+select throws_ok($$select 1 from public.match_ratings$$, '42501', null, 'anonyme : match_ratings inaccessible');
 
 select * from finish();
 rollback;

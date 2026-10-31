@@ -198,7 +198,7 @@ Les 16 mots de passe joueurs ont été régénérés en production (les anciens 
 envoyer par joueur : `data/import/IDENTIFIANTS-joueurs-2026-10-31.csv` (lisible par l'admin seul, à supprimer une fois
 envoyés). Envoi en message privé (D9). Staff : connexion avec l'adresse e-mail complète (rappel affiché à l'écran).
 
-## Étape 11 — Onglet « Performance » : maxi, objectifs, GPS des matchs, note de match — codée le 31/10/2026 (dev)
+## Étape 11 — Onglet « Performance » : maxi, objectifs, GPS des matchs, note de match — en ligne le 31/10/2026
 Un nouvel onglet joueur « Performance » et une vue staff, en sous-étapes validées une par une :
 - **11a. Schéma** (migration) : `matches` (date, adversaire, libellé « J3 - R92 »), `gps_records` (match, joueur, poste saisi,
   minutes, distance totale, distance HI > 21 km/h, accélérations, Vmax), `gps_reference` (attendu par groupe de poste,
@@ -229,6 +229,12 @@ Un nouvel onglet joueur « Performance » et une vue staff, en sous-étapes vali
   obligatoire si présente (le nom de famille seul ne sert que sans cette colonne) ; « Charnière » comptée avec les
   demis de mêlée (mêmes attendus). Vigilance : l'export compte les accélérations > 6 m/s pour tous, le référentiel
   attend > 5 m/s hors piliers.
+- Notes en **coqs FFR** (public/coq) + **gris « je n'ai pas joué »** ; note du joueur **figée** une fois validée.
+- **Photos des joueurs** (mineurs, droit à l'image validé par l'utilisateur) : bucket Storage **privé** `player-photos`
+  (migration 0019, staff seulement), envoi depuis `data/photos-joueurs/` par `npm run photos:prod` (simulation sans
+  `--confirm`) ; jamais dans `public/` (exclu de git et du déploiement). Utilisées dans le bilan individuel PowerPoint.
+- Accélérations : on garde l'export tel quel (> 6 m/s pour tous), décision du 31/10/2026.
+- Réseau sans IPv6 : les bases ne sont joignables que par le pooler IPv4 (dev : aws-0-eu-west-2, prod : aws-1-eu-central-1).
 - Plus tard (non prioritaire) : corrélation auto-évaluation ↔ GPS.
 
 ---

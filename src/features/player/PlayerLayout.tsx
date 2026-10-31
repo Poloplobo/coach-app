@@ -43,7 +43,14 @@ export function PlayerLayout() {
             <p className="text-sm text-ink/60 first-letter:uppercase">{formatDay(today)}</p>
             <h1 className="font-display text-3xl font-bold leading-tight">Salut {profile.data?.first_name}</h1>
           </div>
-          <img src="/logo-rnr.svg" alt="" className="h-12" />
+          <div className="flex items-center gap-3">
+            {/* Réglages dans l'en-tête : la barre du bas garde 5 onglets lisibles au pouce */}
+            <TabLink to="/joueur/reglages" end aria-label="Réglages"
+              className={({ isActive }) => `flex h-10 w-10 items-center justify-center rounded-full ${isActive ? 'bg-rnr text-white' : 'bg-field text-ink/70 hover:text-ink'}`}>
+              <Settings size={20} aria-hidden="true" />
+            </TabLink>
+            <img src="/logo-rnr.svg" alt="" className="h-12" />
+          </div>
         </header>
         {wellness.isSuccess && !wellness.data && (
           <p role="status" className="rounded-lg border border-gold px-3 py-2 text-sm">
@@ -62,8 +69,8 @@ export function PlayerLayout() {
       </main>
 
       <nav aria-label="Navigation" className="[view-transition-name:player-nav] fixed inset-x-0 bottom-0 border-t border-line bg-surface/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
-        <ul className="mx-auto max-w-md grid grid-cols-6">
-          {TABS.map(t => {
+        <ul className="mx-auto max-w-md grid grid-cols-5">
+          {TABS.filter(t => t.to !== '/joueur/reglages').map(t => {
             const Icon = ICON[t.to]
             const tab = 'relative flex h-[4.5rem] flex-col items-center justify-center gap-1 font-display text-sm font-semibold tracking-wide'
             return (

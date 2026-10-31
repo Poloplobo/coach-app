@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Card } from '../../components/ui/Card'
 import { ViewSelect } from '../../components/ui/ViewSelect'
+import { movementIcon } from './movementIcon'
 import { latestByTest, progressPct, seasonOf } from './progress'
 import { useTargets, useTestResults } from './useTests'
 import { Loading } from '../../components/ui/Loading'
@@ -39,10 +40,11 @@ export function MyGoals({ playerId, date, title = 'Mes objectifs' }: { playerId:
         {targets.data.map(t => {
           const last = latest.get(t.test_id)
           const pct = last ? progressPct(Number(last.value), Number(t.target_value), t.test_definitions.higher_is_better) : 0
+          const Icon = movementIcon(t.test_definitions.name)
           return (
             <li key={t.test_id} className="flex flex-col gap-1">
-              <div className="flex justify-between text-sm">
-                <span className="font-semibold">{t.test_definitions.name}</span>
+              <div className="flex justify-between gap-2 text-sm">
+                <span className="flex items-center gap-2 font-semibold"><Icon size={18} aria-hidden="true" className="shrink-0 text-gold" />{t.test_definitions.name}</span>
                 <span className="text-ink/70">
                   {last ? `${number(Number(last.value))} ${t.test_definitions.unit}` : '—'} / {t.label ?? `${number(Number(t.target_value))} ${t.test_definitions.unit}`}
                 </span>

@@ -94,13 +94,26 @@ export function useRateMatch() {
   })
 }
 
-// Photo du joueur pour le PowerPoint, lue dans le stockage privé (staff seulement, RLS) au moment de l'export ;
-// format attendu par pptxgenjs : « image/png;base64,… ». Pas de photo (ou refus) : null, le PowerPoint met les initiales.
+// Photo du joueur pour le PowerPoint, lue dans le stockage privé (staff seulement, RLS) au moment de l'export, puis
+// découpée en rond (fond transparent) : seul rendu fiable dans PowerPoint, Keynote et l'aperçu (rounding ignoré ailleurs).
+// Format attendu par pptxgenjs : « image/png;base64,… ». Pas de photo (ou refus) : null, le PowerPoint met les initiales.
 export async function playerPhoto(playerId: string): Promise<string | null> {
   const { data, error } = await supabase.storage.from('player-photos').download(`${playerId}.png`)
   if (error || !data) return null
-  const bytes = new Uint8Array(await data.arrayBuffer())
-  let bin = ''
-  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
-  return `image/png;base64,${btoa(bin)}`
+  try {
+    const img = await createImageBitmap(data)
+    const size = 400
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = size
+    const ctx = canvas.getContext('2d')!
+    ctx.beginPath()
+    ctx.arc(size / 2, size / 2, size / 2, 0, 2 * Math.PI)
+    ctx.clip()
+    // Recadrage « cover » centré (les photos sont déjà carrées à l'envoi)
+    const side = Math.min(img.width, img.height)
+    ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, size, size)
+    return canvas.toDataURL('image/png').replace(/^data:/, '')
+  } catch {
+    return null
+  }
 }

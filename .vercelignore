@@ -8,3 +8,7 @@ node_modules/
 dist/
 .claude/
 CLAUDE.md
+# Photos de joueurs (mineurs) : jamais dans le site public ni dans git ; stockage privé staff uniquement
+public/Photos joueurs/
+public/**/*_Photo.*
+public/*_Photo.*

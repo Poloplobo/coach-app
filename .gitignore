@@ -7,3 +7,7 @@ supabase/.temp/
 .agents/
 .vercel
 .playwright-mcp/
+# Photos de joueurs (mineurs) : jamais dans git ni dans le site public
+public/Photos joueurs/
+public/**/*_Photo.*
+public/*_Photo.*

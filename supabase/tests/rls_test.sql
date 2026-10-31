@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(111);
+select plan(112);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -373,6 +373,8 @@ select lives_ok($$insert into public.match_ratings (match_id, player_id, rater, 
                   values ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-00000000000b', 'player', 'jaune')$$,
                 'B note son match');
 select is((select color from public.match_ratings where rater = 'staff'), 'vert', 'une fois noté, B découvre la note du staff');
+select is_empty($$update public.match_ratings set color = 'vert' where player_id = '00000000-0000-0000-0000-00000000000b' and rater = 'player' returning 1$$,
+                'note figée : B ne peut plus changer sa couleur après avoir vu la note du staff');
 select throws_ok($$insert into public.gps_records (match_id, player_id, position, minutes, distance_m, hi_distance_m, accelerations)
                    values ('00000000-0000-0000-0000-0000000000d2', '00000000-0000-0000-0000-00000000000b', 'PILIER', 70, 9000, 500, 50)$$,
                  '42501', null, 'B ne peut pas écrire de GPS');
@@ -380,12 +382,10 @@ select is_empty($$select 1 from public.match_ratings where player_id = '00000000
 
 -- Performance (revue) : B, déjà noté sur d1, essaie de détourner sa note
 savepoint move_rating;
-select throws_ok($$update public.match_ratings set match_id = '00000000-0000-0000-0000-0000000000d2' where player_id = '00000000-0000-0000-0000-00000000000b' and rater = 'player'$$,
-                 '42501', null, 'B ne peut pas déplacer sa note vers un match pas encore joué');
+select is_empty($$update public.match_ratings set match_id = '00000000-0000-0000-0000-0000000000d2' where player_id = '00000000-0000-0000-0000-00000000000b' and rater = 'player' returning 1$$, 'B ne peut pas déplacer sa note vers un match pas encore joué');
 rollback to savepoint move_rating;
 savepoint steal_rating;
-select throws_ok($$update public.match_ratings set player_id = '00000000-0000-0000-0000-00000000000a' where player_id = '00000000-0000-0000-0000-00000000000b' and rater = 'player'$$,
-                 '42501', null, 'B ne peut pas réattribuer sa note à A');
+select is_empty($$update public.match_ratings set player_id = '00000000-0000-0000-0000-00000000000a' where player_id = '00000000-0000-0000-0000-00000000000b' and rater = 'player' returning 1$$, 'B ne peut pas réattribuer sa note à A');
 rollback to savepoint steal_rating;
 select is_empty($$delete from public.match_ratings where rater = 'player' returning 1$$, 'B ne peut pas supprimer sa note');
 select is_empty($$delete from public.match_ratings where rater = 'staff' returning 1$$, 'B ne peut pas supprimer une note staff');

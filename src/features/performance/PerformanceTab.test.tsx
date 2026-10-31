@@ -51,9 +51,11 @@ describe('PerformanceTab', () => {
     expect(radios.every(r => !r.disabled)).toBe(true)
   })
 
-  it('un clic sur une couleur enregistre la note avec rater « player »', () => {
+  it('choisir une couleur n\'enregistre rien ; « Valider ma note » enregistre avec rater « player »', () => {
     render(<PerformanceTab />)
     fireEvent.click(screen.getByRole('radio', { name: COLOR_LABEL.jaune }))
+    expect(h.mutate).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Valider ma note' }))
     expect(h.mutate).toHaveBeenCalledWith({ match_id: 'm1', player_id: 'p1', rater: 'player', color: 'jaune' })
   })
 })

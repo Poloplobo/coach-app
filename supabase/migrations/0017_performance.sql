@@ -96,9 +96,7 @@ $$;
 
 create policy "ratings_read" on public.match_ratings for select using (
   public.is_staff() or (player_id = auth.uid() and (rater = 'player' or public.has_rated(match_id))));
--- Le joueur note un match de son groupe une fois celui-ci joué, et peut changer de couleur (pas de suppression : la note
--- staff est déjà vue). Le contrôle vaut aussi à la modification : sinon déplacer sa note vers un match à venir
--- révélerait la note staff de ce match avant de s'être noté.
+-- Le joueur note un match de son groupe une fois celui-ci joué ; ni modification ni suppression ensuite.
 create function public.can_rate_match(p_match uuid) returns boolean
 language sql stable security definer set search_path = '' as $$
   select exists (select 1 from public.matches m
@@ -107,9 +105,8 @@ language sql stable security definer set search_path = '' as $$
 $$;
 create policy "ratings_player_insert" on public.match_ratings for insert with check (
   player_id = auth.uid() and rater = 'player' and public.can_rate_match(match_id));
-create policy "ratings_player_update" on public.match_ratings for update
-  using (player_id = auth.uid() and rater = 'player')
-  with check (player_id = auth.uid() and rater = 'player' and public.can_rate_match(match_id));
+-- Pas de modification par le joueur (décision du 31/10/2026) : sa note est figée une fois validée, sinon il pourrait
+-- s'aligner sur la note du staff qu'il vient de découvrir.
 -- Le staff ne note qu'en tant que staff : il ne peut pas écrire l'auto-évaluation d'un joueur
 create policy "ratings_staff" on public.match_ratings for all
   using (public.is_staff() and rater = 'staff') with check (public.is_staff() and rater = 'staff');

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Loading } from '../../components/ui/Loading'
 import { ViewSelect } from '../../components/ui/ViewSelect'
@@ -20,6 +21,8 @@ export function PerformanceTab() {
   const reference = useGpsReference()
   const rate = useRateMatch()
   const [matchId, setMatchId] = useState('')
+  // Choix en cours, pas encore validé (lié au match : changer de match l'efface)
+  const [choice, setChoice] = useState<{ match: string; color: GpsColor } | null>(null)
 
   const loading = matches.isPending || gps.isPending || ratings.isPending || reference.isPending
   const failed = matches.isError || gps.isError || ratings.isError || reference.isError
@@ -44,16 +47,28 @@ export function PerformanceTab() {
             {matches.data!.map(m => <option key={m.id} value={m.id}>{m.label ? `${m.label} · ` : ''}{m.opponent} · {formatDay(m.match_date)}</option>)}
           </ViewSelect>
 
-          <Card boxed title="Ma note du match" help="Comment as-tu joué par rapport au niveau du match ? La note du staff s'affiche une fois ta note donnée.">
+          <Card boxed title="Ma note du match" help="Comment as-tu joué par rapport au niveau du match ? Une fois validée, ta note ne change plus et celle du staff s'affiche.">
+            {/* Note figée une fois validée : on ne s'aligne pas sur la note du staff découverte ensuite */}
             <div role="radiogroup" aria-label="Ma note du match" className="grid grid-cols-2 gap-2">
-              {GPS_COLORS.map(c => (
-                <button key={c} type="button" role="radio" aria-checked={own?.color === c} disabled={rate.isPending}
-                  onClick={() => rate.mutate({ match_id: match.id, player_id: playerId, rater: 'player', color: c })}
-                  className={`flex min-h-12 items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm font-semibold ${own?.color === c ? 'border-ink bg-field' : 'border-line'}`}>
-                  <span aria-hidden="true" className={`h-4 w-4 shrink-0 rounded-full ${BG[c]}`} />{COLOR_LABEL[c]}
-                </button>
-              ))}
+              {GPS_COLORS.map(c => {
+                const selected = own ? own.color === c : choice?.match === match.id && choice.color === c
+                return (
+                  <button key={c} type="button" role="radio" aria-checked={selected} disabled={!!own || rate.isPending}
+                    onClick={() => setChoice({ match: match.id, color: c })}
+                    className={`flex min-h-12 items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm font-semibold disabled:cursor-default ${selected ? 'border-ink bg-field' : 'border-line'} ${own && !selected ? 'opacity-40' : ''}`}>
+                    <span aria-hidden="true" className={`h-4 w-4 shrink-0 rounded-full ${BG[c]}`} />{COLOR_LABEL[c]}
+                  </button>
+                )
+              })}
             </div>
+            {own
+              ? <p className="text-sm text-ink/60">Note validée : elle ne peut plus être modifiée.</p>
+              : (
+                <Button disabled={choice?.match !== match.id || rate.isPending}
+                  onClick={() => choice && rate.mutate({ match_id: match.id, player_id: playerId, rater: 'player', color: choice.color })}>
+                  {rate.isPending ? 'Enregistrement…' : 'Valider ma note'}
+                </Button>
+              )}
             {rate.isError && <p role="alert" className="text-sm text-rnr">Note non enregistrée, réessaie.</p>}
           </Card>
 

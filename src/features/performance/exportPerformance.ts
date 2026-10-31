@@ -128,7 +128,7 @@ function gauge(s: Slide, pptx: Pptx, x: number, y: number, w: number, label: str
   s.addText(raw, { x, y: ty + 0.22, w, h: 0.25, fontFace: FONT, fontSize: 9, color: C.muted, margin: 0 })
 }
 
-export async function downloadPlayerReport(r: ReturnType<typeof playerReport>, player: { first_name: string; last_name: string }, period: string, fileName: string, photo?: string | null) {
+export async function downloadPlayerReport(r: ReturnType<typeof playerReport>, player: { first_name: string; last_name: string; position?: string | null }, period: string, fileName: string, photo?: string | null) {
   const d = await deck()
   const { pptx } = d
   const single = r.history.length === 1
@@ -141,7 +141,8 @@ export async function downloadPlayerReport(r: ReturnType<typeof playerReport>, p
   s.addShape(pptx.ShapeType.roundRect, { x: cx, y: 1.85, w: cw, h: 4.7, fill: { color: C.surface }, line: { color: C.surface }, rectRadius: 0.15 })
   avatar(s, pptx, cx + (cw - 1.5) / 2, 2.05, 1.5, player.first_name, player.last_name, r.color ? COLOR_HEX[r.color] : C.line, photo)
   s.addText(`${player.first_name} ${player.last_name}`, { x: cx + 0.15, y: 3.65, w: cw - 0.3, h: 0.5, align: 'center', fontFace: DISPLAY, fontSize: 22, bold: true, color: C.ink, margin: 0, fit: 'shrink' })
-  s.addText(last ? last.record!.position : 'Poste non renseigné', { x: cx + 0.15, y: 4.12, w: cw - 0.3, h: 0.3, align: 'center', fontFace: FONT, fontSize: 11, color: C.muted, margin: 0 })
+  // poste du dernier GPS, sinon celui du profil (joueur sans match analysé)
+  s.addText(last ? last.record!.position : player.position || 'Poste non renseigné', { x: cx + 0.15, y: 4.12, w: cw - 0.3, h: 0.3, align: 'center', fontFace: FONT, fontSize: 11, color: C.muted, margin: 0 })
   if (r.color) {
     s.addShape(pptx.ShapeType.roundRect, { x: cx + 0.4, y: 4.5, w: cw - 0.8, h: 0.42, fill: { color: COLOR_HEX[r.color] }, line: { color: COLOR_HEX[r.color] }, rectRadius: 0.21 })
     s.addText(COLOR_LABEL[r.color], { x: cx + 0.4, y: 4.5, w: cw - 0.8, h: 0.42, align: 'center', valign: 'middle', fontFace: FONT, fontSize: 12, bold: true, color: INK_ON[r.color], margin: 0 })

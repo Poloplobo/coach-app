@@ -47,6 +47,16 @@ describe('PowerPoint Performance', () => {
     await downloadPlayerReport(r, players[1], '2 matchs', file)
     expect(await open(file)).toEqual({ slides: 1, charts: 0 })
   })
+  it('avec la photo du joueur : l\'image est intégrée au fichier (et rien d\'autre ne change)', async () => {
+    // PNG 1 × 1 pixel : suffit à vérifier que la photo est embarquée dans le .pptx
+    const photo = 'image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+    const r = playerReport({ player: players[0], matches: [matches[0]], records, ratings, ref })
+    const file = join(dir, 'joueur-photo.pptx')
+    await downloadPlayerReport(r, players[0], '1 match', file, photo)
+    const zip = await JSZip.loadAsync(await readFile(file))
+    expect(Object.keys(zip.files).some(n => /^ppt\/media\/image.*\.png$/.test(n))).toBe(true)
+    expect(await open(file)).toEqual({ slides: 1, charts: 0 })
+  })
   it('rendu individuel d\'un seul match : 1 diapo, pas de courbe (chiffres du match en tuiles)', async () => {
     const r = playerReport({ player: players[0], matches: [matches[0]], records, ratings, ref })
     const file = join(dir, 'joueur-match.pptx')

@@ -5,11 +5,11 @@
 import type PptxGenJS from 'pptxgenjs'
 import { formatDay } from '../../lib/week'
 import { C, DISPLAY, FONT, chart, deck, empty, pct, slide } from '../staff/exportPptx'
-import { COLOR_LABEL, GPS_COLORS, type GpsColor } from './gps'
+import { COLOR_LABEL, GPS_COLORS, type RatingColor } from './gps'
 import type { matchReport, playerReport } from './report'
 
-const COLOR_HEX: Record<GpsColor, string> = { rouge: C.red, jaune: C.gold, vert: C.green, bleu: '3B82F6' }
-const INK_ON: Record<GpsColor, string> = { rouge: C.ink, jaune: '1A1A1A', vert: '1A1A1A', bleu: C.ink }
+const COLOR_HEX: Record<RatingColor, string> = { rouge: C.red, jaune: C.gold, vert: C.green, bleu: '3B82F6', gris: C.grey } // gris : n'a pas joué
+const INK_ON: Record<RatingColor, string> = { rouge: C.ink, jaune: '1A1A1A', vert: '1A1A1A', bleu: C.ink, gris: C.ink }
 const n = (v: number | null, unit = '') => (v === null ? '—' : `${v.toLocaleString('fr-FR')}${unit}`)
 const matchName = (m: { opponent: string; label: string | null; match_date: string }) => `${m.label ? `${m.label} · ` : ''}${m.opponent} · ${formatDay(m.match_date)}`
 const AXES = [['distance', 'Distance totale'], ['hi', 'Haute intensité (> 21 km/h)'], ['accelerations', 'Accélérations']] as const
@@ -18,7 +18,7 @@ type Slide = PptxGenJS.Slide
 type Pptx = PptxGenJS
 
 // Pastille de couleur (GPS ou note) ; vide si pas de couleur
-function dot(s: Slide, pptx: Pptx, x: number, y: number, c: GpsColor | null, size = 0.17) {
+function dot(s: Slide, pptx: Pptx, x: number, y: number, c: RatingColor | null, size = 0.17) {
   s.addShape(pptx.ShapeType.ellipse, { x: x - size / 2, y: y - size / 2, w: size, h: size,
     fill: { color: c ? COLOR_HEX[c] : C.bg }, line: { color: c ? COLOR_HEX[c] : C.line, width: 1 } })
 }
@@ -103,10 +103,15 @@ export async function downloadMatchReport(r: ReturnType<typeof matchReport>, mat
   await pptx.writeFile({ fileName })
 }
 
-// Initiales en attendant les photos des joueurs (stockage privé à prévoir : données de mineurs)
-function avatar(s: Slide, pptx: Pptx, x: number, y: number, size: number, first: string, last: string, ring: string) {
-  s.addShape(pptx.ShapeType.ellipse, { x, y, w: size, h: size, fill: { color: C.bg }, line: { color: ring, width: 3 } })
-  s.addText(`${first[0] ?? ''}${last[0] ?? ''}`.toUpperCase(), { x, y, w: size, h: size, align: 'center', valign: 'middle', fontFace: DISPLAY, fontSize: 40, bold: true, color: C.ink, margin: 0 })
+// Photo ronde du joueur, sinon ses initiales. photo : image CARRÉE en données (« image/png;base64,… »), lue dans le
+// stockage privé du staff au moment de l'export (photos de mineurs : jamais dans public/). Anneau à la couleur du niveau.
+function avatar(s: Slide, pptx: Pptx, x: number, y: number, size: number, first: string, last: string, ring: string, photo?: string | null) {
+  if (photo) s.addImage({ data: photo, x, y, w: size, h: size, rounding: true })
+  else {
+    s.addShape(pptx.ShapeType.ellipse, { x, y, w: size, h: size, fill: { color: C.bg }, line: { color: C.bg } })
+    s.addText(`${first[0] ?? ''}${last[0] ?? ''}`.toUpperCase(), { x, y, w: size, h: size, align: 'center', valign: 'middle', fontFace: DISPLAY, fontSize: 40, bold: true, color: C.ink, margin: 0 })
+  }
+  s.addShape(pptx.ShapeType.ellipse, { x, y, w: size, h: size, fill: { type: 'none' }, line: { color: ring, width: 3 } })
 }
 
 // Jauge « % de l'attendu » : piste jusqu'à 150 %, repère à 100 % (attendu atteint)
@@ -123,7 +128,7 @@ function gauge(s: Slide, pptx: Pptx, x: number, y: number, w: number, label: str
   s.addText(raw, { x, y: ty + 0.22, w, h: 0.25, fontFace: FONT, fontSize: 9, color: C.muted, margin: 0 })
 }
 
-export async function downloadPlayerReport(r: ReturnType<typeof playerReport>, player: { first_name: string; last_name: string }, period: string, fileName: string) {
+export async function downloadPlayerReport(r: ReturnType<typeof playerReport>, player: { first_name: string; last_name: string }, period: string, fileName: string, photo?: string | null) {
   const d = await deck()
   const { pptx } = d
   const single = r.history.length === 1
@@ -134,7 +139,7 @@ export async function downloadPlayerReport(r: ReturnType<typeof playerReport>, p
   // Carte de profil : photo (initiales pour l'instant), nom, poste, couleur, chiffres clés
   const cx = 0.6, cw = 3.4
   s.addShape(pptx.ShapeType.roundRect, { x: cx, y: 1.85, w: cw, h: 4.7, fill: { color: C.surface }, line: { color: C.surface }, rectRadius: 0.15 })
-  avatar(s, pptx, cx + (cw - 1.5) / 2, 2.05, 1.5, player.first_name, player.last_name, r.color ? COLOR_HEX[r.color] : C.line)
+  avatar(s, pptx, cx + (cw - 1.5) / 2, 2.05, 1.5, player.first_name, player.last_name, r.color ? COLOR_HEX[r.color] : C.line, photo)
   s.addText(`${player.first_name} ${player.last_name}`, { x: cx + 0.15, y: 3.65, w: cw - 0.3, h: 0.5, align: 'center', fontFace: DISPLAY, fontSize: 22, bold: true, color: C.ink, margin: 0, fit: 'shrink' })
   s.addText(last ? last.record!.position : 'Poste non renseigné', { x: cx + 0.15, y: 4.12, w: cw - 0.3, h: 0.3, align: 'center', fontFace: FONT, fontSize: 11, color: C.muted, margin: 0 })
   if (r.color) {

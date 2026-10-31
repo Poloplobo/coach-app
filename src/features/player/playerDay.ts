@@ -8,6 +8,7 @@ export const TABS = [
   { to: '/joueur', label: 'Accueil', locked: true },
   { to: '/joueur/seance', label: 'Séance', locked: true },
   { to: '/joueur/rugby', label: 'Rugby', locked: true },
+  { to: '/joueur/performance', label: 'Perf', locked: true },
   { to: '/joueur/forme', label: 'Forme', locked: false },
   { to: '/joueur/reglages', label: 'Réglages', locked: false },
 ] as const

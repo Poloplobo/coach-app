@@ -1,0 +1,107 @@
+import { useState } from 'react'
+import { Card } from '../../components/ui/Card'
+import { Loading } from '../../components/ui/Loading'
+import { ViewSelect } from '../../components/ui/ViewSelect'
+import { formatDay } from '../../lib/week'
+import { usePlayerDay } from '../player/playerDay'
+import { MyGoals } from '../tests/MyGoals'
+import { COLOR_LABEL, GPS_COLORS, gpsAnalysis, MIN_MINUTES, positionGroup, vmaxTimeline, type GpsColor } from './gps'
+import { MatchColor } from './MatchColor'
+import { useGpsRecords, useGpsReference, useMatches, useRateMatch, useRatings } from './usePerformance'
+
+const BG: Record<GpsColor, string> = { rouge: 'bg-rnr', jaune: 'bg-gold', vert: 'bg-ok', bleu: 'bg-blue' }
+
+// Onglet joueur : après le match, il se note, découvre la note du staff, son GPS (8 boîtiers : pas toujours), ses maxi
+export function PerformanceTab() {
+  const { playerId, today } = usePlayerDay()
+  const matches = useMatches()
+  const gps = useGpsRecords(playerId)
+  const ratings = useRatings(playerId)
+  const reference = useGpsReference()
+  const rate = useRateMatch()
+  const [matchId, setMatchId] = useState('')
+
+  const loading = matches.isPending || gps.isPending || ratings.isPending || reference.isPending
+  const failed = matches.isError || gps.isError || ratings.isError || reference.isError
+  const match = matches.data?.find(m => m.id === matchId) ?? matches.data?.[0]
+  const own = ratings.data?.find(r => r.match_id === match?.id && r.rater === 'player')
+  const staff = ratings.data?.find(r => r.match_id === match?.id && r.rater === 'staff')
+  const record = gps.data?.find(g => g.match_id === match?.id)
+  const dateOf = new Map(matches.data?.map(m => [m.id, m.match_date]))
+  const vmax = vmaxTimeline((gps.data ?? []).map(g => ({ date: dateOf.get(g.match_id) ?? '', vmax: g.vmax })))
+    .find(v => v.date === match?.match_date)
+  const ref = record && reference.data ? reference.data.refs.get(positionGroup(record.position, reference.data.positions) ?? '') ?? null : null
+  const analysis = record ? gpsAnalysis(record, ref) : null
+
+  return (
+    <div className="flex flex-col gap-6">
+      {loading && <Loading />}
+      {failed && <p role="alert">Impossible de charger tes matchs.</p>}
+      {!loading && !failed && !match && <Card title="Mes matchs"><p className="text-sm text-ink/70">Aucun match enregistré pour l'instant.</p></Card>}
+      {match && (
+        <>
+          <ViewSelect label="Match" value={match.id} onChange={setMatchId}>
+            {matches.data!.map(m => <option key={m.id} value={m.id}>{m.label ? `${m.label} · ` : ''}{m.opponent} · {formatDay(m.match_date)}</option>)}
+          </ViewSelect>
+
+          <Card boxed title="Ma note du match" help="Comment as-tu joué par rapport au niveau du match ? La note du staff s'affiche une fois ta note donnée.">
+            <div role="radiogroup" aria-label="Ma note du match" className="grid grid-cols-2 gap-2">
+              {GPS_COLORS.map(c => (
+                <button key={c} type="button" role="radio" aria-checked={own?.color === c} disabled={rate.isPending}
+                  onClick={() => rate.mutate({ match_id: match.id, player_id: playerId, rater: 'player', color: c })}
+                  className={`flex min-h-12 items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm font-semibold ${own?.color === c ? 'border-ink bg-field' : 'border-line'}`}>
+                  <span aria-hidden="true" className={`h-4 w-4 shrink-0 rounded-full ${BG[c]}`} />{COLOR_LABEL[c]}
+                </button>
+              ))}
+            </div>
+            {rate.isError && <p role="alert" className="text-sm text-rnr">Note non enregistrée, réessaie.</p>}
+          </Card>
+
+          <Card title="Note du staff">
+            {!own
+              ? <p className="text-sm text-ink/70">Note ton match pour découvrir la note du staff.</p>
+              : staff ? <MatchColor color={staff.color} label={COLOR_LABEL[staff.color]} /> : <p className="text-sm text-ink/70">Le staff n'a pas encore noté ce match.</p>}
+          </Card>
+
+          {/* Sans GPS sur ce match (8 boîtiers pour le groupe) : partie grisée, la note et les objectifs restent */}
+          <Card title="Mon GPS" help={record ? `Comparé à l'attendu de ton poste (${record.position.toLowerCase()}), ramené à un match de 70 min.` : undefined}>
+            {!record
+              ? <p aria-disabled="true" className="rounded-lg bg-field px-3 py-4 text-center text-sm text-ink/45">Pas de GPS pour toi sur ce match.</p>
+              : (
+                <>
+                  <dl className="grid grid-cols-2 gap-3 text-sm">
+                    {[
+                      ['Temps de jeu', `${record.minutes} min`, null],
+                      ['Distance', `${record.distance_m.toLocaleString('fr-FR')} m`, analysis?.pct.distance],
+                      ['Haute intensité (> 21 km/h)', `${record.hi_distance_m} m`, analysis?.pct.hi],
+                      ['Accélérations', String(record.accelerations), analysis?.pct.accelerations],
+                    ].map(([label, value, pct]) => (
+                      <div key={String(label)} className="rounded-lg bg-field px-3 py-2">
+                        <dt className="text-ink/60">{label}</dt>
+                        <dd className="font-display text-xl font-semibold">{value}{pct != null && <span className={`ml-2 text-base ${Number(pct) >= 100 ? 'text-ok' : 'text-ink/60'}`}>{pct} %</span>}</dd>
+                      </div>
+                    ))}
+                    <div className="rounded-lg bg-field px-3 py-2">
+                      <dt className="text-ink/60">Vmax</dt>
+                      <dd className="font-display text-xl font-semibold">{record.vmax ? `${String(record.vmax).replace('.', ',')} km/h` : '—'}
+                        {vmax?.record && <span className="ml-2 text-base text-gold">record !</span>}
+                        {vmax && !vmax.record && vmax.pctOfBest !== null && <span className="ml-2 text-base text-ink/60">{vmax.pctOfBest} % de ton record</span>}
+                      </dd>
+                    </div>
+                    <div className="rounded-lg bg-field px-3 py-2">
+                      <dt className="text-ink/60">Attendus remplis</dt>
+                      <dd className="font-display text-xl font-semibold">
+                        {analysis ? <MatchColor color={analysis.color} label={`${analysis.filled}/3`} /> : <span className="text-base text-ink/60">temps de jeu &lt; {MIN_MINUTES} min</span>}
+                      </dd>
+                    </div>
+                  </dl>
+                  {!ref && <p className="text-sm text-ink/60">Poste sans attendu au référentiel : pas de comparaison.</p>}
+                </>
+              )}
+          </Card>
+        </>
+      )}
+      <MyGoals playerId={playerId} date={today} title="Mes maxi et objectifs" />
+    </div>
+  )
+}

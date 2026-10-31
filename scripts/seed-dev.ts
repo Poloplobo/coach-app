@@ -114,4 +114,19 @@ must(await db.from('test_results').insert(testRows).select(), 'tests')
 must(await db.from('player_targets').insert(ids.slice(0, 4).map(player_id => (
   { player_id, season: '2026-2027', test_id: tests.get('CMJ')!, target_value: 50 }))).select(), 'objectifs')
 
+// 5. Performance : deux matchs passés, GPS pour 6 joueurs sur 8 (8 boîtiers pour le groupe), notes du staff sur le premier
+const POSTE = ['PILIER', 'TALON', '2ÈME LIGNE', 'CENTRE']
+for (const [k, opponent] of ['R92', 'USON'].entries()) {
+  const match_date = addDays(today, -8 + 7 * k) // samedis précédents
+  const match = must(await db.from('matches').upsert({ group_id: group.id, match_date, opponent, label: `J${k + 3}` }, { onConflict: 'group_id,match_date,opponent' }).select('id').single(), 'match')
+  const withGps = ids.filter((_, i) => i !== 5 && i !== (k ? 2 : 7)) // le blessé n'a pas joué ; un joueur sans boîtier
+  must(await db.from('gps_records').insert(withGps.map((player_id, i) => {
+    const minutes = [70, 55, 40, 70, 16, 62][i] ?? 70
+    return { match_id: match.id, player_id, position: POSTE[(ids.indexOf(player_id) + 1) % 4], minutes,
+      distance_m: Math.round(minutes * between(60, 95)), hi_distance_m: between(0, 90), accelerations: between(8, 35), vmax: 24 + between(0, 60) / 10 }
+  })).select('id'), 'GPS')
+  if (k === 0) must(await db.from('match_ratings').insert(ids.slice(0, 4).map((player_id, i) =>
+    ({ match_id: match.id, player_id, rater: 'staff', color: ['vert', 'jaune', 'bleu', 'rouge'][i] }))).select('id'), 'notes staff')
+}
+
 console.log(`${PLAYERS} joueurs fictifs, ${wellness.length} formes, ${logs.length} RPE, ${sessions.length} séances muscu du ${from} au ${today}, 1 blessé, ${testRows.length} tests`)

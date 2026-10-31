@@ -5,6 +5,7 @@ import { RequireRole } from './features/auth/RequireRole'
 import { HomeTab } from './features/player/HomeTab'
 import { PlayerLayout } from './features/player/PlayerLayout'
 import { FormeTab, RugbyTab, SeanceTab } from './features/player/tabs'
+import { PerformanceTab } from './features/performance/PerformanceTab'
 import { SettingsTab } from './features/settings/SettingsTab'
 import { Loading } from './components/ui/Loading'
 
@@ -26,6 +27,7 @@ export default function App() {
         <Route path="seance" element={<SeanceTab />} />
         <Route path="rugby" element={<RugbyTab />} />
         <Route path="forme" element={<FormeTab />} />
+        <Route path="performance" element={<PerformanceTab />} />
         <Route path="reglages" element={<SettingsTab />} />
       </Route>
       <Route path="/staff" element={<RequireRole roles={['coach', 'admin']}><Suspense fallback={<div className="p-4"><Loading /></div>}><StaffLayout /></Suspense></RequireRole>}>

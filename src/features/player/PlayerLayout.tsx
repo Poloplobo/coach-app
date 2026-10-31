@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { TabLink } from '../../components/ui/TabLink'
-import { Dumbbell, HeartPulse, House, Lock, Settings, Users, type LucideIcon } from 'lucide-react'
+import { Activity, Dumbbell, HeartPulse, House, Lock, Settings, Users, type LucideIcon } from 'lucide-react'
 import { Loading } from '../../components/ui/Loading'
 import { formatDay, parisDate } from '../../lib/week'
 import { useProfile, useUserId } from '../auth/useAuth'
@@ -9,7 +9,7 @@ import { useWellnessDay } from '../wellness/useWellness'
 import { TABS, isTabLocked, type PlayerDay } from './playerDay'
 
 const ICON: Record<string, LucideIcon> = {
-  '/joueur': House, '/joueur/seance': Dumbbell, '/joueur/rugby': Users, '/joueur/forme': HeartPulse, '/joueur/reglages': Settings,
+  '/joueur': House, '/joueur/seance': Dumbbell, '/joueur/rugby': Users, '/joueur/performance': Activity, '/joueur/forme': HeartPulse, '/joueur/reglages': Settings,
 }
 
 // Le jour de saisie suit l'heure de Paris, même si l'app reste ouverte après minuit
@@ -62,7 +62,7 @@ export function PlayerLayout() {
       </main>
 
       <nav aria-label="Navigation" className="[view-transition-name:player-nav] fixed inset-x-0 bottom-0 border-t border-line bg-surface/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
-        <ul className="mx-auto max-w-md grid grid-cols-5">
+        <ul className="mx-auto max-w-md grid grid-cols-6">
           {TABS.map(t => {
             const Icon = ICON[t.to]
             const tab = 'relative flex h-[4.5rem] flex-col items-center justify-center gap-1 font-display text-sm font-semibold tracking-wide'

@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(112);
+select plan(116);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -74,6 +74,9 @@ insert into public.gps_records (match_id, player_id, position, minutes, distance
   ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-00000000000a', 'CENTRE', 70, 6000, 80, 30, 30);
 insert into public.match_ratings (match_id, player_id, rater, color) values
   ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-00000000000b', 'staff', 'vert');
+
+-- Photos des joueurs : le stockage n'est jamais public (vérifié hors RLS)
+select is((select public from storage.buckets where id = 'player-photos'), false, 'le stockage des photos n''est pas public');
 
 -- Retour de B (pour vérifier qu'A ne le lit pas)
 insert into public.exercise_feedback (player_id, planned_exercise_id, status, done_load) values
@@ -294,6 +297,10 @@ select is((select position from public.gps_records where player_id = '00000000-0
 select throws_ok($$select public.import_match_gps('00000000-0000-0000-0000-000000000002', public.paris_today() + 1, 'X', null, '[{"player_id":"00000000-0000-0000-0000-00000000000b"}]')$$,
                  'P0001', null, 'pas d''import GPS pour un match dans le futur');
 
+-- Photos des joueurs (0019) : stockage privé, staff seulement
+select lives_ok($$insert into storage.objects (bucket_id, name) values ('player-photos', '00000000-0000-0000-0000-00000000000b.png')$$,
+                'le staff dépose la photo d''un joueur');
+
 -- ---------- Admin M ----------
 reset role;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000d","role":"authenticated"}', true);
@@ -400,6 +407,9 @@ select is_empty($$update public.gps_positions set position_group = 'Centre' retu
 
 select throws_ok($$select public.import_match_gps('00000000-0000-0000-0000-000000000002', public.paris_today() - 2, 'R92', null, '[]')$$,
                  '42501', null, 'un joueur ne peut pas importer de GPS');
+
+select is_empty($$select 1 from storage.objects where bucket_id = 'player-photos'$$, 'un joueur ne voit aucune photo, même la sienne');
+select throws_ok($$insert into storage.objects (bucket_id, name) values ('player-photos', 'x.png')$$, '42501', null, 'un joueur ne peut pas déposer de photo');
 
 -- ---------- Visiteur non connecté ----------
 reset role;

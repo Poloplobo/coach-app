@@ -74,3 +74,28 @@ export function playerReport(input: { player: Player; matches: Match[]; records:
     axis: weakest ? AXES[weakest] : null,
   }
 }
+
+// Rendu collectif sur un bloc de matchs : le bilan de chaque joueur sur le bloc (playerReport), la répartition des
+// couleurs du bloc, et les moyennes par groupe de poste (groupe du dernier match analysé de chaque joueur)
+export function teamBlockReport(input: { matches: Match[]; players: Player[]; records: GpsRecord[]; ratings: Rating[]; ref: Ref }) {
+  const { ref } = input
+  const players = input.players.map(player => {
+    const r = playerReport({ ...input, player })
+    const last = [...r.history].reverse().find(h => h.analysis)
+    return { player, report: r, group: last?.record ? positionGroup(last.record.position, ref.positions) : null }
+  }).sort((a, b) => (b.report.meanFilled ?? -1) - (a.report.meanFilled ?? -1) || a.player.last_name.localeCompare(b.player.last_name))
+  const analysed = players.filter(p => p.report.analysed > 0)
+  const groups = [...new Set(analysed.map(p => p.group!))].map(group => {
+    const g = analysed.filter(p => p.group === group).map(p => p.report)
+    const avg = (k: 'distance' | 'hi' | 'accelerations') => round(mean(g.map(r => r.pcts[k]!))!)
+    return { group, players: g.length, distance: avg('distance'), hi: avg('hi'), accelerations: avg('accelerations'), filled: round(mean(g.map(r => r.meanFilled!))!, 1) }
+  })
+  return {
+    matches: [...input.matches].sort((a, b) => a.match_date.localeCompare(b.match_date)),
+    players, groups,
+    withGps: players.filter(p => p.report.played > 0).length,
+    blockColors: Object.fromEntries(GPS_COLORS.map(c => [c, analysed.filter(p => p.report.color === c).length])) as Record<GpsColor, number>,
+    filled: analysed.reduce((s, p) => s + p.report.filled, 0),
+    possible: analysed.reduce((s, p) => s + p.report.possible, 0),
+  }
+}

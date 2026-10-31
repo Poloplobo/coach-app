@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { GpsRecord, GpsReference } from './gps'
-import { matchReport, playerReport } from './report'
+import { matchReport, playerReport, teamBlockReport } from './report'
 
 const refRow = (position_group: string, distance_m: number, accelerations: number, hi_distance_m: number): GpsReference =>
   ({ position_group, distance_m, accelerations, hi_distance_m, ref_minutes: 70 })
@@ -67,5 +67,23 @@ describe('playerReport : bilan individuel sur un bloc de matchs', () => {
     const r = playerReport({ player: players[2], matches, records, ratings, ref })
     expect(r).toMatchObject({ played: 0, minutes: null, vmaxMax: null, color: null, axis: null, meanFilled: null })
     expect(r.history[0].own).toBe('jaune')
+  })
+})
+
+describe('teamBlockReport : rendu collectif sur un bloc de matchs', () => {
+  const r = teamBlockReport({ matches: [...matches].reverse(), players, records, ratings, ref })
+  it('chaque joueur avec son bilan du bloc, triés par attendus remplis ; sans GPS en fin', () => {
+    expect(r.players.map(p => [p.player.id, p.report.meanFilled, p.report.color, p.group])).toEqual([
+      ['a', 2, 'vert', 'Pilier'], ['b', 1, 'jaune', 'Centre'], ['c', null, null, null],
+    ])
+    expect(r.matches.map(m => m.id)).toEqual(['m1', 'm2'])
+  })
+  it('couleurs du bloc, attendus remplis de l\'équipe, moyennes par groupe de poste', () => {
+    expect(r.blockColors).toEqual({ rouge: 0, jaune: 1, vert: 1, bleu: 0 })
+    expect(r).toMatchObject({ withGps: 2, filled: 5, possible: 9 })
+    expect(r.groups).toEqual([
+      { group: 'Pilier', players: 1, distance: 90, hi: 110, accelerations: 84, filled: 2 },
+      { group: 'Centre', players: 1, distance: 100, hi: 50, accelerations: 50, filled: 1 },
+    ])
   })
 })

@@ -198,7 +198,7 @@ Les 16 mots de passe joueurs ont été régénérés en production (les anciens 
 envoyer par joueur : `data/import/IDENTIFIANTS-joueurs-2026-10-31.csv` (lisible par l'admin seul, à supprimer une fois
 envoyés). Envoi en message privé (D9). Staff : connexion avec l'adresse e-mail complète (rappel affiché à l'écran).
 
-## Étape 11 — Onglet « Performance » : maxi, objectifs, GPS des matchs, note de match (à faire) — décisions du 31/10/2026
+## Étape 11 — Onglet « Performance » : maxi, objectifs, GPS des matchs, note de match — codée le 31/10/2026 (dev)
 Un nouvel onglet joueur « Performance » et une vue staff, en sous-étapes validées une par une :
 - **11a. Schéma** (migration) : `matches` (date, adversaire, libellé « J3 - R92 »), `gps_records` (match, joueur, poste saisi,
   minutes, distance totale, distance HI > 21 km/h, accélérations, Vmax), `gps_reference` (attendu par groupe de poste,
@@ -220,6 +220,16 @@ Un nouvel onglet joueur « Performance » et une vue staff, en sous-étapes vali
 - **11f. Écrans** : joueur (mobile) — maxi vs objectifs, derniers matchs avec ses chiffres, % de l'attendu à son poste,
   attendus remplis, record Vmax, sa note et celle du staff ; staff (desktop) — tableau du match (GPS + couleur GPS +
   notes joueur / staff), import GPS, import des maxi.
+- **11g. PowerPoint** (même charte que les extractions de charge) : rendu équipe d'un match (chiffres clés, tableau GPS
+  et notes, attendus par groupe de poste, couleur GPS / notes joueurs / notes staff) et bilan individuel d'un bloc de
+  matchs au choix (calque de « Bilan bloc » et « Fiche joueur » : match par match, évolution, moyennes, couleur du
+  bloc, axe de travail = attendu le moins atteint, regards croisés).
+- Décisions en cours de route : pas de % ni de couleur GPS sous **20 minutes** jouées ; import GPS en une transaction
+  (`import_match_gps`, migration 0018 : un réimport retire les lignes absentes du fichier) ; colonne « Joueurs »
+  obligatoire si présente (le nom de famille seul ne sert que sans cette colonne) ; « Charnière » comptée avec les
+  demis de mêlée (mêmes attendus). Vigilance : l'export compte les accélérations > 6 m/s pour tous, le référentiel
+  attend > 5 m/s hors piliers.
+- Plus tard (non prioritaire) : corrélation auto-évaluation ↔ GPS.
 
 ---
 

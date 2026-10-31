@@ -1,0 +1,148 @@
+// Aperçu visuel des écrans STAFF sans compte ni donnée réelle : session fictive, effectif fictif,
+// réponses Supabase simulées, toute autre requête vers Supabase bloquée (rien ne sort du navigateur de test).
+// Usage : npx vite --port 5199   puis   node scripts/ui-preview/staff.mjs <dossier> [dark|light] [largeur] [prog]
+import { chromium } from 'playwright'
+
+const [out, theme = 'dark', w = '1440', only] = process.argv.slice(2)
+if (!out) throw new Error('Usage : node scripts/ui-preview/staff.mjs <dossier de sortie> [dark|light] [largeur] [prog]')
+const width = Number(w)
+const REF = 'jlfbjuoqbxsxnzavwnql' // projet de dev (adresse publique) : nom de la clé de session dans le navigateur
+const TODAY = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' })
+const STAFF = 'mock-staff'
+
+const addDays = (d, n) => { const x = new Date(`${d}T00:00:00Z`); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10) }
+const monday = addDays(TODAY, -((new Date(`${TODAY}T00:00:00Z`).getUTCDay() + 6) % 7))
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+
+const NAMES = [['Hugo', 'MARTIN'], ['Lucas', 'BERNARD'], ['Nathan', 'PETIT'], ['Enzo', 'ROBERT'], ['Louis', 'RICHARD'], ['Jules', 'DURAND'],
+  ['Gabriel', 'LEROY'], ['Arthur', 'MOREAU'], ['Raphaël', 'SIMON'], ['Tom', 'LAURENT'], ['Noah', 'LEFEBVRE'], ['Mathis', 'MICHEL'],
+  ['Théo', 'GARCIA'], ['Adam', 'DAVID'], ['Sacha', 'BERTRAND'], ['Maël', 'ROUX']]
+const POS = ['Pilier', 'Talon', '2ème Ligne', '3ème Ligne', 'Demi de mêlée', 'Ouvreur', 'Centre', 'Ailier', 'Arrière']
+const roster = NAMES.map(([first_name, last_name], i) => ({ id: `p${i + 1}`, first_name, last_name, position: POS[i % POS.length], role: 'player' }))
+const INJURED = ['p5']
+
+const types = [
+  { id: 't-ct', name: 'Collectif Total', pillar: 'rugby', requires_rpe: true, default_duration_min: 90 },
+  { id: 't-jp', name: 'Jeu au Poste', pillar: 'rugby', requires_rpe: true, default_duration_min: 45 },
+  { id: 't-dt', name: 'Dév. Tactique', pillar: 'rugby', requires_rpe: true, default_duration_min: 30 },
+  { id: 't-mus', name: 'Musculation', pillar: 'physique', requires_rpe: true, default_duration_min: 60 },
+  { id: 't-vid', name: 'Vidéo', pillar: 'accompagnement', requires_rpe: false, default_duration_min: 30 },
+  { id: 't-rec', name: 'Récupération', pillar: 'accompagnement', requires_rpe: false, default_duration_min: 45 },
+]
+const weekTypes = [
+  { code: 'DEV', name: 'Développement', target_srpe: 3000, srpe_min: 2500, srpe_max: null, volume_min: 600, physique_min: 150, rugby_min: 200, accompagnement_min: 100, ppid_min: 150 },
+  { code: 'COMP', name: 'Compétition', target_srpe: 2000, srpe_min: 1500, srpe_max: 2500, volume_min: 480, physique_min: 120, rugby_min: 160, accompagnement_min: 80, ppid_min: 120 },
+  { code: 'REG', name: 'Régénération', target_srpe: 1000, srpe_min: 500, srpe_max: 1500, volume_min: 300, physique_min: 60, rugby_min: 120, accompagnement_min: 60, ppid_min: 60 },
+]
+const weeks = Array.from({ length: 10 }, (_, i) => ({
+  code: `S${i + 1}`, label: `Semaine ${i + 1}`, start_date: addDays(monday, (i - 6) * 7),
+  week_type_code: ['COMP', 'DEV', 'DEV', 'REG', 'COMP', 'DEV', 'COMP', 'REG', 'COMP', 'DEV'][i], cycle: i < 5 ? 'Cycle 1' : 'Cycle 2', phase_note: null, is_off: false,
+}))
+
+// Saison : chaque joueur, chaque jour passé (sauf dimanche), 1 à 3 activités ; état de forme quasi quotidien
+const logs = []; const wellness = []
+for (let d = weeks[0].start_date; d <= TODAY; d = addDays(d, 1)) {
+  const dow = (new Date(`${d}T00:00:00Z`).getUTCDay() + 6) % 7
+  for (const p of roster) {
+    const shape = Number(p.id.slice(1))
+    if (dow < 6) for (const a of dow % 2 ? ['t-ct', 't-vid'] : ['t-jp', 't-mus', 't-dt']) {
+      if ((INJURED.includes(p.id) && a !== 't-mus') || rnd() < 0.12) continue
+      const t = types.find(x => x.id === a)
+      const rpe = t.requires_rpe ? Math.min(10, Math.max(2, Math.round(4 + rnd() * 4 + (shape % 4 === 0 ? 1.5 : 0)))) : null
+      logs.push({ player_id: p.id, session_date: d, activity_type_id: a, duration_min: t.default_duration_min, rpe, srpe: rpe === null ? 0 : rpe * t.default_duration_min, source: 'app', created_at: `${d}T18:${String(10 + shape).padStart(2, '0')}:00Z` })
+    }
+    if ((d === TODAY && shape > 11) || rnd() < 0.08) continue // aujourd'hui : 11 joueurs sur 16 ont rempli
+    const v = () => Math.min(5, Math.max(1, Math.round(2.6 + rnd() * 2.6 - (shape === 3 ? 1.4 : 0))))
+    const it = { sleep_quality: v(), fatigue: v(), soreness: null, soreness_upper: v(), soreness_lower: shape === 7 && d === TODAY ? 1 : v(), stress: v(), mood: v() }
+    const score = it.sleep_quality + it.fatigue + it.soreness_upper + it.soreness_lower + it.stress + it.mood
+    wellness.push({ player_id: p.id, entry_date: d, ...it, score, source: 'app' })
+  }
+}
+
+const ex = (id, position, block_label, name, sets, reps, load_value, load_unit, fb) =>
+  ({ id, position, block_label, sets, reps, load_value, load_unit, tempo: null, rest: "2'", instructions: null, exercises: { name }, exercise_feedback: fb ? [fb] : [] })
+const muscu = []
+for (const wk of weeks) for (const p of roster.slice(0, 10)) for (const dayOffset of [1, 3]) {
+  const d = addDays(wk.start_date, dayOffset), past = d <= TODAY, base = 90 + Number(p.id.slice(1)) * 3 + weeks.indexOf(wk) * 2.5
+  const fb = (s, load) => (past && rnd() > 0.15 ? { rpe: 6 + Math.round(rnd() * 3), done_load: s === 'fait' ? load : null, status: s, comment: null } : null)
+  muscu.push({ id: `m-${p.id}-${d}`, session_date: d, player_id: p.id, activity_types: { name: 'Musculation' }, planned_duration_min: 60, planned_exercises: [
+    ex(`${p.id}${d}a`, 1, 'A1', 'Squat arrière', 5, '5', Math.round(base), 'kg', fb(rnd() > 0.2 ? 'fait' : 'partiel', `5x${Math.round(base)}`)),
+    ex(`${p.id}${d}b`, 2, 'B1', 'Développé couché', 4, '6', Math.round(base * 0.7), 'kg', fb(rnd() > 0.25 ? 'fait' : 'non fait', `4x${Math.round(base * 0.7)}`)),
+    ex(`${p.id}${d}c`, 3, 'C1', 'Gainage latéral', 3, "30''", null, 'bw', fb('fait', null)),
+  ] })
+}
+const def = (name, unit, higher_is_better = true) => ({ name, unit, higher_is_better })
+const tests = [{ test_id: 'dc', test_date: '2026-09-20', value: 92, test_definitions: def('Développé couché 1RM', 'kg') },
+  { test_id: 's10', test_date: '2026-09-22', value: 1.82, test_definitions: def('Sprint 10 m', 's', false) },
+  { test_id: 'cmj', test_date: '2026-09-22', value: 41.5, test_definitions: def('CMJ', 'cm') }]
+const targets = [{ test_id: 'dc', target_value: 100, label: null, test_definitions: def('Développé couché 1RM', 'kg') },
+  { test_id: 's10', target_value: 1.75, label: null, test_definitions: def('Sprint 10 m', 's', false) }]
+
+// Filtres PostgREST utilisés par l'app : eq / gte / lte / in
+function filtered(rows, params) {
+  return rows.filter(r => [...params.entries()].every(([k, v]) => {
+    if (['select', 'order', 'limit', 'offset'].includes(k) || !(k in r)) return true
+    const [op, ...rest] = v.split('.'); const val = rest.join('.')
+    if (op === 'eq') return String(r[k]) === val
+    if (op === 'gte') return String(r[k]) >= val
+    if (op === 'lte') return String(r[k]) <= val
+    if (op === 'in') return val.replace(/[()]/g, '').split(',').includes(String(r[k]))
+    return true
+  }))
+}
+function table(name, url) {
+  const p = url.searchParams
+  switch (name) {
+    case 'profiles': return p.get('id') ? [{ id: STAFF, role: 'admin', first_name: 'Paul', last_name: 'COACH' }] : roster
+    case 'player_availability': return p.get('player_id')
+      ? [{ status: INJURED.includes(p.get('player_id').slice(3)) ? 'blessé' : 'apte', since: '2026-10-20', note: null }]
+      : INJURED.map(player_id => ({ player_id, status: 'blessé' }))
+    case 'activity_types': return types
+    case 'week_types': return weekTypes
+    case 'season_weeks': return weeks
+    case 'session_logs': return logs
+    case 'wellness_entries': return wellness
+    case 'planned_sessions': return p.get('select').includes('planned_exercises') ? muscu : muscu.map(m => ({ player_id: m.player_id, session_date: m.session_date }))
+    case 'test_results': return tests
+    case 'player_targets': return targets
+    case 'groups': return [{ id: 'g1', name: 'Pôle Espoir' }, { id: 'g2', name: 'Crabos' }]
+    case 'exercises': return ['Squat arrière', 'Développé couché', 'Gainage latéral', 'Tirage vertical'].map((name, i) => ({ id: `x${i}`, name }))
+    case 'test_definitions': return tests.map(t => ({ id: t.test_id, ...t.test_definitions }))
+    default: return []
+  }
+}
+
+const browser = await chromium.launch()
+const ctx = await browser.newContext({ viewport: { width, height: 900 } })
+await ctx.addInitScript(([ref, t, id]) => {
+  localStorage.setItem('rugby-tracker-theme', t)
+  localStorage.setItem(`sb-${ref}-auth-token`, JSON.stringify({
+    access_token: 'mock', refresh_token: 'mock', token_type: 'bearer', expires_in: 36000, expires_at: Math.floor(Date.now() / 1000) + 36000,
+    user: { id, aud: 'authenticated', role: 'authenticated', email: 'paul.coach@rnr.test', app_metadata: {}, user_metadata: {}, created_at: '2026-01-01T00:00:00Z' },
+  }))
+}, [REF, theme, STAFF])
+const blocked = []
+await ctx.route(/supabase\.co\//, async route => {
+  const req = route.request(); const url = new URL(req.url())
+  const m = url.pathname.match(/\/rest\/v1\/([a-z_]+)$/)
+  if (req.method() !== 'GET' || !m) { blocked.push(`${req.method()} ${url.pathname}`); return route.abort() }
+  const rows = filtered(table(m[1], url), url.searchParams)
+  const one = (req.headers()['accept'] ?? '').includes('vnd.pgrst.object')
+  return route.fulfill({ json: one ? (rows[0] ?? null) : rows })
+})
+
+const page = await ctx.newPage()
+const heights = {}
+const shot = async name => { await page.waitForTimeout(400); await page.screenshot({ path: `${out}/staff-${theme}-${width}-${name}.png`, fullPage: true }) }
+const open = async path => { await page.goto(`http://localhost:5199${path}`); await page.waitForLoadState('networkidle'); await page.waitForTimeout(1500) }
+if (only === 'prog') {
+  await open('/staff/programmation')
+  for (const v of ['semaines', 'planning', 'muscu', 'import']) {
+    await page.getByLabel('Afficher').selectOption(v); await page.waitForTimeout(1200)
+    heights[`prog-${v}`] = await page.evaluate(() => document.documentElement.scrollHeight); await shot(`prog-${v}`)
+  }
+} else for (const [name, path] of [['today', '/staff'], ['semaine', '/staff/semaine'], ['muscu', '/staff/musculation'], ['joueur', '/staff/joueur/p3']]) {
+  await open(path); heights[name] = await page.evaluate(() => document.documentElement.scrollHeight); await shot(name)
+}
+console.log({ heights, blocked: [...new Set(blocked)] })
+await browser.close()

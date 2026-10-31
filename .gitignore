@@ -6,3 +6,4 @@ supabase/.temp/
 .claude/skills/
 .agents/
 .vercel
+.playwright-mcp/

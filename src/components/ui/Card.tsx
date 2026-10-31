@@ -7,7 +7,7 @@ export function Card({ title, help, aside, boxed = false, children }: {
   title: string; help?: ReactNode; aside?: ReactNode; boxed?: boolean; children: ReactNode
 }) {
   return (
-    <section className={`flex flex-col gap-3 ${boxed ? 'rounded-xl bg-surface p-4' : ''}`}>
+    <section className={`flex flex-col gap-3 ${boxed ? 'rounded-2xl bg-surface p-5 ring-1 ring-line/60' : ''}`}>
       <header className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
         <div className="flex flex-col gap-0.5">
           <h2 className="font-display text-xl font-semibold leading-tight">{title}</h2>

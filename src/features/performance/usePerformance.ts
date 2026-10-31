@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabaseClient'
 import type { GpsReference } from './gps'
 import type { GpsRow } from './importGps'
+import type { MaxiRow } from './importMaxi'
 
 const check = <T,>({ data, error }: { data: T; error: unknown }): NonNullable<T> => { if (error) throw error; return (data ?? []) as NonNullable<T> }
 
@@ -30,6 +31,21 @@ export function useImportGps() {
         distance_m: r.distance_m, hi_distance_m: r.hi_distance_m, accelerations: r.accelerations, vmax: r.vmax,
       })), { onConflict: 'match_id,player_id' }).select('id'))
       return v.rows.length
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['performance'] }); qc.invalidateQueries({ queryKey: ['staff'] }) },
+  })
+}
+
+// Maxi = résultat de test daté (l'historique reste), objectif = objectif de la saison (remplacé)
+export function useImportMaxi() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (v: { date: string; period: string; season: string; rows: MaxiRow[] }) => {
+      const results = v.rows.filter(r => r.maxi !== null).map(r => ({ player_id: r.player.id, test_id: r.test.id, test_date: v.date, period: v.period || null, value: r.maxi! }))
+      const targets = v.rows.filter(r => r.target !== null).map(r => ({ player_id: r.player.id, season: v.season, test_id: r.test.id, target_value: r.target!, label: r.label }))
+      if (results.length) check(await supabase.from('test_results').upsert(results, { onConflict: 'player_id,test_id,test_date' }).select('player_id'))
+      if (targets.length) check(await supabase.from('player_targets').upsert(targets, { onConflict: 'player_id,season,test_id' }).select('player_id'))
+      return { results: results.length, targets: targets.length }
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['performance'] }); qc.invalidateQueries({ queryKey: ['staff'] }) },
   })

@@ -63,4 +63,31 @@ describe('readGps : export brut du GPS d\'un match', () => {
     expect(readGps(XLSX.write(wb, { type: 'array', bookType: 'xlsx' }), ctx).errors[0]).toMatch(/introuvable/)
     expect(readGps(file([], { 'R93': [HEAD] }), ctx).errors[0]).toMatch(/un match par fichier/)
   })
+  it('lignes vides ignorées ; ligne de total sans joueur reconnu : bloquée', () => {
+    const ok = readGps(file([[], ['PILIER', 'MARTIN', 4970, 12, 15, 26, 70, 3, 'Paul MARTIN'], ['', '', '', '', '', '', '', '', '']]), ctx)
+    expect(ok.errors).toEqual([])
+    expect(ok.rows).toHaveLength(1)
+    const total = readGps(file([['PILIER', 'MARTIN', 4970, 12, 15, 26, 70, 3, 'Paul MARTIN'], ['', 'TOTAL', 4970, 12, 15, 26, 70, '', '']]), ctx)
+    expect(total.errors.join()).toMatch(/TOTAL.*introuvable/)
+  })
+  it('Vmax vide : acceptée (null)', () => {
+    const p = readGps(file([['PILIER', 'MARTIN', 4970, 12, 15, '', 70, 3, 'Paul MARTIN']]), ctx)
+    expect(p.errors).toEqual([])
+    expect(p.rows[0].vmax).toBeNull()
+  })
+  it('nombres en texte avec espaces et virgule : « 4 970 », « 26,4 »', () => {
+    const p = readGps(file([['PILIER', 'MARTIN', '4 970', ' 12 ', '15', '26,4', '70', 3, 'Paul MARTIN']]), ctx)
+    expect(p.errors).toEqual([])
+    expect(p.rows[0]).toMatchObject({ distance_m: 4970, hi_distance_m: 12, accelerations: 15, vmax: 26.4, minutes: 70 })
+  })
+  it('poste en minuscules ou avec espaces autour : normalisé', () => {
+    const p = readGps(file([['  3ème  ligne   aile ', 'MARTIN', 4970, 12, 15, 26, 70, 3, 'Paul MARTIN']]), ctx)
+    expect(p.errors).toEqual([])
+    expect(p.rows[0].position).toBe('3ÈME LIGNE AILE')
+  })
+  it('colonne Joueurs vide sur une ligne : repli sur le nom de famille (bloqué si homonyme)', () => {
+    const p = readGps(file([['PILIER', 'MARTIN', 4970, 12, 15, 26, 70, 3, ''], ['CENTRE', 'DUPONT', 5000, 12, 15, 26, 70, 4, '']]), ctx)
+    expect(p.rows.map(r => r.player.id)).toEqual(['a'])
+    expect(p.errors.join()).toMatch(/DUPONT.*plusieurs joueurs/)
+  })
 })

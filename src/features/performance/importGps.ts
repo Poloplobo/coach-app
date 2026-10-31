@@ -53,7 +53,7 @@ export function readGps(data: ArrayBuffer, ctx: { players: Player[]; positions: 
     const player = matches[0]
     if (seen.has(player.id)) return void errors.push(`${line} : joueur présent deux fois dans l'export.`)
     seen.add(player.id)
-    const position = String(r[c.position] ?? '').trim().toUpperCase()
+    const position = String(r[c.position] ?? '').trim().replace(/\s+/g, ' ').toUpperCase()
     // Vigilance poste : sans groupe de poste, aucun attendu ne peut être calculé
     if (!ctx.positions.has(position)) return void errors.push(`${line} : poste « ${position || 'vide'} » sans attendu au référentiel (postes connus : ${[...ctx.positions.keys()].join(', ')}).`)
     const [minutes, distance, hi, accel, vmax] = [num(r[c.minutes]), num(r[c.distance]), num(r[c.hi]), num(r[c.accel]), num(r[c.vmax])]

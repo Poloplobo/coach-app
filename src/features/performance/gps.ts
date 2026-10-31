@@ -15,7 +15,7 @@ export const COLOR_LABEL: Record<GpsColor, string> = {
 
 // Poste saisi (export GPS ou fiche joueur) → groupe de poste du référentiel ; null si poste inconnu (à ajouter par le staff)
 export const positionGroup = (position: string | null, positions: Map<string, string>) =>
-  (position ? positions.get(position.trim().toUpperCase()) : undefined) ?? null
+  (position ? positions.get(position.trim().replace(/\s+/g, ' ').toUpperCase()) : undefined) ?? null
 
 // Sous 20 min jouées, ramener à 70 min n'a pas de sens (2 min → 500 %) : chiffres affichés, ni % ni couleur
 export const MIN_MINUTES = 20

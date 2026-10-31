@@ -43,4 +43,20 @@ describe('readMaxi : maxi et objectifs du groupe', () => {
     expect(readMaxi(file([['Nom', 'Valeur']]), ctx).errors[0]).toMatch(/introuvable/)
     expect(readMaxi(file([['Joueur', 'Test', 'Commentaire']]), ctx).errors[0]).toMatch(/absentes/)
   })
+  it('maxi à 0 : bloqué (valeur nulle), même si l\'objectif est valide', () => {
+    const r = readMaxi(file([['Joueur', 'Test', 'Maxi', 'Objectif'], ['Paul MARTIN', 'Back Squat 1RM', 0, 140]]), ctx)
+    expect(r.rows).toEqual([])
+    expect(r.errors.join()).toMatch(/illisible ou nulle/)
+  })
+  it('lignes vides ignorées ; ligne sans maxi ni objectif ignorée', () => {
+    const r = readMaxi(file([['Joueur', 'Test', 'Maxi', 'Objectif'], [], ['Paul MARTIN', 'Back Squat 1RM', 100, ''], ['', '', '', ''], ['Paul MARTIN', 'Développé Couché 1RM', '', '']]), ctx)
+    expect(r.errors).toEqual([])
+    expect(r.rows).toHaveLength(1)
+  })
+  it('deux tests du référentiel ne différant que par la casse : le premier est pris sans alerte', () => {
+    const twin = { ...ctx, tests: [{ id: 't2', name: 'Back Squat 1RM' }, { id: 't3', name: 'back squat 1rm' }] }
+    const r = readMaxi(file([['Joueur', 'Test', 'Maxi'], ['Paul MARTIN', 'BACK SQUAT 1RM', 100]]), twin)
+    expect(r.errors).toEqual([])
+    expect(r.rows[0].test.id).toBe('t2')
+  })
 })

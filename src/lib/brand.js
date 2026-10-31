@@ -5,4 +5,6 @@ export const BRAND = {
   gold: '#FFD700',
   ok: '#10b981',
   muted: '#9CA3AF',
+  // bleu des notes de match et de la couleur GPS (« a dominé le niveau », 3/3 attendus)
+  blue: '#3B82F6',
 }

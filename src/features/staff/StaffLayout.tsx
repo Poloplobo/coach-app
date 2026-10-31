@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import { Outlet } from 'react-router-dom'
 import { TabLink } from '../../components/ui/TabLink'
-import { CalendarDays, ClipboardList, Dumbbell, Settings, Sun, User } from 'lucide-react'
+import { Activity, CalendarDays, ClipboardList, Dumbbell, Settings, Sun, User } from 'lucide-react'
 import { formatDay, parisDate } from '../../lib/week'
 import { useProfile, useUserId } from '../auth/useAuth'
 import { Loading } from '../../components/ui/Loading'
@@ -11,6 +11,7 @@ const TABS = [
   { to: '/staff/semaine', label: 'Semaine', icon: CalendarDays },
   { to: '/staff/musculation', label: 'Musculation', icon: Dumbbell },
   { to: '/staff/programmation', label: 'Programmation', icon: ClipboardList },
+  { to: '/staff/performance', label: 'Performance', icon: Activity },
   { to: '/staff/joueur', label: 'Joueur', icon: User },
   { to: '/staff/reglages', label: 'Réglages', icon: Settings },
 ]

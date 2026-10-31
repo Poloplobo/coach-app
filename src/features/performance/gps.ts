@@ -8,6 +8,11 @@ export type GpsColor = 'rouge' | 'jaune' | 'vert' | 'bleu'
 // Couleur selon le nombre d'attendus remplis (distance totale, distance HI, accélérations) : 0 → rouge … 3 → bleu
 export const GPS_COLORS: GpsColor[] = ['rouge', 'jaune', 'vert', 'bleu']
 
+// Échelle commune à la couleur GPS (attendus remplis) et aux notes de match (joueur, staff)
+export const COLOR_LABEL: Record<GpsColor, string> = {
+  rouge: 'En dessous du niveau', jaune: 'Niveau moyen', vert: 'Bon niveau Crabos', bleu: 'A dominé le niveau',
+}
+
 // Poste saisi (export GPS ou fiche joueur) → groupe de poste du référentiel ; null si poste inconnu (à ajouter par le staff)
 export const positionGroup = (position: string | null, positions: Map<string, string>) =>
   (position ? positions.get(position.trim().toUpperCase()) : undefined) ?? null

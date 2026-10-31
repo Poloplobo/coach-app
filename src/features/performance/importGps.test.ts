@@ -68,7 +68,7 @@ describe('readGps : export brut du GPS d\'un match', () => {
     expect(ok.errors).toEqual([])
     expect(ok.rows).toHaveLength(1)
     const total = readGps(file([['PILIER', 'MARTIN', 4970, 12, 15, 26, 70, 3, 'Paul MARTIN'], ['', 'TOTAL', 4970, 12, 15, 26, 70, '', '']]), ctx)
-    expect(total.errors.join()).toMatch(/TOTAL.*introuvable/)
+    expect(total.errors.join()).toMatch(/TOTAL.*« Joueurs » vide/)
   })
   it('Vmax vide : acceptée (null)', () => {
     const p = readGps(file([['PILIER', 'MARTIN', 4970, 12, 15, '', 70, 3, 'Paul MARTIN']]), ctx)
@@ -85,9 +85,14 @@ describe('readGps : export brut du GPS d\'un match', () => {
     expect(p.errors).toEqual([])
     expect(p.rows[0].position).toBe('3ÈME LIGNE AILE')
   })
-  it('colonne Joueurs vide sur une ligne : repli sur le nom de famille (bloqué si homonyme)', () => {
-    const p = readGps(file([['PILIER', 'MARTIN', 4970, 12, 15, 26, 70, 3, ''], ['CENTRE', 'DUPONT', 5000, 12, 15, 26, 70, 4, '']]), ctx)
-    expect(p.rows.map(r => r.player.id)).toEqual(['a'])
-    expect(p.errors.join()).toMatch(/DUPONT.*plusieurs joueurs/)
+  it('colonne Joueurs présente mais vide sur une ligne : bloqué (un invité homonyme ne doit pas être rattaché)', () => {
+    const p = readGps(file([['PILIER', 'MARTIN', 4970, 12, 15, 26, 70, 3, '']]), ctx)
+    expect(p.rows).toEqual([])
+    expect(p.errors.join()).toMatch(/MARTIN.*« Joueurs » vide/)
+  })
+  it('remplaçant entré tard : 85 m en 3 min acceptés (pas pris pour des kilomètres)', () => {
+    const p = readGps(file([['PILIER', 'MARTIN', 85, 0, 1, 22, 3, 3, 'Paul MARTIN']]), ctx)
+    expect(p.errors).toEqual([])
+    expect(p.rows[0].distance_m).toBe(85)
   })
 })

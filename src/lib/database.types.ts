@@ -1206,11 +1206,22 @@ export type Database = {
         Args: { p_planned_exercise_id: string }
         Returns: boolean
       }
+      can_rate_match: { Args: { p_match: string }; Returns: boolean }
       duplicate_week: {
         Args: { p_from: string; p_group: string; p_loads?: Json; p_to: string }
         Returns: Json
       }
       has_rated: { Args: { p_match: string }; Returns: boolean }
+      import_match_gps: {
+        Args: {
+          p_date: string
+          p_group: string
+          p_label: string
+          p_opponent: string
+          p_rows: Json
+        }
+        Returns: Json
+      }
       import_muscu_program: {
         Args: {
           p_player: string

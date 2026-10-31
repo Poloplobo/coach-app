@@ -85,13 +85,13 @@ export function PerformanceTab() {
                       <dt className="text-ink/60">Vmax</dt>
                       <dd className="font-display text-xl font-semibold">{record.vmax ? `${String(record.vmax).replace('.', ',')} km/h` : '—'}
                         {vmax?.record && <span className="ml-2 text-base text-gold">record !</span>}
-                        {vmax && !vmax.record && vmax.pctOfBest !== null && <span className="ml-2 text-base text-ink/60">{vmax.pctOfBest} % de ton record</span>}
+                        {vmax && !vmax.record && !vmax.first && vmax.pctOfBest !== null && <span className="ml-2 text-base text-ink/60">{vmax.pctOfBest} % de ton record</span>}
                       </dd>
                     </div>
                     <div className="rounded-lg bg-field px-3 py-2">
                       <dt className="text-ink/60">Attendus remplis</dt>
                       <dd className="font-display text-xl font-semibold">
-                        {analysis ? <MatchColor color={analysis.color} label={`${analysis.filled}/3`} /> : <span className="text-base text-ink/60">temps de jeu &lt; {MIN_MINUTES} min</span>}
+                        {analysis ? <MatchColor color={analysis.color} label={`${analysis.filled}/3`} /> : <span className="text-base text-ink/60">{ref ? `temps de jeu < ${MIN_MINUTES} min` : 'pas d\'attendu pour ce poste'}</span>}
                       </dd>
                     </div>
                   </dl>

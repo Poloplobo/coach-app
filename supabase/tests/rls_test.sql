@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(107);
+select plan(111);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -285,6 +285,15 @@ select lives_ok($$insert into public.match_ratings (match_id, player_id, rater, 
 select isnt_empty($$update public.gps_reference set ref_minutes = 70 where position_group = 'Pilier' returning 1$$,
                   'le staff peut modifier le référentiel GPS');
 
+-- Import GPS en une transaction (0018) : un réimport retire la ligne d'un joueur absent du fichier corrigé
+select is((public.import_match_gps('00000000-0000-0000-0000-000000000002', public.paris_today() - 2, 'R92', null,
+            '[{"player_id":"00000000-0000-0000-0000-00000000000b","position":"pilier","minutes":60,"distance_m":4100,"hi_distance_m":20,"accelerations":12,"vmax":26.5}]')
+           - 'match_id'), '{"rows": 1, "removed": 1}'::jsonb, 'le staff réimporte un match : ligne de B mise à jour, ligne de A (absente) retirée');
+select is((select position from public.gps_records where player_id = '00000000-0000-0000-0000-00000000000b' and match_id = '00000000-0000-0000-0000-0000000000d1'),
+          'PILIER', 'le poste est enregistré en majuscules');
+select throws_ok($$select public.import_match_gps('00000000-0000-0000-0000-000000000002', public.paris_today() + 1, 'X', null, '[{"player_id":"00000000-0000-0000-0000-00000000000b"}]')$$,
+                 'P0001', null, 'pas d''import GPS pour un match dans le futur');
+
 -- ---------- Admin M ----------
 reset role;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000d","role":"authenticated"}', true);
@@ -388,6 +397,9 @@ select throws_ok($$insert into public.match_ratings (match_id, player_id, rater,
                  '42501', null, 'B ne peut pas noter à la place de A');
 select is_empty($$update public.gps_reference set distance_m = 1 returning 1$$, 'B ne peut pas modifier le référentiel GPS');
 select is_empty($$update public.gps_positions set position_group = 'Centre' returning 1$$, 'B ne peut pas modifier la table des postes');
+
+select throws_ok($$select public.import_match_gps('00000000-0000-0000-0000-000000000002', public.paris_today() - 2, 'R92', null, '[]')$$,
+                 '42501', null, 'un joueur ne peut pas importer de GPS');
 
 -- ---------- Visiteur non connecté ----------
 reset role;

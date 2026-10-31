@@ -5,7 +5,7 @@ import { ViewSelect } from '../../components/ui/ViewSelect'
 import { formatDay } from '../../lib/week'
 import { fullName } from '../staff/load'
 import { useRoster } from '../staff/useStaff'
-import { COLOR_LABEL, GPS_COLORS, gpsAnalysis, positionGroup, vmaxTimeline, type GpsColor } from './gps'
+import { COLOR_LABEL, GPS_COLORS, MIN_MINUTES, gpsAnalysis, positionGroup, vmaxTimeline, type GpsColor } from './gps'
 import { MatchColor } from './MatchColor'
 import { useGpsRecords, useGpsReference, useMatches, useRateMatch, useRatings } from './usePerformance'
 
@@ -66,7 +66,7 @@ export function MatchBoard() {
                       <td className="pr-3 whitespace-nowrap">{record.hi_distance_m} m{analysis && <span className="text-ink/60"> · {analysis.pct.hi} %</span>}</td>
                       <td className="pr-3 whitespace-nowrap">{record.accelerations}{analysis && <span className="text-ink/60"> · {analysis.pct.accelerations} %</span>}</td>
                       <td className="pr-3 whitespace-nowrap">{record.vmax ?? '—'}{vmax?.record && <span className="text-gold font-semibold"> record</span>}</td>
-                      <td className="pr-3 whitespace-nowrap">{analysis ? <MatchColor color={analysis.color} label={`${analysis.filled}/3`} /> : <span className="text-ink/50">&lt; 20 min</span>}</td>
+                      <td className="pr-3 whitespace-nowrap">{analysis ? <MatchColor color={analysis.color} label={`${analysis.filled}/3`} /> : <span className="text-ink/50">{record.minutes < MIN_MINUTES ? '< 20 min' : 'poste sans attendu'}</span>}</td>
                     </>
                   ) : <td colSpan={7} className="pr-3 text-ink/40">pas de GPS</td>}
                   <td className="pr-3 whitespace-nowrap">{own ? <MatchColor color={own} /> : <span className="text-ink/50">—</span>}</td>

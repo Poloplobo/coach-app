@@ -94,7 +94,7 @@ export function ImportGpsPanel() {
           )}
           {formErrors.length > 0 && <ul className="text-sm text-rnr">{formErrors.map(e => <li key={e}>{e}</li>)}</ul>}
           {save.isSuccess
-            ? <p role="status" className="rounded-lg border border-line px-3 py-2 text-sm">{save.data} joueurs importés pour le match du {date} contre {opponent}.</p>
+            ? <p role="status" className="rounded-lg border border-line px-3 py-2 text-sm">{save.data.rows} joueurs importés pour le match du {date} contre {opponent}{save.data.removed ? ` · ${save.data.removed} ligne${save.data.removed > 1 ? 's' : ''} retirée${save.data.removed > 1 ? 's' : ''} (absente${save.data.removed > 1 ? 's' : ''} du fichier corrigé)` : ''}.</p>
             : (
               <div>
                 <Button size="sm" disabled={preview.errors.length > 0 || !preview.rows.length || formErrors.length > 0 || save.isPending}

@@ -19,20 +19,16 @@ export function useGpsReference() {
   })
 }
 
-// Match créé (ou retrouvé : même groupe, date et adversaire) puis GPS de chaque joueur ; un réimport corrige les lignes
+// Match créé ou retrouvé, GPS enregistrés et lignes absentes du fichier retirées, en une transaction (import_match_gps)
 export function useImportGps() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (v: { groupId: string; date: string; opponent: string; label: string; rows: GpsRow[] }) => {
-      const match = check(await supabase.from('matches').upsert(
-        { group_id: v.groupId, match_date: v.date, opponent: v.opponent.trim(), label: v.label.trim() || null },
-        { onConflict: 'group_id,match_date,opponent' }).select('id').single())
-      check(await supabase.from('gps_records').upsert(v.rows.map(r => ({
-        match_id: match.id, player_id: r.player.id, position: r.position, minutes: r.minutes,
-        distance_m: r.distance_m, hi_distance_m: r.hi_distance_m, accelerations: r.accelerations, vmax: r.vmax,
-      })), { onConflict: 'match_id,player_id' }).select('id'))
-      return v.rows.length
-    },
+    mutationFn: async (v: { groupId: string; date: string; opponent: string; label: string; rows: GpsRow[] }) =>
+      check(await supabase.rpc('import_match_gps', {
+        p_group: v.groupId, p_date: v.date, p_opponent: v.opponent, p_label: v.label,
+        p_rows: v.rows.map(r => ({ player_id: r.player.id, position: r.position, minutes: r.minutes, distance_m: r.distance_m,
+          hi_distance_m: r.hi_distance_m, accelerations: r.accelerations, vmax: r.vmax })),
+      })) as { rows: number; removed: number },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['performance'] }); qc.invalidateQueries({ queryKey: ['staff'] }) },
   })
 }
@@ -42,7 +38,7 @@ export function useImportMaxi() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (v: { date: string; period: string; season: string; rows: MaxiRow[] }) => {
-      const results = v.rows.filter(r => r.maxi !== null).map(r => ({ player_id: r.player.id, test_id: r.test.id, test_date: v.date, period: v.period || null, value: r.maxi! }))
+      const results = v.rows.filter(r => r.maxi !== null).map(r => ({ player_id: r.player.id, test_id: r.test.id, test_date: v.date, ...(v.period ? { period: v.period } : {}), value: r.maxi! })) // sans période : celle déjà saisie reste
       const targets = v.rows.filter(r => r.target !== null).map(r => ({ player_id: r.player.id, season: v.season, test_id: r.test.id, target_value: r.target!, label: r.label }))
       if (results.length) check(await supabase.from('test_results').upsert(results, { onConflict: 'player_id,test_id,test_date' }).select('player_id'))
       if (targets.length) check(await supabase.from('player_targets').upsert(targets, { onConflict: 'player_id,season,test_id' }).select('player_id'))

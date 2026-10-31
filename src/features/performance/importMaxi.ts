@@ -8,6 +8,7 @@ type Test = { id: string; name: string }
 export type MaxiRow = { player: Player; test: Test; maxi: number | null; target: number | null; label: string | null }
 
 const num = (v: unknown) => {
+  if (typeof v === 'number') return { empty: false, value: Number.isFinite(v) && v > 0 ? v : null }
   const t = String(v ?? '').trim().replace(/\s/g, '').replace(',', '.')
   if (!t) return { empty: true, value: null }
   const n = Number(t)
@@ -18,7 +19,8 @@ export function readMaxi(data: ArrayBuffer, ctx: { players: Player[]; tests: Tes
   const wb = XLSX.read(data)
   const errors: string[] = []
   const sheet = wb.SheetNames.find(n => /maxi|objectif/i.test(n)) ?? wb.SheetNames[0]
-  const all = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[sheet], { header: 1, defval: '', raw: false })
+  // Valeurs brutes : un format d'affichage (102,5 montré « 103 », 1234 montré « 1,234 ») ne doit pas changer la valeur
+  const all = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[sheet], { header: 1, defval: '', raw: true })
   const h = all.findIndex(r => r.some(c => /^joueur$/i.test(String(c).trim())) && r.some(c => /^test$/i.test(String(c).trim())))
   if (h < 0) return { rows: [] as MaxiRow[], errors: ['En-tête « Joueur | Test | Maxi | Objectif » introuvable.'] }
   const head = all[h].map(c => String(c).trim())

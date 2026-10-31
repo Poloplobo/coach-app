@@ -48,7 +48,9 @@ export function readGps(data: ArrayBuffer, ctx: { players: Player[]; positions: 
     if (!last) return
     const line = `Ligne ${h + i + 2} (${last})`
     const fullName = full >= 0 ? String(r[full] ?? '').trim() : ''
-    const matches = fullName ? byFull(fullName) : byLast(last)
+    // Repli sur le nom de famille seulement si l'export n'a pas de colonne Joueurs : sinon un invité homonyme serait rattaché
+    if (full >= 0 && !fullName) return void errors.push(`${line} : colonne « Joueurs » vide (Prénom NOM attendu).`)
+    const matches = full >= 0 ? byFull(fullName) : byLast(last)
     if (matches.length !== 1) return void errors.push(`${line} : ${matches.length ? 'plusieurs joueurs de l\'effectif portent ce nom' : 'joueur introuvable dans l\'effectif'}.`)
     const player = matches[0]
     if (seen.has(player.id)) return void errors.push(`${line} : joueur présent deux fois dans l'export.`)
@@ -59,7 +61,8 @@ export function readGps(data: ArrayBuffer, ctx: { players: Player[]; positions: 
     const [minutes, distance, hi, accel, vmax] = [num(r[c.minutes]), num(r[c.distance]), num(r[c.hi]), num(r[c.accel]), num(r[c.vmax])]
     if (minutes === null || minutes <= 0 || minutes > 120) return void errors.push(`${line} : temps de jeu illisible ou hors 1-120 min.`)
     if (distance === null || hi === null || accel === null || distance < 0 || hi < 0 || accel < 0) return void errors.push(`${line} : distance, DHI ou accélérations illisibles.`)
-    if (distance > 0 && distance < 100) return void errors.push(`${line} : distance de ${distance} — en kilomètres ? L'export attendu est en mètres.`)
+    // Moins de 10 m par minute : valeur en kilomètres (un remplaçant entré tard court ~80 m/min)
+    if (distance > 0 && distance / minutes < 10) return void errors.push(`${line} : distance de ${distance} — en kilomètres ? L'export attendu est en mètres.`)
     if (vmax !== null && (vmax <= 0 || vmax >= 45)) return void errors.push(`${line} : Vmax ${vmax} km/h hors plage.`)
     rows.push({ player, position, minutes, distance_m: distance, hi_distance_m: hi, accelerations: accel, vmax })
   })

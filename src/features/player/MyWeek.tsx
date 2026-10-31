@@ -2,7 +2,8 @@ import type { ReactNode } from 'react'
 import { Card } from '../../components/ui/Card'
 import { Loading } from '../../components/ui/Loading'
 import { addDays, formatDay, isoWeekStart } from '../../lib/week'
-import { useLogsRange } from '../rpe/useRpe'
+import { upcomingByDay } from '../rpe/activities'
+import { useAvailability, useLogsRange, usePlanRange } from '../rpe/useRpe'
 import { fatiguePercent, postureOf } from '../wellness/fatigue'
 import { useWellnessRange } from '../wellness/useWellness'
 
@@ -14,10 +15,22 @@ export function MyWeek({ playerId, date, footer }: { playerId: string; date: str
   const start = isoWeekStart(date)
   const from = [start, addDays(date, -6)].sort()[0] // même plage que le tableau d'affichage : servie par le cache
   const logs = useLogsRange(playerId, from, date)
-  const wellness = useWellnessRange(playerId, from, date)
+  const wellness = useWellnessRange(playerId, addDays(start, -7), date) // + semaine dernière : tendance de la fatigue
+  const plan = usePlanRange(playerId, start, date)
+  const availability = useAvailability(playerId)
 
-  if (logs.isPending || wellness.isPending) return <Card title="Ma semaine"><Loading /></Card>
-  if (logs.isError || wellness.isError) return <Card title="Ma semaine"><p>Impossible de charger ta semaine.</p></Card>
+  if (logs.isPending || wellness.isPending || plan.isPending || availability.isPending) return <Card title="Ma semaine"><Loading /></Card>
+  if (logs.isError || wellness.isError || plan.isError || availability.isError) return <Card title="Ma semaine"><p>Impossible de charger ta semaine.</p></Card>
+
+  // Résumé chiffré : activités déclarées / prévues depuis lundi, fatigue moyenne comparée à la semaine dernière
+  const planned = upcomingByDay(plan.data, { injured: availability.data === 'blessé' }).reduce((n, d) => n + d.activities.length, 0)
+  const declared = logs.data.filter(l => l.session_date >= start).length
+  const meanFatigue = (from: string, to: string) => {
+    const v = wellness.data.filter(w => w.entry_date >= from && w.entry_date <= to && w.score !== null).map(w => fatiguePercent(w.score!))
+    return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null
+  }
+  const fatigue = meanFatigue(start, date), before = meanFatigue(addDays(start, -7), addDays(start, -1))
+  const trend = fatigue === null || before === null ? null : fatigue - before > 3 ? 'en hausse' : fatigue - before < -3 ? 'en baisse' : 'stable'
 
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = addDays(start, i)
@@ -27,11 +40,17 @@ export function MyWeek({ playerId, date, footer }: { playerId: string; date: str
   })
   const load = days.reduce((s, x) => s + x.load, 0)
   const minutes = logs.data.filter(l => l.session_date >= start).reduce((s, l) => s + l.duration_min, 0)
+  const s = (n: number) => (n > 1 ? 's' : '')
   const max = Math.max(300, ...days.map(x => x.load))
 
   return (
-    <Card title="Ma semaine" aside={<span className="text-sm text-ink/60 tabular-nums">{load} UA · {minutes} min</span>}
+    <Card title="Ma semaine"
       help="Barre : ta charge du jour (effort × minutes). Point : ta fatigue — vert ça va, jaune moyen, rouge à surveiller.">
+      <p className="leading-snug">
+        <strong>{declared} activité{s(declared)} déclarée{s(declared)}</strong>{planned > 0 && <> sur {planned} prévue{s(planned)}</>} depuis lundi
+        {' · '}<strong>{load.toLocaleString('fr-FR')} UA</strong> en {minutes} min.
+        {fatigue !== null && <> Fatigue moyenne <strong>{fatigue} %</strong>{trend && <>, <span className={trend === 'en hausse' ? 'text-rnr' : trend === 'en baisse' ? 'text-ok' : ''}>{trend}</span> par rapport à la semaine dernière</>}.</>}
+      </p>
       <ol className="grid grid-cols-7 gap-1.5">
         {days.map((x, i) => (
           <li key={x.d} className={`flex flex-col items-center gap-1.5 ${x.d > date ? 'opacity-35' : ''}`}

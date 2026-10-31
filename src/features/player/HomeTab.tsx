@@ -1,6 +1,8 @@
 import { Card } from '../../components/ui/Card'
 import { addDays, isoWeekStart } from '../../lib/week'
-import { upcomingByDay } from '../rpe/activities'
+import { Check, ChevronRight } from 'lucide-react'
+import { TabLink } from '../../components/ui/TabLink'
+import { MUSCULATION, dayActivities, upcomingByDay } from '../rpe/activities'
 import { useAvailability, usePlanRange } from '../rpe/useRpe'
 import { completion } from '../seances/program'
 import { useWeekProgram } from '../seances/useSeance'
@@ -18,13 +20,50 @@ const shortDay = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('f
 // Accueil : résumé de la semaine (fatigue, charge, musculation, à venir, objectifs)
 export function HomeTab() {
   const { playerId, today } = usePlayerDay()
+  // Les blocs apparaissent l'un après l'autre (une fois ; coupé si l'appareil demande moins d'animations)
+  const rise = (i: number) => ({ className: 'rise empty:hidden', style: { animationDelay: `${i * 70}ms` } })
   return (
     <>
-      <Scoreboard playerId={playerId} today={today} />
-      <MyWeek playerId={playerId} date={today} footer={<MuscuWeek playerId={playerId} today={today} />} />
-      <Upcoming playerId={playerId} today={today} />
-      <MyGoals playerId={playerId} date={today} />
+      <div {...rise(0)}><Scoreboard playerId={playerId} today={today} /></div>
+      <div {...rise(1)}><TodoToday playerId={playerId} today={today} /></div>
+      <div {...rise(2)}><MyWeek playerId={playerId} date={today} footer={<MuscuWeek playerId={playerId} today={today} />} /></div>
+      <div {...rise(3)}><Upcoming playerId={playerId} today={today} /></div>
+      <div {...rise(4)}><MyGoals playerId={playerId} date={today} /></div>
     </>
+  )
+}
+
+// Ce qu'il reste à déclarer aujourd'hui, avec un raccourci vers le bon onglet ; rien de prévu : pas de bloc
+function TodoToday({ playerId, today }: { playerId: string; today: string }) {
+  const plan = usePlanRange(playerId, today, today)
+  const logs = useLogsRange(playerId, today, today)
+  const availability = useAvailability(playerId)
+  if (!plan.data || !logs.data || !availability.data) return null
+  const acts = dayActivities(plan.data, { injured: availability.data === 'blessé', includeMuscu: true })
+  if (!acts.length) return null
+  const isMuscu = (a: (typeof acts)[number]) => a.name === MUSCULATION
+  // la musculation compte quand la séance est validée ; les autres activités dès qu'elles sont déclarées
+  const pending = acts.filter(a => {
+    const l = logs.data.find(x => x.activity_type_id === a.activityTypeId)
+    return isMuscu(a) ? !l?.validated_at : !l
+  })
+  if (!pending.length) return <p className="flex items-center gap-2 rounded-xl bg-ok/10 px-4 py-3 font-semibold text-ok"><Check size={18} aria-hidden="true" />Tout est déclaré pour aujourd'hui.</p>
+  return (
+    <section aria-label="À faire aujourd'hui" className="flex flex-col gap-2 rounded-xl bg-surface p-4 ring-1 ring-line/60">
+      <h2 className="font-display text-xl font-semibold leading-tight">À faire aujourd'hui</h2>
+      <ul className="flex flex-col gap-2">
+        {pending.map(a => (
+          <li key={a.activityTypeId}>
+            <TabLink to={isMuscu(a) ? '/joueur/seance' : '/joueur/rugby'}
+              className="flex items-center justify-between gap-3 rounded-lg bg-field px-3 py-2.5 active:bg-ink/10">
+              <span><span className="font-semibold">{a.name}</span>{' '}
+                <span className="text-sm text-ink/60">{isMuscu(a) ? 'séance à remplir' : a.requiresRpe ? 'effort à déclarer' : 'présence à confirmer'}</span></span>
+              <ChevronRight size={18} aria-hidden="true" className="text-ink/50" />
+            </TabLink>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 

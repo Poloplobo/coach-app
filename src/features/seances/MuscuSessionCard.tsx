@@ -7,7 +7,7 @@ import { MUSCULATION } from '../rpe/activities'
 import { RpePicker } from '../rpe/RpePicker'
 import { useActivityTypes, useLogsRange } from '../rpe/useRpe'
 import { ExerciseRow } from './ExerciseRow'
-import { completion, sortedExercises } from './program'
+import { blockGroups, completion, sortedExercises } from './program'
 import { useMarkNotDone, useValidateSession, useWeekProgram } from './useSeance'
 import { Loading } from '../../components/ui/Loading'
 
@@ -29,22 +29,36 @@ export function MuscuSessionCard({ playerId, date }: { playerId: string; date: s
   const muscuType = types.data.find(t => t.name === MUSCULATION)
   const session = program.data.find(s => s.session_date === date)
   const others = program.data.filter(s => s.session_date !== date)
-  const weekList = others.length > 0 && (
-    <ul className="text-sm border-t border-line pt-3 flex flex-col gap-1">
-      {others.map(s => {
-        const c = completion(s.planned_exercises)
+  // Bande de la semaine : une case par jour, séance faite (validée), aujourd'hui, à venir ou sans muscu
+  const validated = new Set(logs.data.filter(l => l.validated_at && l.planned_session_id).map(l => l.planned_session_id))
+  const strip = (
+    <ol aria-label="Mes séances de musculation de la semaine" className="grid grid-cols-7 gap-1.5">
+      {Array.from({ length: 7 }, (_, i) => addDays(from, i)).map((d, i) => {
+        const s = program.data.find(x => x.session_date === d)
+        const done = s && validated.has(s.id), isToday = d === date
+        const label = !s ? 'pas de musculation' : done ? `séance faite (${completion(s.planned_exercises).done}/${s.planned_exercises.length})` : d < date ? 'séance non validée' : isToday ? "séance d'aujourd'hui" : 'séance à venir'
         return (
-          <li key={s.id} className="flex justify-between">
-            <span className="inline-block first-letter:uppercase">{formatDay(s.session_date)}</span>
-            <span className="text-ink/70">{s.session_date < date ? `${c.done}/${c.total} faits` : `${c.total} exercices`}</span>
+          <li key={d} aria-label={`${formatDay(d)} : ${label}`}
+            className={`flex h-12 flex-col items-center justify-center rounded-lg text-xs font-display font-semibold ${
+              !s ? 'text-ink/45' : done ? 'bg-ok/15 text-ok' : isToday ? 'bg-rnr text-white' : d < date ? 'bg-field text-ink/50' : 'bg-field text-ink'}`}>
+            <span aria-hidden="true">{'LMMJVSD'[i]}</span>
+            <span aria-hidden="true" className="text-sm">{!s ? '·' : done ? '✓' : d < date ? '–' : '●'}</span>
           </li>
         )
       })}
-    </ul>
+    </ol>
   )
+  const next = others.find(x => x.session_date > date)
 
   if (!session || !muscuType) {
-    return <Card title="Musculation"><p className="text-sm text-ink/70">Pas de séance de musculation aujourd'hui.</p>{weekList}</Card>
+    return (
+      <Card title="Musculation" help="Ta semaine de musculation : ✓ séance faite, ● séance prévue.">
+        {strip}
+        <p className="text-sm text-ink/70">
+          Pas de séance aujourd'hui.{next && <> Prochaine : <strong className="text-ink first-letter:uppercase">{formatDay(next.session_date)}</strong> ({next.planned_exercises.length} exercices).</>}
+        </p>
+      </Card>
+    )
   }
 
   const exercises = sortedExercises(session.planned_exercises)
@@ -55,11 +69,26 @@ export function MuscuSessionCard({ playerId, date }: { playerId: string; date: s
   const validDuration = Number.isInteger(minutes) && minutes > 0 && minutes <= 300
 
   return (
-    <Card title="Ma séance de musculation" aside={<span className="text-sm text-ink/60 tabular-nums">{c.done}/{c.total} faits</span>}
+    <Card title="Ma séance de musculation"
       help="1. Pour chaque exercice : fait, partiel ou non fait. 2. Terminer la séance : ton effort global, puis Valider.">
-      <ul className="flex flex-col gap-3">
-        {exercises.map(e => <ExerciseRow key={e.id} playerId={playerId} exercise={e} editable={!log} />)}
-      </ul>
+      {strip}
+      <div className="flex items-center gap-3" aria-label={`${c.done} exercices faits sur ${c.total}`}>
+        <div className="h-2 flex-1 rounded-full bg-field" aria-hidden="true">
+          <div className="h-2 rounded-full bg-ok transition-[width] duration-500" style={{ width: `${c.pct}%` }} />
+        </div>
+        <span className="text-sm tabular-nums text-ink/70">{c.done}/{c.total} faits</span>
+      </div>
+      {/* Blocs de la fiche : les exercices d'un même bloc (A1, A2…) s'enchaînent, reliés par un trait */}
+      <div className="flex flex-col gap-4">
+        {blockGroups(exercises).map(g => (
+          <section key={g.key + g.items[0].id} aria-label={g.label}>
+            <h3 className="mb-1 font-display text-base font-semibold text-gold">{g.label}{g.items.length > 1 && <span className="ml-2 font-sans text-xs font-normal text-ink/50">enchaîner</span>}</h3>
+            <ul className={`flex flex-col gap-3 ${g.items.length > 1 ? 'border-l-2 border-gold/40 pl-3' : ''}`}>
+              {g.items.map(e => <ExerciseRow key={e.id} playerId={playerId} exercise={e} editable={!log} />)}
+            </ul>
+          </section>
+        ))}
+      </div>
 
       {log ? (
         <p className="rounded-lg border border-ok px-3 py-2 text-sm">Séance validée · RPE {log.rpe} · {log.duration_min} min · {log.srpe} UA</p>
@@ -98,7 +127,6 @@ export function MuscuSessionCard({ playerId, date }: { playerId: string; date: s
         </div>
         )
       )}
-      {weekList}
     </Card>
   )
 }

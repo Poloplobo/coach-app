@@ -39,3 +39,16 @@ export function completion(exercises: PlannedExercise[]) {
   const done = exercises.filter(e => e.exercise_feedback[0]?.status === 'fait').length
   return { done, total: exercises.length, pct: exercises.length ? Math.round((100 * done) / exercises.length) : 0 }
 }
+
+// Blocs de la fiche : A1 + A2 = bloc A (enchaînés), MOB = mobilité ; exercices déjà triés, blocs consécutifs regroupés
+export function blockGroups(exercises: PlannedExercise[]) {
+  const groups: { key: string; label: string; items: PlannedExercise[] }[] = []
+  for (const e of exercises) {
+    const raw = (e.block_label ?? '').trim().toUpperCase()
+    const key = raw.startsWith('MOB') ? 'MOB' : raw.match(/^[A-Z]/)?.[0] ?? '—'
+    const last = groups.at(-1)
+    if (last?.key === key) last.items.push(e)
+    else groups.push({ key, label: key === 'MOB' ? 'Mobilité' : key === '—' ? 'Exercices' : `Bloc ${key}`, items: [e] })
+  }
+  return groups
+}

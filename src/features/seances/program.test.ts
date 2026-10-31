@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { completion, prescription, sortedExercises, type PlannedExercise } from './program'
+import { blockGroups, completion, prescription, sortedExercises, type PlannedExercise } from './program'
 
 const ex = (position: number, over: Partial<PlannedExercise> = {}): PlannedExercise => ({
   id: `e${position}`, position, block_label: 'A1', sets: 5, reps: '5', load_value: 80, load_unit: 'pct_rm',
@@ -35,4 +35,9 @@ describe('completion', () => {
   it('séance vide : 0 %, pas de division par zéro', () => {
     expect(completion([])).toEqual({ done: 0, total: 0, pct: 0 })
   })
+})
+
+it('blocs de la fiche : A1 + A2 ensemble, MOB à part, étiquette absente regroupée', () => {
+  const g = blockGroups([ex(1, { block_label: 'MOB' }), ex(2, { block_label: 'A1' }), ex(3, { block_label: 'a2' }), ex(4, { block_label: 'B1' }), ex(5, { block_label: null })])
+  expect(g.map(x => [x.label, x.items.map(i => i.position)])).toEqual([['Mobilité', [1]], ['Bloc A', [2, 3]], ['Bloc B', [4]], ['Exercices', [5]]])
 })

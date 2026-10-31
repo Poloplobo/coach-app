@@ -19,7 +19,7 @@ export function MatchBoard() {
   const reference = useGpsReference()
   const rate = useRateMatch()
   const [matchId, setMatchId] = useState('')
-  const [exporting, setExporting] = useState<'match' | 'player' | null>(null)
+  const [exporting, setExporting] = useState<'match' | 'player' | 'team' | null>(null)
   const [exportFailed, setExportFailed] = useState(false)
   const [playerId, setPlayerId] = useState('')
   const [fromId, setFromId] = useState('')
@@ -32,7 +32,7 @@ export function MatchBoard() {
 
   const { refs, positions } = reference.data
   // PowerPoint créés au clic (pptxgenjs chargé seulement ici) ; module absent (hors ligne, nouvelle version) : message
-  const run = async (kind: 'match' | 'player', task: () => Promise<void>) => {
+  const run = async (kind: 'match' | 'player' | 'team', task: () => Promise<void>) => {
     setExporting(kind)
     setExportFailed(false)
     try { await task() } catch { setExportFailed(true) } finally { setExporting(null) }
@@ -110,7 +110,7 @@ export function MatchBoard() {
         </div>
         {rate.isError && <p role="alert" className="text-sm text-rnr">Note non enregistrée, réessaie.</p>}
       </Card>
-      <Card boxed title="Bilan individuel (PowerPoint)" help="Un joueur sur un bloc de matchs, comme l'onglet « Bilan bloc » : match par match, moyennes, attendus remplis, couleur du bloc, axe de travail et regards croisés.">
+      <Card boxed title="Bilans sur un bloc de matchs (PowerPoint)" help="Choisis le premier et le dernier match du bloc (ex. les 3 derniers). Individuel : un joueur, avec sa photo s'il en a une. Collectif : tout le groupe sur le bloc.">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
           <ViewSelect label="Joueur" value={player?.id ?? ''} onChange={setPlayerId}>
             {roster.data.map(p => <option key={p.id} value={p.id}>{fullName(p)}</option>)}
@@ -126,7 +126,12 @@ export function MatchBoard() {
             const r = playerReport({ player, matches: block, records: gps.data, ratings: ratings.data, ref: reference.data })
             const period = `${block.length} match${block.length > 1 ? 's' : ''} · ${formatDay(block[0].match_date)} → ${formatDay(block.at(-1)!.match_date)}`
             await downloadPlayerReport(r, player, period, `Bilan_GPS_${player.last_name}_${player.first_name}.pptx`, await playerPhoto(player.id))
-          })}>{exporting === 'player' ? 'Préparation…' : 'Télécharger le bilan'}</Button>
+          })}>{exporting === 'player' ? 'Préparation…' : 'Bilan individuel'}</Button>
+          <Button variant="ghost" size="sm" disabled={!!exporting || !block.length} onClick={() => run('team', async () => {
+            const [{ teamBlockReport }, { downloadTeamBlockReport }] = await Promise.all([import('./report'), import('./exportPerformance')])
+            const r = teamBlockReport({ matches: block, players: roster.data, records: gps.data, ratings: ratings.data, ref: reference.data })
+            await downloadTeamBlockReport(r, `Bloc_${block[0].match_date}_${block.at(-1)!.match_date}.pptx`)
+          })}>{exporting === 'team' ? 'Préparation…' : 'Collectif du bloc'}</Button>
         </div>
         {!block.length && <p role="alert" className="text-sm text-rnr">Le premier match du bloc doit précéder le dernier.</p>}
       </Card>

@@ -793,6 +793,35 @@ export type Database = {
         }
         Relationships: []
       }
+      rating_guidelines: {
+        Row: {
+          color: string
+          guideline: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          color: string
+          guideline: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          color?: string
+          guideline?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rating_guidelines_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       season_weeks: {
         Row: {
           code: string

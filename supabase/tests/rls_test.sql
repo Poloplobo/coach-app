@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(116);
+select plan(119);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -301,6 +301,10 @@ select throws_ok($$select public.import_match_gps('00000000-0000-0000-0000-00000
 select lives_ok($$insert into storage.objects (bucket_id, name) values ('player-photos', '00000000-0000-0000-0000-00000000000b.png')$$,
                 'le staff dépose la photo d''un joueur');
 
+-- Consignes de notation (0020) : écrites par le staff, lues par les joueurs
+select lives_ok($$insert into public.rating_guidelines (color, guideline) values ('bleu', 'Tu as dominé ton vis-à-vis')
+                  on conflict (color) do update set guideline = excluded.guideline$$, 'le staff écrit la consigne d''une couleur');
+
 -- ---------- Admin M ----------
 reset role;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000d","role":"authenticated"}', true);
@@ -410,6 +414,9 @@ select throws_ok($$select public.import_match_gps('00000000-0000-0000-0000-00000
 
 select is_empty($$select 1 from storage.objects where bucket_id = 'player-photos'$$, 'un joueur ne voit aucune photo, même la sienne');
 select throws_ok($$insert into storage.objects (bucket_id, name) values ('player-photos', 'x.png')$$, '42501', null, 'un joueur ne peut pas déposer de photo');
+
+select isnt_empty($$select 1 from public.rating_guidelines where color = 'bleu'$$, 'un joueur lit les consignes de notation');
+select throws_ok($$insert into public.rating_guidelines (color, guideline) values ('rouge', 'x')$$, '42501', null, 'un joueur ne peut pas écrire de consigne');
 
 -- ---------- Visiteur non connecté ----------
 reset role;

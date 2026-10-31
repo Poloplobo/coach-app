@@ -117,3 +117,24 @@ export async function playerPhoto(playerId: string): Promise<string | null> {
     return null
   }
 }
+
+// Consignes du coach : une phrase par couleur de coq, affichée sous chaque coq pour guider la note du joueur
+export function useGuidelines() {
+  return useQuery({
+    queryKey: ['performance', 'guidelines'],
+    queryFn: async () => new Map((check(await supabase.from('rating_guidelines').select('color, guideline')) as { color: RatingColor; guideline: string }[])
+      .map(g => [g.color, g.guideline])),
+  })
+}
+
+// Texte vide : la consigne est retirée (seul le libellé de la couleur s'affiche)
+export function useSaveGuideline() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ color, text }: { color: RatingColor; text: string }) => {
+      if (text.trim()) check(await supabase.from('rating_guidelines').upsert({ color, guideline: text.trim(), updated_at: new Date().toISOString() }).select('color'))
+      else check(await supabase.from('rating_guidelines').delete().eq('color', color).select('color'))
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['performance', 'guidelines'] }),
+  })
+}

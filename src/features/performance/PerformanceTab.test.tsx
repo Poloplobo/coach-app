@@ -19,6 +19,7 @@ vi.mock('./usePerformance', () => ({
   useRatings: () => ok(h.ratings),
   useGpsReference: () => ok({ refs: new Map(), positions: new Map() }),
   useRateMatch: () => ({ mutate: h.mutate, isPending: false, isError: false }),
+  useGuidelines: () => ({ data: new Map([['bleu', 'Tu as dominé ton vis-à-vis']]) }),
 }))
 
 const NOTE = 'Note ton match pour découvrir la note du staff.'
@@ -57,5 +58,9 @@ describe('PerformanceTab', () => {
     expect(h.mutate).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Valider ma note' }))
     expect(h.mutate).toHaveBeenCalledWith({ match_id: 'm1', player_id: 'p1', rater: 'player', color: 'jaune' })
+  })
+  it('la consigne du coach s\'affiche sous le coq correspondant', () => {
+    render(<PerformanceTab />)
+    expect(screen.getByRole('radio', { name: /A dominé le niveau.*Tu as dominé ton vis-à-vis/ })).toBeTruthy()
   })
 })

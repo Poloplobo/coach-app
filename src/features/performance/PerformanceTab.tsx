@@ -8,7 +8,7 @@ import { usePlayerDay } from '../player/playerDay'
 import { MyGoals } from '../tests/MyGoals'
 import { COLOR_LABEL, RATING_COLORS, gpsAnalysis, MIN_MINUTES, positionGroup, vmaxTimeline, type RatingColor } from './gps'
 import { Coq, MatchColor } from './MatchColor'
-import { useGpsRecords, useGpsReference, useMatches, useRateMatch, useRatings } from './usePerformance'
+import { useGpsRecords, useGpsReference, useGuidelines, useMatches, useRateMatch, useRatings } from './usePerformance'
 
 // Onglet joueur : après le match, il se note, découvre la note du staff, son GPS (8 boîtiers : pas toujours), ses maxi
 export function PerformanceTab() {
@@ -18,6 +18,7 @@ export function PerformanceTab() {
   const ratings = useRatings(playerId)
   const reference = useGpsReference()
   const rate = useRateMatch()
+  const guidelines = useGuidelines()
   const [matchId, setMatchId] = useState('')
   // Choix en cours, pas encore validé (lié au match : changer de match l'efface)
   const [choice, setChoice] = useState<{ match: string; color: RatingColor } | null>(null)
@@ -54,7 +55,10 @@ export function PerformanceTab() {
                   <button key={c} type="button" role="radio" aria-checked={selected} disabled={!!own || rate.isPending}
                     onClick={() => setChoice({ match: match.id, color: c })}
                     className={`flex min-h-12 items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm font-semibold disabled:cursor-default ${selected ? 'border-ink bg-field' : 'border-line'} ${own && !selected ? 'opacity-40' : ''}`}>
-                    <Coq color={c} className="h-8 w-8" />{COLOR_LABEL[c]}
+                    <Coq color={c} className="h-8 w-8" />
+                    <span className="flex flex-col">{COLOR_LABEL[c]}
+                      {guidelines.data?.get(c) && <span className="text-xs font-normal text-ink/60">{guidelines.data.get(c)}</span>}
+                    </span>
                   </button>
                 )
               })}

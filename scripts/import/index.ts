@@ -183,7 +183,7 @@ if (withPrograms) {
     const planned = must(await db.from('planned_exercises').upsert(s.exercises.map((e, i) => ({
       planned_session_id: session.id, exercise_id: exerciseByName.get(e.name)!, position: i + 1,
       block_label: e.block, sets: e.sets, reps: e.reps, load_value: e.loadValue, load_unit: e.loadUnit,
-      tempo: e.tempo, rest: e.rest, instructions: e.loadUnit === 'free' ? e.loadText : null,
+      tempo: e.tempo, rest: e.rest, instructions: e.instructions,
     })), { onConflict: 'planned_session_id,position' }).select('id, position'), 'exercices planifiés')
     const plannedByPosition = new Map(planned.map(p => [p.position, p.id]))
 

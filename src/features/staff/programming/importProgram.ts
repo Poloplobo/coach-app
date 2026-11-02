@@ -1,10 +1,11 @@
-// Import d'une fiche « Prénom NOM_PER MUSCULATION.xlsx » depuis l'app, en début de cycle : séances (onglets C<cycle>S<semaine>)
+// Import d'une fiche « Prénom NOM_PER MUSCULATION.xlsx » depuis l'app, en début de cycle : séances (onglets « C2S1 »,
+// « CYCLE 2 S1 »… : Sn = n-ième semaine du cycle, datée depuis la semaine 1 choisie à l'import)
 // et objectifs chiffrés (onglet OBJECTIFS : Test | Objectif | Libellé). Lu dans le navigateur, rien n'est envoyé ailleurs.
 // Chargé seulement à l'import (xlsx est lourd). Les retours éventuellement présents dans la fiche sont ignorés.
 import * as XLSX from 'xlsx'
 import { nameKey } from '../../../lib/names'
 import { addDays, parisDate } from '../../../lib/week'
-import { parseMuscuSheet } from './parseMuscu'
+import { WEEK_SHEET, parseMuscuSheet } from './parseMuscu'
 
 type Week = { code: string; start_date: string }
 type Player = { id: string; first_name: string; last_name: string; import_name: string | null }
@@ -25,31 +26,30 @@ export type ProgramPreview = {
 const lower = (s: string) => s.trim().toLowerCase()
 
 export function readProgram(
-  data: ArrayBuffer, ctx: { weeks: Week[]; players: Player[]; tests: TestDef[]; library: string[] }, fileName = '',
+  data: ArrayBuffer, ctx: { weeks: Week[]; players: Player[]; tests: TestDef[]; library: string[]; cycleStart: string }, fileName = '',
 ): ProgramPreview {
   const wb = XLSX.read(data)
   const errors: string[] = []
   const preview: ProgramPreview = { playerName: null, player: null, sessions: [], targets: [], newExercises: [], errors, past: 0 }
   const today = parisDate()
 
-  const weekSheets = wb.SheetNames.filter(n => /^C\d+S\d+$/.test(n))
-  if (!weekSheets.length) errors.push('Aucun onglet semaine (nommé C<cycle>S<semaine>, ex. C2S7).')
+  const weekSheets = wb.SheetNames.filter(n => WEEK_SHEET.test(n.trim()))
+  if (!weekSheets.length) errors.push('Aucun onglet semaine (nommé C<cycle>S<semaine> ou CYCLE <n> S<semaine>, ex. CYCLE 2 S1).')
 
   const names = new Set<string>()
   for (const sheet of weekSheets) {
-    const n = Number(sheet.match(/S(\d+)$/)![1])
-    const week = ctx.weeks.find(w => w.code === `S${n}`)
-    if (!week) { errors.push(`${sheet} : S${n} absente du calendrier (à créer dans Semaines).`); continue }
+    const n = Number(sheet.trim().match(WEEK_SHEET)![1])
+    // Le numéro de cycle de l'onglet n'est pas lu (une coquille « C1S4 » pour C2S4 est courante) : seul Sn compte
+    const monday = addDays(ctx.cycleStart, 7 * (n - 1))
     try {
-      // Datée sur le lundi de Sn au calendrier (et non S1 + 7 jours par semaine) ; retours de la fiche jamais lus
-      const { playerName, sessions } = parseMuscuSheet(wb.Sheets[sheet], sheet, addDays(week.start_date, -7 * (n - 1)), [], { feedback: false })
+      const { playerName, sessions } = parseMuscuSheet(wb.Sheets[sheet], sheet, ctx.cycleStart, [], { feedback: false })
       names.add(playerName)
-      const code = week.code
+      const code = ctx.weeks.find(w => w.start_date === monday)?.code ?? `hors calendrier (semaine du ${monday})`
       for (const s of sessions) if (s.date < today) preview.past++; else preview.sessions.push({
-        date: s.date, week: code,
+        date: s.date, week: `S${n} du cycle · ${code}`,
         exercises: s.exercises.map(e => ({
           name: e.name, block_label: e.block, sets: e.sets, reps: e.reps, load_value: e.loadValue, load_unit: e.loadUnit,
-          tempo: e.tempo, rest: e.rest, instructions: e.loadUnit === 'free' ? e.loadText : null,
+          tempo: e.tempo, rest: e.rest, instructions: e.instructions,
         })),
       })
     } catch (e) {

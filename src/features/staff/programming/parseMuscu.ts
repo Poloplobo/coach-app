@@ -19,6 +19,7 @@ export type Feedback = { rpe: number | null; doneLoad: string | null; status: 'f
 export type MuscuExercise = {
   block: string; name: string; sets: number | null; reps: string | null
   loadValue: number | null; loadUnit: LoadUnit | null; loadText: string | null
+  instructions: string | null // consigne : charge libre, référence (« 3RM », « RER »), détail MOB écrit dans Séries
   tempo: string | null; rest: string | null; feedback: Feedback | null
 }
 export type MuscuSession = { date: string; exercises: MuscuExercise[] }
@@ -26,10 +27,19 @@ export type MuscuSession = { date: string; exercises: MuscuExercise[] }
 const DAYS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
 const BLOCK = /^(MOB|F|[A-Z]\d+)$/
 const text = (v: string | undefined) => v?.replace(/\s+/g, ' ').trim() || null
+// Onglet semaine : « C2S1 », « C1S4 », « CYCLE 2 S1 » ; le numéro de semaine compte depuis la semaine 1 donnée au lecteur
+export const WEEK_SHEET = /^C(?:YCLE)?\s*\d+\s*S\s*(\d+)$/i
 
-export function parseLoad(raw: string | null): { loadValue: number | null; loadUnit: LoadUnit | null } {
+export function parseLoad(raw: string | null): { loadValue: number | null; loadUnit: LoadUnit | null; note?: string } {
   const t = raw?.replace(',', '.').trim()
   if (!t) return { loadValue: null, loadUnit: null }
+  if (/^PDC$/i.test(t)) return { loadValue: null, loadUnit: 'bw' }
+  // Un seul pourcentage, éventuellement d'une xRM et suivi d'une précision (« 92,5%3RM », « 90%3RM 3 RER ») : charge en %RM,
+  // la référence et la précision restent en consigne. Plusieurs % (pyramide) : charge libre, texte intact.
+  const pct = t.match(/^(\d+(?:\.\d+)?)\s*%\s*(?:\d*\s*RM)?/i)
+  if (pct && (t.match(/%/g) ?? []).length === 1 && !/PDC/i.test(t)) {
+    return { loadValue: Number(pct[1]), loadUnit: 'pct_rm', ...(/^\d+(?:\.\d+)?\s*%\s*(?:RM)?$/i.test(t) ? {} : { note: raw!.replace(/\s+/g, ' ').trim() }) }
+  }
   let m = t.match(/^(\d+(?:\.\d+)?)\s*%\s*PDC$/i)
   if (m) return { loadValue: Number(m[1]), loadUnit: 'bw' }
   m = t.match(/^(\d+(?:\.\d+)?)\s*%$/)
@@ -60,8 +70,8 @@ function fillVerticalMerges(ws: XLSX.WorkSheet) {
 export function parseMuscuSheet(
   ws: XLSX.WorkSheet, sheetName: string, seasonStart: string, corrections: Correction[] = [], { feedback = true } = {},
 ): { playerName: string; sessions: MuscuSession[] } {
-  const week = sheetName.match(/^C\d+S(\d+)$/)
-  if (!week) throw new Error(`onglet « ${sheetName} » : nom attendu C<cycle>S<semaine>`)
+  const week = sheetName.trim().match(WEEK_SHEET)
+  if (!week) throw new Error(`onglet « ${sheetName} » : nom attendu C<cycle>S<semaine> ou CYCLE <n> S<semaine>`)
   const monday = weekStart(seasonStart, Number(week[1]))
 
   fillVerticalMerges(ws)
@@ -96,12 +106,14 @@ export function parseMuscuSheet(
     if (!BLOCK.test(block) || !name || !sessions.length) continue
     const loadText = cell(r, c.load)
     const sets = cell(r, c.sets)
+    const load = parseLoad(loadText)
     const fix = corrections.find(f => nameKey(f.player) === nameKey(playerName) && f.sheet === sheetName && f.exercise === name)
     sessions.at(-1)!.exercises.push({
       block, name,
       sets: sets && /^\d+$/.test(sets) ? Number(sets) : null,
+      instructions: [sets && !/^\d+$/.test(sets) ? sets : null, load.loadUnit === 'free' ? loadText : load.note ?? null].filter(Boolean).join(' · ') || null,
       reps: cell(r, c.reps),
-      ...parseLoad(loadText), loadText,
+      loadValue: load.loadValue, loadUnit: load.loadUnit, loadText,
       tempo: cell(r, c.tempo), rest: cell(r, c.rest),
       feedback: feedback ? parseFeedback(fix ? fix.rpe : cell(r, c.rpe), fix ? fix.doneLoad : cell(r, c.done),
         cell(r, c.status), cell(r, c.comment), `${playerName} ${sheetName} ${name}`) : null,

@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
 import { Loading } from '../../../components/ui/Loading'
-import { formatDay } from '../../../lib/week'
+import { ViewSelect } from '../../../components/ui/ViewSelect'
+import { formatDay, parisDate } from '../../../lib/week'
+import { weekOf } from '../load'
 import type { ProgramPreview } from './importProgram'
 import { useExerciseLibrary, useGroup, useImportPlayers, useImportProgram, useTestDefinitions, useWeeksFull, type ImportResult } from './useProgramming'
 
@@ -16,19 +18,22 @@ export function ImportPanel() {
   const [files, setFiles] = useState<{ key: string; name: string; preview: ProgramPreview }[]>([])
   const [reading, setReading] = useState(false)
   const [readError, setReadError] = useState(false)
+  const [cycleStart, setCycleStart] = useState('')
+  const [lastFiles, setLastFiles] = useState<File[]>([])
 
   if (group.isPending || weeks.isPending || players.isPending || tests.isPending || library.isPending) return <Loading />
   if (group.isError || weeks.isError || players.isError || tests.isError || library.isError) return <p>Impossible de préparer l'import.</p>
 
-  const read = async (input: HTMLInputElement) => {
-    const list = [...(input.files ?? [])]
-    input.value = '' // re-choisir le même fichier (corrigé) relance la lecture
+  // Semaine 1 du cycle : par défaut celle en cours ; les onglets S1, S2, S4… de la fiche sont datés depuis ce lundi
+  const start = cycleStart || (weekOf(weeks.data, parisDate())?.start_date ?? '')
+  const read = async (list: File[], firstMonday = start) => {
     if (!list.length) return
+    setLastFiles(list)
     setReading(true)
     setReadError(false)
     try {
       const { readProgram } = await import('./importProgram') // xlsx chargé seulement ici
-      const ctx = { weeks: weeks.data, players: players.data, tests: tests.data, library: library.data.map(e => e.name) }
+      const ctx = { weeks: weeks.data, players: players.data, tests: tests.data, library: library.data.map(e => e.name), cycleStart: firstMonday }
       const stamp = Date.now()
       const read = await Promise.all(list.map(async f => {
         const key = `${f.name}-${f.lastModified}-${stamp}` // nouvelle lecture = nouvel aperçu, même nom de fichier
@@ -53,16 +58,19 @@ export function ImportPanel() {
       <div className="flex flex-col gap-1 text-sm text-ink/70">
         <p>Fiche « Prénom NOM_PER MUSCULATION.xlsx » :</p>
         <ul className="list-disc pl-5">
-          <li>un onglet par semaine importée, nommé C&lt;cycle&gt;S&lt;semaine&gt; (ex. C2S7), mêmes colonnes et blocs « Lundi : » que d'habitude ;
+          <li>un onglet par semaine du cycle, nommé « CYCLE 2 S1 », « C2S4 »… (S1 = première semaine du cycle, choisie ci-dessous), mêmes colonnes et blocs « Lundi : » que d'habitude ;
             la réhab s'écrit dans ces onglets (blocs R1, R2…) ;</li>
           <li>un onglet OBJECTIFS (facultatif) : Test | Objectif | Libellé (ex. Développé Couché | 100 | 1RM).</li>
         </ul>
         <p>Une séance déjà programmée est remplacée, sauf si le joueur y a répondu. Jours passés et retours du fichier ignorés.
           Ensuite, « Dupliquer une semaine » remplit la suite du cycle.</p>
       </div>
+      <ViewSelect label="Semaine 1 du cycle" value={start} onChange={v => { setCycleStart(v); void read(lastFiles, v) }}>
+        {weeks.data.map(w => <option key={w.code} value={w.start_date}>{w.code} · {w.label ?? ''} · {formatDay(w.start_date)}</option>)}
+      </ViewSelect>
       <label className="flex flex-col gap-1 text-sm font-semibold">
         Fiches à importer
-        <input type="file" accept=".xlsx" multiple onChange={e => read(e.target)}
+        <input type="file" accept=".xlsx" multiple onChange={e => { const list = [...(e.target.files ?? [])]; e.target.value = ''; void read(list) }}
           className="text-sm file:mr-3 file:rounded-md file:border file:border-line file:bg-field file:px-3 file:py-1.5 file:text-ink" />
       </label>
       {reading && <Loading />}

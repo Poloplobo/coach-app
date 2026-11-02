@@ -185,3 +185,18 @@ describe('parseTestsCsv', () => {
     expect(() => parseTestsCsv(`${header}\nX;P1;J1;X;;;quatre-vingt`)).toThrow(/illisible/)
   })
 })
+
+describe('parseLoad : charges des fiches du cycle 2', () => {
+  it('un seul %, éventuellement d\'une xRM : %RM, référence et précision gardées en consigne', () => {
+    expect(parseLoad('50%RM')).toEqual({ loadValue: 50, loadUnit: 'pct_rm' })
+    expect(parseLoad('92,5%3RM')).toEqual({ loadValue: 92.5, loadUnit: 'pct_rm', note: '92,5%3RM' })
+    expect(parseLoad('90%3RM\n3 RER')).toEqual({ loadValue: 90, loadUnit: 'pct_rm', note: '90%3RM 3 RER' })
+    expect(parseLoad('70%3RM Front Squat')).toMatchObject({ loadValue: 70, loadUnit: 'pct_rm' })
+  })
+  it('pyramide (plusieurs %), « LOURD », « RACK » : libre ; « PDC » seul : poids de corps', () => {
+    expect(parseLoad('110%3RM\n90%3RM\n70%3RM')).toEqual({ loadValue: null, loadUnit: 'free' })
+    expect(parseLoad('LOURD\nRER 3')).toEqual({ loadValue: null, loadUnit: 'free' })
+    expect(parseLoad('PDC')).toEqual({ loadValue: null, loadUnit: 'bw' })
+    expect(parseLoad('60% PDC')).toEqual({ loadValue: 60, loadUnit: 'bw' })
+  })
+})

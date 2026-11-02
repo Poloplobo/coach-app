@@ -34,11 +34,11 @@ export function parseLoad(raw: string | null): { loadValue: number | null; loadU
   const t = raw?.replace(',', '.').trim()
   if (!t) return { loadValue: null, loadUnit: null }
   if (/^PDC$/i.test(t)) return { loadValue: null, loadUnit: 'bw' }
-  // Un seul pourcentage, éventuellement d'une xRM et suivi d'une précision (« 92,5%3RM », « 90%3RM 3 RER ») : charge en %RM,
-  // la référence et la précision restent en consigne. Plusieurs % (pyramide) : charge libre, texte intact.
+  // Un seul pourcentage, éventuellement « %3RM » (= %RM : les tests de référence sont des 3RM), suivi ou non d'une précision
+  // (« 90%3RM 3 RER ») : charge en %RM, la précision seule reste en consigne. Plusieurs % (pyramide) : libre, texte intact.
   const pct = t.match(/^(\d+(?:\.\d+)?)\s*%\s*(?:\d*\s*RM)?/i)
   if (pct && (t.match(/%/g) ?? []).length === 1 && !/PDC/i.test(t)) {
-    return { loadValue: Number(pct[1]), loadUnit: 'pct_rm', ...(/^\d+(?:\.\d+)?\s*%\s*(?:RM)?$/i.test(t) ? {} : { note: raw!.replace(/\s+/g, ' ').trim() }) }
+    return { loadValue: Number(pct[1]), loadUnit: 'pct_rm', ...(/^\d+(?:\.\d+)?\s*%\s*(?:\d*\s*RM)?$/i.test(t) ? {} : { note: raw!.replace(/\s+/g, ' ').trim() }) }
   }
   let m = t.match(/^(\d+(?:\.\d+)?)\s*%\s*PDC$/i)
   if (m) return { loadValue: Number(m[1]), loadUnit: 'bw' }

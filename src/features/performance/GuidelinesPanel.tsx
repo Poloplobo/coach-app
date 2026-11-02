@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Loading } from '../../components/ui/Loading'
-import { COLOR_LABEL, RATING_COLORS, type RatingColor } from './gps'
+import { RATING_LABEL as COLOR_LABEL, RATING_COLORS, type RatingColor } from './gps'
 import { Coq } from './MatchColor'
 import { useGuidelines, useSaveGuideline } from './usePerformance'
 

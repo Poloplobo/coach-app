@@ -2,16 +2,16 @@ import { useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Loading } from '../../components/ui/Loading'
-import { ViewSelect } from '../../components/ui/ViewSelect'
 import { formatDay } from '../../lib/week'
 import { usePlayerDay } from '../player/playerDay'
 import { MyGoals } from '../tests/MyGoals'
-import { COLOR_LABEL, RATING_COLORS, gpsAnalysis, MIN_MINUTES, positionGroup, vmaxTimeline, type RatingColor } from './gps'
-import { Coq, MatchColor } from './MatchColor'
+import { RATING_LABEL as COLOR_LABEL, RATING_COLORS, gpsAnalysis, MIN_MINUTES, positionGroup, vmaxTimeline, type RatingColor } from './gps'
+import { ClubLogo, Coq, MatchColor } from './MatchColor'
 import { playerReport } from './report'
 import { useGpsRecords, useGpsReference, useGuidelines, useMatches, useRateMatch, useRatings } from './usePerformance'
 
-// Onglet joueur : après le match, il se note, découvre la note du staff, son GPS (8 boîtiers : pas toujours), ses maxi
+// Onglet joueur : d'abord la note de son match du week-end (pas de choix : le dernier match joué), puis la note et le
+// commentaire du coach, ensuite ses GPS (8 boîtiers : pas toujours) et ses maxi. Note et GPS sont indépendants.
 export function PerformanceTab() {
   const { playerId, today } = usePlayerDay()
   const matches = useMatches()
@@ -20,13 +20,12 @@ export function PerformanceTab() {
   const reference = useGpsReference()
   const rate = useRateMatch()
   const guidelines = useGuidelines()
-  const [matchId, setMatchId] = useState('')
   // Choix en cours, pas encore validé (lié au match : changer de match l'efface)
   const [choice, setChoice] = useState<{ match: string; color: RatingColor } | null>(null)
 
   const loading = matches.isPending || gps.isPending || ratings.isPending || reference.isPending
   const failed = matches.isError || gps.isError || ratings.isError || reference.isError
-  const match = matches.data?.find(m => m.id === matchId) ?? matches.data?.[0]
+  const match = matches.data?.[0] // match du week-end : le dernier joué (la note reste ouverte jusqu'au suivant)
   const own = ratings.data?.find(r => r.match_id === match?.id && r.rater === 'player')
   const staff = ratings.data?.find(r => r.match_id === match?.id && r.rater === 'staff')
   const record = gps.data?.find(g => g.match_id === match?.id)
@@ -41,17 +40,14 @@ export function PerformanceTab() {
       {loading && <Loading />}
       {failed && <p role="alert">Impossible de charger tes matchs.</p>}
       {!loading && !failed && !match && <Card title="Mes matchs"><p className="text-sm text-ink/70">Aucun match enregistré pour l'instant.</p></Card>}
-      {match && reference.data && (
-        <LastMatches report={playerReport({ player: { id: playerId, first_name: '', last_name: '' }, matches: matches.data!.slice(0, 3),
-          records: gps.data!, ratings: ratings.data!, ref: reference.data })} />
-      )}
       {match && (
         <>
-          <ViewSelect label="Match" value={match.id} onChange={setMatchId}>
-            {matches.data!.map(m => <option key={m.id} value={m.id}>{m.label ? `${m.label} · ` : ''}{m.opponent} · {formatDay(m.match_date)}</option>)}
-          </ViewSelect>
-
-          <Card boxed title="Ma note du match" help="Comment as-tu joué par rapport au niveau du match ? Une fois validée, ta note ne change plus et celle du staff s'affiche.">
+          <Card boxed title="Mon match du week-end" help="Comment as-tu joué ? Une fois validée, ta note ne change plus et celle du coach s'affiche.">
+            <p className="flex items-center gap-3 font-semibold"><ClubLogo match={match} className="h-9 w-9" />
+              <span>{match.label ? `${match.label} · ` : ''}{match.opponent}
+                <span className="block text-sm font-normal text-ink/60">{formatDay(match.match_date)}{match.home === null ? '' : match.home ? ' · à domicile' : ' · à l\'extérieur'}</span>
+              </span>
+            </p>
             {/* Note figée une fois validée : on ne s'aligne pas sur la note du staff découverte ensuite */}
             <div role="radiogroup" aria-label="Ma note du match" className="grid grid-cols-2 gap-2">
               {RATING_COLORS.map(c => {
@@ -79,14 +75,22 @@ export function PerformanceTab() {
             {rate.isError && <p role="alert" className="text-sm text-rnr">Note non enregistrée, réessaie.</p>}
           </Card>
 
-          <Card title="Note du staff">
+          <Card title="L'évaluation du coach">
             {!own
-              ? <p className="text-sm text-ink/70">Note ton match pour découvrir la note du staff.</p>
-              : staff ? <MatchColor color={staff.color} label={COLOR_LABEL[staff.color]} /> : <p className="text-sm text-ink/70">Le staff n'a pas encore noté ce match.</p>}
+              ? <p className="text-sm text-ink/70">Note ton match pour découvrir l'évaluation du coach.</p>
+              : staff
+                ? <div className="flex flex-col gap-2"><MatchColor color={staff.color} label={COLOR_LABEL[staff.color]} />
+                    {staff.comment && <p className="rounded-lg bg-field px-3 py-2 text-sm">« {staff.comment} »</p>}</div>
+                : <p className="text-sm text-ink/70">Le coach n'a pas encore évalué ce match.</p>}
           </Card>
 
+          {reference.data && (
+            <LastMatches report={playerReport({ player: { id: playerId, first_name: '', last_name: '' }, matches: matches.data!.slice(0, 3),
+              records: gps.data!, ratings: ratings.data!, ref: reference.data })} />
+          )}
+
           {/* Sans GPS sur ce match (8 boîtiers pour le groupe) : partie grisée, la note et les objectifs restent */}
-          <Card title="Mon GPS" help={record ? `Comparé à l'attendu de ton poste (${record.position.toLowerCase()}), ramené à un match de 70 min.` : undefined}>
+          <Card title="Mon GPS du week-end" help={record ? `Comparé à l'attendu de ton poste (${record.position.toLowerCase()}), ramené à un match de 70 min.` : undefined}>
             {!record
               ? <p aria-disabled="true" className="rounded-lg bg-field px-3 py-4 text-center text-sm text-ink/45">Pas de GPS pour toi sur ce match.</p>
               : (

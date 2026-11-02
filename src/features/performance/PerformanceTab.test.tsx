@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { PerformanceTab } from './PerformanceTab'
-import { COLOR_LABEL } from './gps'
+import { RATING_LABEL as COLOR_LABEL } from './gps'
 
 // Hooks simulés : on teste l'écran, pas Supabase ni la RLS
 const h = vi.hoisted(() => ({
@@ -14,7 +14,7 @@ const ok = (data: unknown) => ({ isPending: false, isError: false, data })
 vi.mock('../player/playerDay', () => ({ usePlayerDay: () => ({ playerId: 'p1', today: '2026-10-31' }) }))
 vi.mock('../tests/MyGoals', () => ({ MyGoals: () => null }))
 vi.mock('./usePerformance', () => ({
-  useMatches: () => ok([{ id: 'm1', match_date: '2026-10-25', opponent: 'R92', label: null }]),
+  useMatches: () => ok([{ id: 'm1', match_date: '2026-10-25', opponent: 'R92', label: null, home: true, logo: null }]),
   useGpsRecords: () => ok(h.gps),
   useRatings: () => ok(h.ratings),
   useGpsReference: () => ok({ refs: new Map(), positions: new Map() }),
@@ -22,7 +22,7 @@ vi.mock('./usePerformance', () => ({
   useGuidelines: () => ({ data: new Map([['bleu', 'Tu as dominé ton vis-à-vis']]) }),
 }))
 
-const NOTE = 'Note ton match pour découvrir la note du staff.'
+const NOTE = 'Note ton match pour découvrir l\'évaluation du coach.'
 // Les 4 libellés existent déjà dans les boutons de notation : une couleur staff affichée les double
 const occurrences = (label: string) => screen.getAllByText(label).length
 
@@ -61,6 +61,12 @@ describe('PerformanceTab', () => {
   })
   it('la consigne du coach s\'affiche sous le coq correspondant', () => {
     render(<PerformanceTab />)
-    expect(screen.getByRole('radio', { name: /A dominé le niveau.*Tu as dominé ton vis-à-vis/ })).toBeTruthy()
+    expect(screen.getByRole('radio', { name: /Très bon match.*Tu as dominé ton vis-à-vis/ })).toBeTruthy()
+  })
+  it('match du week-end imposé (pas de choix) ; une fois noté, la note et le commentaire du coach s\'affichent', () => {
+    h.ratings = [{ match_id: 'm1', player_id: 'p1', rater: 'player', color: 'vert' }, { match_id: 'm1', player_id: 'p1', rater: 'staff', color: 'bleu', comment: 'Gros match en mêlée' } as never]
+    render(<PerformanceTab />)
+    expect(screen.queryByRole('combobox', { name: /match/i })).toBeNull()
+    expect(screen.getByText('« Gros match en mêlée »')).toBeTruthy()
   })
 })

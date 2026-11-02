@@ -48,14 +48,14 @@ export function useImportMaxi() {
   })
 }
 
-export type Match = { id: string; match_date: string; opponent: string; label: string | null }
-export type Rating = { match_id: string; player_id: string; rater: 'player' | 'staff'; color: RatingColor }
+export type Match = { id: string; match_date: string; opponent: string; label: string | null; home: boolean | null; logo: string | null }
+export type Rating = { match_id: string; player_id: string; rater: 'player' | 'staff'; color: RatingColor; comment?: string | null }
 
 // shortcut: un seul groupe (PER) : tous les matchs sont ceux du joueur ; filtrer par group_members s'il y en a plusieurs
 export function useMatches() {
   return useQuery({
     queryKey: ['performance', 'matches'],
-    queryFn: async () => check(await supabase.from('matches').select('id, match_date, opponent, label')
+    queryFn: async () => check(await supabase.from('matches').select('id, match_date, opponent, label, home, logo')
       .lte('match_date', parisDate()).order('match_date', { ascending: false })) as Match[],
   })
 }
@@ -76,7 +76,7 @@ export function useRatings(playerId?: string) {
   return useQuery({
     queryKey: ['performance', 'ratings', playerId ?? 'all'],
     queryFn: async () => {
-      let q = supabase.from('match_ratings').select('match_id, player_id, rater, color')
+      let q = supabase.from('match_ratings').select('match_id, player_id, rater, color, comment')
       if (playerId) q = q.eq('player_id', playerId)
       return check(await q) as Rating[]
     },

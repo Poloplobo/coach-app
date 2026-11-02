@@ -1,4 +1,5 @@
 import type { RatingColor } from './gps'
+import type { Match } from './usePerformance'
 
 // Coq de couleur (GPS ou note de match), toujours avec un libellé texte : la couleur seule ne suffit pas à la lecture.
 // Une seule silhouette (coq FFR) teintée par masque CSS : les 5 couleurs ont la même forme, un fond transparent, et
@@ -19,4 +20,9 @@ export function MatchColor({ color, label }: { color: RatingColor | null; label?
       <span>{label ?? color}</span>
     </span>
   )
+}
+
+// Logo du club adverse (public/logos-clubs), sinon rien : le nom suffit
+export function ClubLogo({ match, className = 'h-7 w-7' }: { match: Pick<Match, 'logo' | 'opponent'>; className?: string }) {
+  return match.logo ? <img src={`/logos-clubs/${match.logo}`} alt="" aria-hidden="true" className={`${className} shrink-0 object-contain`} /> : null
 }

@@ -190,8 +190,10 @@ describe('parseLoad : charges des fiches du cycle 2', () => {
   it('un seul %, éventuellement d\'une xRM : %RM, référence et précision gardées en consigne', () => {
     expect(parseLoad('50%RM')).toEqual({ loadValue: 50, loadUnit: 'pct_rm' })
     expect(parseLoad('92,5%3RM')).toEqual({ loadValue: 92.5, loadUnit: 'pct_rm' }) // %3RM = %RM (tests de référence en 3RM)
-    expect(parseLoad('90%3RM\n3 RER')).toEqual({ loadValue: 90, loadUnit: 'pct_rm', note: '90%3RM 3 RER' })
-    expect(parseLoad('70%3RM Front Squat')).toMatchObject({ loadValue: 70, loadUnit: 'pct_rm' })
+    expect(parseLoad('90%3RM\n3 RER')).toEqual({ loadValue: 90, loadUnit: 'pct_rm', note: '3 RER' }) // le % n'est pas recopié en consigne
+    expect(parseLoad('70%3RM Front Squat')).toEqual({ loadValue: 70, loadUnit: 'pct_rm', note: 'Front Squat' })
+    expect(parseLoad('80%5RM')).toEqual({ loadValue: 80, loadUnit: 'pct_rm', note: '5RM' }) // autre référence que la 3RM : signalée
+    expect(parseLoad('80% sauf douleur')).toEqual({ loadValue: 80, loadUnit: 'pct_rm', note: 'sauf douleur' })
   })
   it('pyramide (plusieurs %), « LOURD », « RACK » : libre ; « PDC » seul : poids de corps', () => {
     expect(parseLoad('110%3RM\n90%3RM\n70%3RM')).toEqual({ loadValue: null, loadUnit: 'free' })

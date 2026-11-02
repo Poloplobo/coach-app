@@ -28,7 +28,7 @@ const DAYS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dima
 const BLOCK = /^(MOB|F|[A-Z]\d+)$/
 const text = (v: string | undefined) => v?.replace(/\s+/g, ' ').trim() || null
 // Onglet semaine : « C2S1 », « C1S4 », « CYCLE 2 S1 » ; le numéro de semaine compte depuis la semaine 1 donnée au lecteur
-export const WEEK_SHEET = /^C(?:YCLE)?\s*\d+\s*S\s*(\d+)$/i
+export const WEEK_SHEET = /^C(?:YCLE)?\s*(\d+)\s*S\s*([1-9]\d*)$/i
 
 export function parseLoad(raw: string | null): { loadValue: number | null; loadUnit: LoadUnit | null; note?: string } {
   const t = raw?.replace(',', '.').trim()
@@ -36,9 +36,14 @@ export function parseLoad(raw: string | null): { loadValue: number | null; loadU
   if (/^PDC$/i.test(t)) return { loadValue: null, loadUnit: 'bw' }
   // Un seul pourcentage, éventuellement « %3RM » (= %RM : les tests de référence sont des 3RM), suivi ou non d'une précision
   // (« 90%3RM 3 RER ») : charge en %RM, la précision seule reste en consigne. Plusieurs % (pyramide) : libre, texte intact.
-  const pct = t.match(/^(\d+(?:\.\d+)?)\s*%\s*(?:\d*\s*RM)?/i)
+  const pct = t.match(/^(\d+(?:\.\d+)?)\s*%\s*(\d*)\s*(RM)?/i)
   if (pct && (t.match(/%/g) ?? []).length === 1 && !/PDC/i.test(t)) {
-    return { loadValue: Number(pct[1]), loadUnit: 'pct_rm', ...(/^\d+(?:\.\d+)?\s*%\s*(?:\d*\s*RM)?$/i.test(t) ? {} : { note: raw!.replace(/\s+/g, ' ').trim() }) }
+    // Consigne = ce qui suit « N%RM » (« 3 RER », « Front Squat ») : jamais le % lui-même, que la duplication fait progresser.
+    // Une autre référence que la 3RM (« 5RM ») reste en consigne.
+    const ref = pct[3] && pct[2] && pct[2] !== '3' ? `${pct[2]}RM` : null
+    const rest = (pct[3] ? t.slice(pct[0].length) : t.slice(t.indexOf('%') + 1)).replace(/\s+/g, ' ').trim()
+    const note = [ref, rest].filter(Boolean).join(' ')
+    return { loadValue: Number(pct[1]), loadUnit: 'pct_rm', ...(note ? { note } : {}) }
   }
   let m = t.match(/^(\d+(?:\.\d+)?)\s*%\s*PDC$/i)
   if (m) return { loadValue: Number(m[1]), loadUnit: 'bw' }
@@ -72,7 +77,7 @@ export function parseMuscuSheet(
 ): { playerName: string; sessions: MuscuSession[] } {
   const week = sheetName.trim().match(WEEK_SHEET)
   if (!week) throw new Error(`onglet « ${sheetName} » : nom attendu C<cycle>S<semaine> ou CYCLE <n> S<semaine>`)
-  const monday = weekStart(seasonStart, Number(week[1]))
+  const monday = weekStart(seasonStart, Number(week[2]))
 
   fillVerticalMerges(ws)
   const all = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1, defval: '', raw: false, blankrows: true })

@@ -8,7 +8,7 @@ import type { Database } from '../../src/lib/database.types'
 import { addDays, nameKey, weekStart } from './names'
 import { parseRpe } from './parseRpe'
 import { parsePositions, parseTemplate, parseWeeks } from './parseChargePer'
-import { parseCorrections, parseMuscuSheet } from './parseMuscu'
+import { WEEK_SHEET, parseCorrections, parseMuscuSheet } from './parseMuscu'
 import { parseTestsCsv } from './parseTests'
 import { parseTargets } from './parseTargets'
 
@@ -53,6 +53,9 @@ const tests = parseTestsCsv(readFileSync(`${DIR}/tests-per.csv`, 'utf8'))
 const corrections = existsSync(`${DIR}/corrections.csv`) ? parseCorrections(readFileSync(`${DIR}/corrections.csv`, 'utf8')) : []
 const muscu = readdirSync(`${DIR}/muscu`).filter(f => f.endsWith('.xlsx')).flatMap(file => {
   const wb = XLSX.read(readFileSync(`${DIR}/muscu/${file}`))
+  // Ce script date Sn en semaine de SAISON (fiches du cycle 1) ; les fiches de cycle (« CYCLE 2 S1 », Sn = semaine du cycle)
+  // passent par l'app (Programmation > Import d'un cycle), qui demande la semaine 1 du cycle
+  for (const n of wb.SheetNames.filter(n => WEEK_SHEET.test(n.trim()) && !/^C\d+S\d+$/.test(n))) console.log(`IGNORÉ ${file} « ${n} » : onglet de cycle, à importer depuis l'app`)
   return wb.SheetNames.filter(n => /^C\d+S\d+$/.test(n)).map(n => ({ file, sheet: n, ...parseMuscuSheet(wb.Sheets[n], n, SEASON_START, corrections) }))
 })
 // Objectifs chiffrés : facultatif tant que la feuille n'est pas déposée

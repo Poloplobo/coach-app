@@ -17,21 +17,24 @@ export function sortedExercises(exercises: PlannedExercise[]) {
   return [...exercises].sort((a, b) => a.position - b.position)
 }
 
+const fr = (v: number) => Number(v).toLocaleString('fr-FR')
+
 export function formatLoad(e: Pick<PlannedExercise, 'load_value' | 'load_unit' | 'instructions'>): string | null {
   // unité sans valeur (import ou saisie incomplète) : ne jamais afficher « null »
   switch (e.load_unit) {
-    case 'pct_rm': return e.load_value === null ? null : `${e.load_value} %RM`
-    case 'kg': return e.load_value === null ? null : `${e.load_value} kg`
-    case 'bw': return e.load_value === null ? 'PDC' : `${e.load_value} % PDC`
+    case 'pct_rm': return e.load_value === null ? null : `${fr(e.load_value)} %RM`
+    case 'kg': return e.load_value === null ? null : `${fr(e.load_value)} kg`
+    case 'bw': return e.load_value === null ? 'PDC' : `${fr(e.load_value)} % PDC`
     case 'free': return e.instructions ?? 'Charge libre'
     default: return null
   }
 }
 
-// « 5 × 5 · 80 %RM · tempo 4.0.1.0 · repos 2' »
+// « 5 × 5 · 80 %RM · 3 RER · tempo 4.0.1.0 · repos 2' » : la consigne suit la charge (en charge libre, elle EST la charge)
 export function prescription(e: PlannedExercise): string {
   const volume = e.sets && e.reps ? `${e.sets} × ${e.reps}` : e.reps ?? (e.sets ? `${e.sets} séries` : null)
-  return [volume, formatLoad(e), e.tempo && `tempo ${e.tempo}`, e.rest && `repos ${e.rest}`].filter(Boolean).join(' · ')
+  const note = e.load_unit !== 'free' ? e.instructions : null
+  return [volume, formatLoad(e), note, e.tempo && `tempo ${e.tempo}`, e.rest && `repos ${e.rest}`].filter(Boolean).join(' · ')
 }
 
 // Taux de complétion : exercices « fait » sur le total de la séance

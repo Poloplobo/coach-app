@@ -27,6 +27,14 @@ describe('prescription', () => {
   })
 })
 
+describe('prescription : consigne et nombres', () => {
+  it('la consigne suit une charge en %RM (RER, précision) ; détail MOB sans charge affiché ; virgule française', () => {
+    expect(prescription(ex(1, { load_value: 90, instructions: '90%3RM 3 RER', tempo: null, rest: null }))).toBe('5 × 5 · 90 %RM · 90%3RM 3 RER')
+    expect(prescription(ex(1, { sets: null, reps: "5''", load_unit: null, load_value: null, instructions: 'Rotation Externe', tempo: null, rest: null }))).toBe("5'' · Rotation Externe")
+    expect(prescription(ex(1, { load_value: 92.5, tempo: null, rest: null }))).toBe('5 × 5 · 92,5 %RM')
+  })
+})
+
 describe('completion', () => {
   it('compte les exercices « fait » seulement', () => {
     expect(completion([ex(1, { exercise_feedback: fb('fait') }), ex(2, { exercise_feedback: fb('partiel') }), ex(3), ex(4, { exercise_feedback: fb('fait') })]))

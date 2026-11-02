@@ -20,6 +20,7 @@ export type ProgramPreview = {
   sessions: { date: string; week: string; exercises: ImportExercise[] }[]
   targets: { test: string; test_id: string; value: number; label: string | null }[]
   newExercises: string[]; errors: string[]
+  warnings: string[] // à vérifier, non bloquant
   past: number // séances de jours passés (anciens onglets) : ignorées
 }
 
@@ -30,15 +31,24 @@ export function readProgram(
 ): ProgramPreview {
   const wb = XLSX.read(data)
   const errors: string[] = []
-  const preview: ProgramPreview = { playerName: null, player: null, sessions: [], targets: [], newExercises: [], errors, past: 0 }
+  const preview: ProgramPreview = { playerName: null, player: null, sessions: [], targets: [], newExercises: [], errors, warnings: [], past: 0 }
   const today = parisDate()
 
   const weekSheets = wb.SheetNames.filter(n => WEEK_SHEET.test(n.trim()))
   if (!weekSheets.length) errors.push('Aucun onglet semaine (nommé C<cycle>S<semaine> ou CYCLE <n> S<semaine>, ex. CYCLE 2 S1).')
 
+  // Chaque Sn est daté depuis la semaine 1 choisie : deux onglets de même numéro (ancien cycle laissé dans la fiche)
+  // tomberaient sur la même semaine. Bloqué ; des numéros de cycle différents sont seulement signalés (coquille « C1S4 »).
+  const parsed = weekSheets.map(sheet => { const m = sheet.trim().match(WEEK_SHEET)!; return { sheet, cycle: Number(m[1]), n: Number(m[2]) } })
+  for (const n of new Set(parsed.map(p => p.n))) {
+    const same = parsed.filter(p => p.n === n)
+    if (same.length > 1) errors.push(`Onglets ${same.map(p => `« ${p.sheet} »`).join(' et ')} : même semaine ${n} du cycle. Retire les onglets de l'ancien cycle de la fiche.`)
+  }
+  const cycles = [...new Set(parsed.map(p => p.cycle))]
+  if (cycles.length > 1) preview.warnings.push(`Onglets de cycles différents (${parsed.map(p => p.sheet).join(', ')}) : tous sont datés depuis la semaine 1 choisie. Vérifie qu'aucun n'appartient à un ancien cycle.`)
+
   const names = new Set<string>()
-  for (const sheet of weekSheets) {
-    const n = Number(sheet.trim().match(WEEK_SHEET)![1])
+  for (const { sheet, n } of parsed) {
     // Le numéro de cycle de l'onglet n'est pas lu (une coquille « C1S4 » pour C2S4 est courante) : seul Sn compte
     const monday = addDays(ctx.cycleStart, 7 * (n - 1))
     try {

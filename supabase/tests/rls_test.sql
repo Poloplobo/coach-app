@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(120);
+select plan(124);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -308,6 +308,12 @@ select lives_ok($$insert into storage.objects (bucket_id, name) values ('player-
 select lives_ok($$insert into public.rating_guidelines (color, guideline) values ('bleu', 'Tu as dominé ton vis-à-vis')
                   on conflict (color) do update set guideline = excluded.guideline$$, 'le staff écrit la consigne d''une couleur');
 
+-- Suppression d'une séance de musculation (0022)
+select throws_ok($$select public.delete_muscu_session('00000000-0000-0000-0000-0000000000b1')$$, 'P0001', null,
+                 'une séance où le joueur a répondu ne se supprime pas');
+select lives_ok($$select public.delete_muscu_session('00000000-0000-0000-0000-0000000000c3')$$, 'le staff supprime une séance à venir sans retour');
+select is_empty($$select 1 from public.planned_sessions where id = '00000000-0000-0000-0000-0000000000c3'$$, 'la séance et ses exercices sont supprimés');
+
 -- ---------- Admin M ----------
 reset role;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000d","role":"authenticated"}', true);
@@ -420,6 +426,8 @@ select throws_ok($$insert into storage.objects (bucket_id, name) values ('player
 
 select isnt_empty($$select 1 from public.rating_guidelines where color = 'bleu'$$, 'un joueur lit les consignes de notation');
 select throws_ok($$insert into public.rating_guidelines (color, guideline) values ('rouge', 'x')$$, '42501', null, 'un joueur ne peut pas écrire de consigne');
+
+select throws_ok($$select public.delete_muscu_session('00000000-0000-0000-0000-0000000000a1')$$, '42501', null, 'un joueur ne peut pas supprimer de séance');
 
 -- ---------- Visiteur non connecté ----------
 reset role;

@@ -1236,6 +1236,7 @@ export type Database = {
         Returns: boolean
       }
       can_rate_match: { Args: { p_match: string }; Returns: boolean }
+      delete_muscu_session: { Args: { p_session: string }; Returns: undefined }
       duplicate_week: {
         Args: {
           p_from: string

@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
+import { ConfirmButton } from '../../../components/ui/ConfirmButton'
 import { Loading } from '../../../components/ui/Loading'
 import { addDays, formatDay, parisDate } from '../../../lib/week'
 import { MUSCULATION } from '../../rpe/activities'
 import { fullName } from '../load'
 import { useReference, useRoster } from '../useStaff'
 import { moveRow, newRow, rowsErrors, rowsFromSession, toPayload, type EditRow } from './programming'
-import { useCreateExercise, useCreateMuscuSession, useExerciseLibrary, useMuscuSession, useSaveMuscuExercises } from './useProgramming'
+import { useCreateExercise, useCreateMuscuSession, useDeleteMuscuSession, useExerciseLibrary, useMuscuSession, useSaveMuscuExercises } from './useProgramming'
 
 const field = 'rounded-lg bg-field border border-line px-2 py-1.5 text-sm'
 const UNITS = [{ v: 'pct_rm', l: '%RM' }, { v: 'kg', l: 'kg' }, { v: 'bw', l: '% PDC' }, { v: 'free', l: 'libre' }]
@@ -55,6 +56,7 @@ function SessionEditor({ playerId, date, past, session }: {
   const library = useExerciseLibrary()
   const create = useCreateMuscuSession()
   const save = useSaveMuscuExercises()
+  const remove = useDeleteMuscuSession()
   const addExercise = useCreateExercise()
   const [rows, setRows] = useState<EditRow[] | null>(null)
   const [newName, setNewName] = useState('')
@@ -162,7 +164,14 @@ function SessionEditor({ playerId, date, past, session }: {
           {save.isPending ? 'Enregistrement…' : 'Enregistrer la séance'}
         </Button>
         {dirty && <Button variant="ghost" onClick={() => setRows(null)}>Annuler les modifications</Button>}
+        {/* Le joueur a répondu : la séance reste (ses retours seraient perdus) ; la base le refuse de toute façon */}
+        <ConfirmButton variant="ghost" className="ml-auto" confirmLabel="Confirmer la suppression"
+          disabled={remove.isPending || current.some(r => r.hasFeedback)} onClick={() => remove.mutate(session.id)}>
+          Supprimer la séance
+        </ConfirmButton>
       </div>
+      {current.some(r => r.hasFeedback) && <p className="text-xs text-ink/60">Le joueur a déjà répondu à cette séance : elle ne peut pas être supprimée.</p>}
+      {remove.isError && <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">{(remove.error as { message?: string }).message ?? 'Suppression impossible.'}</p>}
     </Card>
   )
 }

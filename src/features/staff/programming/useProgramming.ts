@@ -178,3 +178,8 @@ export function useImportProgram() {
       p_player: v.playerId, p_season: v.season, p_sessions: v.sessions as unknown as Json, p_targets: v.targets as unknown as Json,
     })) as ImportResult)
 }
+
+// Supprimer une séance de musculation à venir sans retour du joueur (fonction SQL delete_muscu_session, contrôles en base)
+export function useDeleteMuscuSession() {
+  return useStaffMutation(async (sessionId: string) => { check(await supabase.rpc('delete_muscu_session', { p_session: sessionId })) })
+}

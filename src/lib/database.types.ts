@@ -419,24 +419,30 @@ export type Database = {
         Row: {
           created_at: string
           group_id: string
+          home: boolean | null
           id: string
           label: string | null
+          logo: string | null
           match_date: string
           opponent: string
         }
         Insert: {
           created_at?: string
           group_id: string
+          home?: boolean | null
           id?: string
           label?: string | null
+          logo?: string | null
           match_date: string
           opponent: string
         }
         Update: {
           created_at?: string
           group_id?: string
+          home?: boolean | null
           id?: string
           label?: string | null
+          logo?: string | null
           match_date?: string
           opponent?: string
         }

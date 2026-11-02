@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(124);
+select plan(125);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -69,7 +69,8 @@ insert into public.planned_exercises (id, planned_session_id, exercise_id, posit
 -- Performance (étape 11) : un match joué (GPS de A et B, note staff de B) et un match à venir
 insert into public.matches (id, group_id, match_date, opponent) values
   ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-000000000002', public.paris_today() - 2, 'R92'),
-  ('00000000-0000-0000-0000-0000000000d2', '00000000-0000-0000-0000-000000000002', public.paris_today() + 3, 'USON');
+  ('00000000-0000-0000-0000-0000000000d2', '00000000-0000-0000-0000-000000000002', public.paris_today() + 3, 'USON'),
+  ('00000000-0000-0000-0000-0000000000d0', '00000000-0000-0000-0000-000000000002', public.paris_today() - 9, 'RCV');
 insert into public.gps_records (match_id, player_id, position, minutes, distance_m, hi_distance_m, accelerations, vmax) values
   ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-00000000000b', 'PILIER', 60, 4000, 20, 12, 26),
   ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-00000000000a', 'CENTRE', 70, 6000, 80, 30, 30);
@@ -386,6 +387,9 @@ select is_empty($$select 1 from public.match_ratings where rater = 'staff'$$, 'B
 select throws_ok($$insert into public.match_ratings (match_id, player_id, rater, color)
                    values ('00000000-0000-0000-0000-0000000000d2', '00000000-0000-0000-0000-00000000000b', 'player', 'bleu')$$,
                  '42501', null, 'B ne peut pas noter un match pas encore joué');
+select throws_ok($$insert into public.match_ratings (match_id, player_id, rater, color)
+                   values ('00000000-0000-0000-0000-0000000000d0', '00000000-0000-0000-0000-00000000000b', 'player', 'vert')$$,
+                 '42501', null, 'B ne note que le match du week-end (le dernier joué), pas un ancien match');
 select throws_ok($$insert into public.match_ratings (match_id, player_id, rater, color)
                    values ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-00000000000b', 'staff', 'bleu')$$,
                  '42501', null, 'B ne peut pas écrire une note staff');

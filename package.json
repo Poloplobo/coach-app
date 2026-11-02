@@ -18,7 +18,8 @@
     "reset-password": "tsx --env-file=.env.local scripts/reset-password.ts",
     "reset-password:prod": "tsx --env-file=.env.prod.local scripts/reset-password.ts",
     "seed:dev": "tsx --env-file=.env.local scripts/seed-dev.ts",
-    "photos:prod": "tsx --env-file=.env.prod.local scripts/upload-photos.ts"
+    "photos:prod": "tsx --env-file=.env.prod.local scripts/upload-photos.ts",
+    "calendar:prod": "tsx --env-file=.env.prod.local scripts/import-calendar.ts"
   },
   "dependencies": {
     "@fontsource/barlow": "^5.3.0",

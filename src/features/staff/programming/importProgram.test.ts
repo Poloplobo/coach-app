@@ -49,7 +49,7 @@ describe('readProgram (import d\'une fiche en début de cycle)', () => {
     const p = readProgram(file({ C2S7: weekSheet('Jean INCONNU'), C2S8: weekSheet('Jean INCONNU'), OBJECTIFS: objectives }), ctx)
     expect(p.errors.join('\n')).not.toMatch(/S8/) // semaine hors calendrier : signalée dans l'aperçu, pas bloquante
     expect(p.errors.join('\n')).toMatch(/Jean INCONNU.*introuvable/)
-    expect(p.errors.join('\n')).toMatch(/objectif illisible/)
+    expect(p.warnings.join('\n')).toMatch(/objectif illisible/) // objectifs : avertissement, jamais bloquant
   })
   it('refuse une fiche sans onglet semaine', () => {
     expect(readProgram(file({ Feuille1: XLSX.utils.aoa_to_sheet([['x']]) }), ctx).errors[0]).toMatch(/Aucun onglet semaine/)
@@ -107,7 +107,9 @@ describe('readProgram (import d\'une fiche en début de cycle)', () => {
   })
   it('OBJECTIFS sans colonne Objectif : erreur', () => {
     const o = XLSX.utils.aoa_to_sheet([['Test', 'Libellé'], ['Développé Couché', '1RM']])
-    expect(readProgram(file({ C2S7: weekSheet(), OBJECTIFS: o }), ctx).errors.join()).toMatch(/colonne « Objectif »/)
+    const r = readProgram(file({ C2S7: weekSheet(), OBJECTIFS: o }), ctx)
+    expect(r.warnings.join()).toMatch(/colonne « Objectif »/)
+    expect(r.errors).toEqual([]) // les séances restent importables
   })
   it('fiche copiée d\'un autre joueur (nom du fichier ≠ nom de la fiche) : bloquée', () => {
     expect(readProgram(file({ C2S7: weekSheet() }), ctx, 'Jean DUPONT_PER MUSCULATION.xlsx').errors.join()).toMatch(/au nom de « Jean DUPONT »/)
@@ -115,7 +117,7 @@ describe('readProgram (import d\'une fiche en début de cycle)', () => {
   })
   it('test en double dans OBJECTIFS : bloqué', () => {
     const o = XLSX.utils.aoa_to_sheet([['Test', 'Objectif'], ['Développé Couché', '100'], ['développé couché', '90']])
-    expect(readProgram(file({ C2S7: weekSheet(), OBJECTIFS: o }), ctx).errors.join()).toMatch(/en double/)
+    expect(readProgram(file({ C2S7: weekSheet(), OBJECTIFS: o }), ctx).warnings.join()).toMatch(/en double/)
   })
   it('anciens onglets : séances passées ignorées, un vieux RPE faux ne bloque pas', () => {
     const old = weekSheet()
@@ -124,5 +126,12 @@ describe('readProgram (import d\'une fiche en début de cycle)', () => {
     expect(p.errors).toEqual([])
     expect(p.past).toBe(2)
     expect(p.sessions.map(s => s.week)).toEqual(['S7 du cycle · S7', 'S7 du cycle · S7'])
+  })
+  it('onglet OBJECTIFS en texte libre : avertissement, séances importables', () => {
+    const o = XLSX.utils.aoa_to_sheet([['Objectifs du cycle'], ['DC : 100 1RM - BS : 2xPDC']])
+    const r = readProgram(file({ C2S7: weekSheet(), OBJECTIFS: o }), ctx)
+    expect(r.errors).toEqual([])
+    expect(r.warnings.join()).toMatch(/non importés/)
+    expect(r.sessions.length).toBeGreaterThan(0)
   })
 })

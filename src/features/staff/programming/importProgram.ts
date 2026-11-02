@@ -82,23 +82,24 @@ export function readProgram(
   const dates = preview.sessions.map(s => s.date)
   for (const d of new Set(dates.filter((d, i) => dates.indexOf(d) !== i))) errors.push(`Deux séances le même jour (${d}) : un seul bloc par jour et une seule fois chaque semaine.`)
 
+  // Objectifs facultatifs : un onglet mal formé ne bloque jamais l'import des séances (avertissement, lignes valides gardées)
   const objectives = wb.SheetNames.find(n => /^objectifs$/i.test(n.trim()))
   if (objectives) {
     const rows = XLSX.utils.sheet_to_json<string[]>(wb.Sheets[objectives], { header: 1, defval: '', raw: false })
     const h = rows.findIndex(r => r.some(c => /^test$/i.test(String(c).trim())))
-    if (h < 0) errors.push('OBJECTIFS : en-tête « Test | Objectif | Libellé » introuvable.')
+    if (h < 0) preview.warnings.push('OBJECTIFS non importés : l\'onglet n\'est pas un tableau « Test | Objectif | Libellé » (texte libre ?). Les séances, elles, sont importées.')
     else {
       const col = (re: RegExp) => rows[h].findIndex(c => re.test(String(c).trim()))
       const [test, value, label] = [col(/^test$/i), col(/^objectif$/i), col(/^libell[ée]$/i)]
-      if (value < 0) errors.push('OBJECTIFS : colonne « Objectif » introuvable.')
+      if (value < 0) preview.warnings.push('OBJECTIFS non importés : colonne « Objectif » introuvable.')
       else rows.slice(h + 1).forEach((r, i) => {
         const name = String(r[test] ?? '').trim()
         if (!name) return
         const raw = String(r[value] ?? '').trim().replace(',', '.')
         const def = ctx.tests.find(t => lower(t.name) === lower(name))
-        if (!raw || !Number.isFinite(Number(raw))) errors.push(`OBJECTIFS ligne ${h + i + 2} : objectif illisible « ${r[value] ?? ''} ».`)
-        else if (!def) errors.push(`OBJECTIFS ligne ${h + i + 2} : test « ${name} » inconnu (tests : ${ctx.tests.map(t => t.name).join(', ')}).`)
-        else if (preview.targets.some(t => t.test_id === def.id)) errors.push(`OBJECTIFS : test « ${def.name} » en double.`)
+        if (!raw || !Number.isFinite(Number(raw))) preview.warnings.push(`OBJECTIFS ligne ${h + i + 2} non importée : objectif illisible « ${r[value] ?? ''} ».`)
+        else if (!def) preview.warnings.push(`OBJECTIFS ligne ${h + i + 2} non importée : test « ${name} » inconnu (tests : ${ctx.tests.map(t => t.name).join(', ')}).`)
+        else if (preview.targets.some(t => t.test_id === def.id)) preview.warnings.push(`OBJECTIFS : test « ${def.name} » en double, seule la première ligne est importée.`)
         else preview.targets.push({ test: def.name, test_id: def.id, value: Number(raw), label: label >= 0 ? String(r[label] ?? '').trim() || null : null })
       })
     }

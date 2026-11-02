@@ -1,5 +1,6 @@
 // Calendrier des matchs de la saison → table matches (groupe PER), avec logos des clubs adverses.
-// Source : data/calendrier*.xlsx|csv (Date | Adversaire | Domicile/Extérieur | Journée) et data/logos-clubs/<club>.png.
+// Source : data/calendrier*.xlsx|csv (Date | Adversaire | Domicile/Extérieur | Journée) et data/logos-clubs/ (ou
+// data/Logo équipe/) : un fichier par club dont le nom contient celui de l'adversaire (« Logo_USON_Nevers_2016.png »).
 // Logos copiés dans public/logos-clubs/ (logos publics des clubs, aucune donnée de joueur).
 // Usage : npm run calendar:prod (simulation) · npm run calendar:prod -- --confirm=<ref projet> (écriture)
 import { createClient } from '@supabase/supabase-js'
@@ -15,12 +16,14 @@ const db = createClient(url, process.env.SUPABASE_SECRET_KEY!, { auth: { persist
 
 const file = readdirSync('data').find(f => /^calendrier.*\.(xlsx|csv)$/i.test(f))
 if (!file) throw new Error('Fichier data/calendrier….xlsx (ou .csv) introuvable')
-const wb = XLSX.read(readFileSync(`data/${file}`), { cellDates: false })
+// CSV lu en texte UTF-8 sans conversion : « 11/10/2026 » reste le 11 octobre (pas lu à l'américaine), accents intacts
+const wb = /\.csv$/i.test(file) ? XLSX.read(readFileSync(`data/${file}`, 'utf8'), { type: 'string', raw: true }) : XLSX.read(readFileSync(`data/${file}`))
 const { matches, errors } = parseCalendar(XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', raw: true }))
 if (errors.length) { console.log(errors.join('\n')); process.exit(1) }
 
 // Logo : fichier de data/logos-clubs dont le nom (sans accents ni casse) correspond à l'adversaire
-const logos = existsSync('data/logos-clubs') ? readdirSync('data/logos-clubs').filter(f => /\.(png|jpe?g|webp|svg)$/i.test(f)) : []
+const LOGO_DIR = ['data/logos-clubs', 'data/Logo équipe'].find(d => existsSync(d))
+const logos = LOGO_DIR ? readdirSync(LOGO_DIR).filter(f => /\.(png|jpe?g|webp|svg)$/i.test(f)) : []
 const logoOf = (opponent: string) => {
   const s = logoSlug(opponent)
   return logos.find(f => logoSlug(f.replace(/\.\w+$/, '')) === s) ?? logos.find(f => { const l = logoSlug(f.replace(/\.\w+$/, '')); return l.includes(s) || s.includes(l) })
@@ -33,7 +36,7 @@ for (const m of matches) {
   const published = logo ? `${logoSlug(m.opponent)}.${logo.split('.').pop()!.toLowerCase().replace('jpeg', 'jpg')}` : null
   console.log(`${confirm ? 'importé ' : 'à importer'} ${m.date} ${m.label ?? ''} ${m.opponent} ${m.home === null ? '' : m.home ? '(dom.)' : '(ext.)'} logo : ${logo ?? '—'}`)
   if (!confirm) continue
-  if (logo && published) { mkdirSync('public/logos-clubs', { recursive: true }); copyFileSync(`data/logos-clubs/${logo}`, `public/logos-clubs/${published}`) }
+  if (logo && published) { mkdirSync('public/logos-clubs', { recursive: true }); copyFileSync(`${LOGO_DIR}/${logo}`, `public/logos-clubs/${published}`) }
   const { error } = await db.from('matches').upsert({ group_id: group.id, match_date: m.date, opponent: m.opponent, label: m.label, home: m.home, logo: published },
     { onConflict: 'group_id,match_date,opponent' })
   if (error) throw new Error(`${m.date} ${m.opponent} : ${error.message}`)

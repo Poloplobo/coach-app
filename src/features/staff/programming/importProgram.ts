@@ -55,13 +55,18 @@ export function readProgram(
       const { playerName, sessions } = parseMuscuSheet(wb.Sheets[sheet], sheet, ctx.cycleStart, [], { feedback: false })
       names.add(playerName)
       const code = ctx.weeks.find(w => w.start_date === monday)?.code ?? `hors calendrier (semaine du ${monday})`
-      for (const s of sessions) if (s.date < today) preview.past++; else preview.sessions.push({
-        date: s.date, week: `S${n} du cycle · ${code}`,
-        exercises: s.exercises.map(e => ({
+      for (const s of sessions) {
+        if (s.date < today) { preview.past++; continue }
+        const exercises = s.exercises.map(e => ({
           name: e.name, block_label: e.block, sets: e.sets, reps: e.reps, load_value: e.loadValue, load_unit: e.loadUnit,
           tempo: e.tempo, rest: e.rest, instructions: e.instructions,
-        })),
-      })
+        }))
+        // Deux blocs du même jour dans un onglet (« Lundi matin », « Lundi soir ») : une seule séance de musculation par jour,
+        // exercices mis bout à bout. Deux onglets de même semaine restent bloqués plus haut.
+        const sameDay = preview.sessions.find(x => x.date === s.date)
+        if (sameDay) sameDay.exercises.push(...exercises)
+        else preview.sessions.push({ date: s.date, week: `S${n} du cycle · ${code}`, exercises })
+      }
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
     }
@@ -79,8 +84,6 @@ export function readProgram(
     preview.player = matches.length === 1 ? matches[0] : null
     if (!matches.length) errors.push(`Joueur « ${preview.playerName} » introuvable dans l'effectif.`)
   }
-  const dates = preview.sessions.map(s => s.date)
-  for (const d of new Set(dates.filter((d, i) => dates.indexOf(d) !== i))) errors.push(`Deux séances le même jour (${d}) : un seul bloc par jour et une seule fois chaque semaine.`)
 
   // Objectifs facultatifs : un onglet mal formé ne bloque jamais l'import des séances (avertissement, lignes valides gardées)
   const objectives = wb.SheetNames.find(n => /^objectifs$/i.test(n.trim()))

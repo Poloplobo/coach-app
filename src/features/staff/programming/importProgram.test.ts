@@ -134,4 +134,15 @@ describe('readProgram (import d\'une fiche en début de cycle)', () => {
     expect(r.warnings.join()).toMatch(/non importés/)
     expect(r.sessions.length).toBeGreaterThan(0)
   })
+  it('deux blocs du même jour dans un onglet : regroupés en une séance (pas de blocage)', () => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['', '', 'Séance PER - Semaine 7'], ['', '', 'Paul MARTIN'],
+      ['', 'Exercice', '', 'Séries', 'Répétitions', 'Charge (%RM/kg)', 'TEMPO', 'Repos', 'RPE (1-10)', 'Charge', 'Statut'],
+      ['', 'Lundi matin :'], ['', 'A1', 'Front Squat', 3, 5], ['', 'Lundi soir :'], ['', 'B1', 'Tirage Banc', 3, 8],
+    ])
+    const p = readProgram(file({ C2S7: ws }), ctx)
+    expect(p.errors).toEqual([])
+    expect(p.sessions).toHaveLength(1)
+    expect(p.sessions[0].exercises.map(e => e.name)).toEqual(['Front Squat', 'Tirage Banc'])
+  })
 })

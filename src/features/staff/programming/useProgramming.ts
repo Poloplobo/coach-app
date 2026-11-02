@@ -154,8 +154,8 @@ export function useSaveTarget() {
 
 // Copie une semaine sur une suivante en une transaction (fonction SQL duplicate_week) ; loads : charges recalculées
 export function useDuplicateWeek() {
-  return useStaffMutation(async ({ groupId, from, to, loads }: { groupId: string; from: string; to: string; loads: Record<string, number> }) =>
-    check(await supabase.rpc('duplicate_week', { p_group: groupId, p_from: from, p_to: to, p_loads: loads })) as { group: number; individual: number; skipped: number })
+  return useStaffMutation(async ({ groupId, from, to, loads, groupPlan }: { groupId: string; from: string; to: string; loads: Record<string, number>; groupPlan: boolean }) =>
+    check(await supabase.rpc('duplicate_week', { p_group: groupId, p_from: from, p_to: to, p_loads: loads, p_group_plan: groupPlan })) as { group: number; individual: number; skipped: number })
 }
 
 // Joueurs avec leur nom d'import (« NOM Prénom ») : rapprochement de la fiche musculation importée

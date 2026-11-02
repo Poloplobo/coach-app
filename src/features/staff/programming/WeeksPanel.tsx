@@ -126,6 +126,8 @@ function DuplicateWeek({ groupId, weeks, today }: { groupId: string; weeks: { co
   const pair = pairs.find(p => p.from.code === fromCode) ?? pairs[0]
   const muscu = useStaffMuscu(pair?.from.start_date ?? '', pair ? addDays(pair.from.start_date, 6) : '')
   const duplicate = useDuplicateWeek()
+  // Musculation seulement : le planning rugby de la semaine cible est souvent déjà construit, ne pas y ajouter celui de la source
+  const [individualOnly, setIndividualOnly] = useState(false)
 
   if (!pair) return (
     <Card title="Dupliquer une semaine" help="Ajoute la semaine suivante au calendrier pour pouvoir y recopier la semaine en cours.">{null}</Card>
@@ -148,9 +150,13 @@ function DuplicateWeek({ groupId, weeks, today }: { groupId: string; weeks: { co
           {pairs.map(p => <option key={p.from.code} value={p.from.code}>{p.from.code} → {p.to.code}</option>)}
         </ViewSelect>
         <ConfirmButton size="sm" confirmLabel={`Confirmer : remplir ${pair.to.code}`} disabled={!muscu.data || duplicate.isPending}
-          onClick={() => duplicate.mutate({ groupId, from: pair.from.start_date, to: pair.to.start_date, loads })}>
+          onClick={() => duplicate.mutate({ groupId, from: pair.from.start_date, to: pair.to.start_date, loads, groupPlan: !individualOnly })}>
           {duplicate.isPending ? 'Copie…' : `Dupliquer vers ${pair.to.code}`}
         </ConfirmButton>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={individualOnly} onChange={e => { setIndividualOnly(e.target.checked); duplicate.reset() }} className="h-5 w-5" />
+          Musculation seulement (séances individuelles, sans le planning du groupe)
+        </label>
       </div>
       {muscu.isPending && <Loading />}
       {muscu.isError && <p role="alert" className="text-sm text-rnr">Impossible de lire les séances de {pair.from.code}.</p>}
@@ -159,7 +165,8 @@ function DuplicateWeek({ groupId, weeks, today }: { groupId: string; weeks: { co
           {muscu.data.length} séance{muscu.data.length > 1 ? 's' : ''} de musculation · {up} charge{up > 1 ? 's' : ''} en hausse ·{' '}
           {changes.length - up} en baisse · les autres identiques
           {noFeedback > 0 && <span className="block text-ink/70">{noFeedback} exercice{noFeedback > 1 ? 's' : ''} sans retour du joueur : charge reconduite à l'identique.</span>}
-          {pair.to.is_off && <span className="block text-ink/70">{pair.to.code} est OFF : le planning du groupe ne sera pas copié.</span>}
+          {individualOnly ? <span className="block text-ink/70">Le planning du groupe (rugby, vidéo…) de {pair.to.code} ne sera pas touché.</span>
+            : pair.to.is_off && <span className="block text-ink/70">{pair.to.code} est OFF : le planning du groupe ne sera pas copié.</span>}
         </p>
       )}
       {duplicate.data && (

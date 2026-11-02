@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(119);
+select plan(120);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -52,7 +52,8 @@ insert into public.session_logs (player_id, planned_session_id, session_date, ac
 -- Duplication (étape 8) : semaine source du lundi 2030-01-07, cibles S90 (normale) et S91 (OFF)
 insert into public.season_weeks (group_id, code, start_date, week_type_code, is_off) values
   ('00000000-0000-0000-0000-000000000002', 'S90', '2030-01-14', 'DEV', false),
-  ('00000000-0000-0000-0000-000000000002', 'S91', '2030-01-21', 'DEV', true);
+  ('00000000-0000-0000-0000-000000000002', 'S91', '2030-01-21', 'DEV', true),
+  ('00000000-0000-0000-0000-000000000002', 'S92', '2030-02-11', 'DEV', false);
 insert into public.planned_sessions (id, session_date, title, group_id, player_id, activity_type_id) values
   ('00000000-0000-0000-0000-0000000000c1', '2030-01-08', 'Jeu au Poste', '00000000-0000-0000-0000-000000000002', null, (select id from public.activity_types where name = 'Jeu au Poste')),
   ('00000000-0000-0000-0000-0000000000c2', '2030-01-09', 'Musculation', null, '00000000-0000-0000-0000-00000000000b', (select id from public.activity_types where name = 'Musculation')),
@@ -213,6 +214,8 @@ select is((public.duplicate_week('00000000-0000-0000-0000-000000000002', '2030-0
           0, 'semaine OFF : le planning du groupe n''est pas copié');
 select is(public.duplicate_week('00000000-0000-0000-0000-000000000002', '2019-12-30', '2020-01-06'),
           '{"group": 0, "individual": 0, "skipped": 1}'::jsonb, 'les jours cibles déjà passés ne sont pas copiés');
+select is(public.duplicate_week('00000000-0000-0000-0000-000000000002', '2030-01-07', '2030-02-11', '{}', false) - 'skipped',
+          '{"group": 0, "individual": 1}'::jsonb, 'option « séances individuelles seulement » : le planning du groupe n''est pas copié');
 select throws_ok($$select public.duplicate_week('00000000-0000-0000-0000-000000000002', '2030-01-07', '2030-01-28')$$,
                  'P0002', null, 'une semaine absente du calendrier ne peut pas être remplie');
 select is((select count(*)::int from public.planned_sessions where session_date = '2030-01-16'

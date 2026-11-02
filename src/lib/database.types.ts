@@ -1237,7 +1237,13 @@ export type Database = {
       }
       can_rate_match: { Args: { p_match: string }; Returns: boolean }
       duplicate_week: {
-        Args: { p_from: string; p_group: string; p_loads?: Json; p_to: string }
+        Args: {
+          p_from: string
+          p_group: string
+          p_group_plan?: boolean
+          p_loads?: Json
+          p_to: string
+        }
         Returns: Json
       }
       has_rated: { Args: { p_match: string }; Returns: boolean }

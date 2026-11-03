@@ -29,7 +29,7 @@ describe('PlayerSeason', () => {
     render(<PlayerSeason />)
     fireEvent.change(screen.getByLabelText('Joueur'), { target: { value: 'b' } })
     expect(screen.getByText((_, el) => el?.tagName === 'P' && el.textContent?.replace(/\s+/g, ' ').trim() ===
-      '1 / 2 matchs notés par le coach · 1 match joué · 70 min de jeu sur 1 match saisi (moyenne 70 min)')).toBeTruthy()
+      '1 / 2 matchs notés par le coach · 1 match évalué · 70 min de jeu sur 1 match saisi (moyenne 70 min)')).toBeTruthy()
     const groups = screen.getAllByRole('radiogroup').map(g => g.getAttribute('aria-label'))
     expect(groups).toEqual([expect.stringContaining('Petit Tom, J3 · ABCD XV'), expect.stringContaining('Petit Tom, J1 · Racing 92')])
   })
@@ -48,13 +48,16 @@ describe('PlayerSeason', () => {
 })
 
 describe('PlayerRating : cohérence coq / temps de jeu', () => {
-  it('« N\'a pas joué » met 0 min ; des minutes avec gris bloquent', () => {
+  it('« Pas évaluable » accepte des minutes ; une note de couleur avec 0 min bloque', () => {
     render(<PlayerSeason />)
     const [time] = screen.getAllByLabelText('Temps de jeu (min)') as HTMLInputElement[]
-    fireEvent.click(screen.getAllByRole('radio', { name: /N'a pas joué/ })[0])
-    expect(time.value).toBe('0')
-    fireEvent.change(time, { target: { value: '30' } })
-    expect((screen.getAllByRole('button', { name: 'Enregistrer' })[0] as HTMLButtonElement).disabled).toBe(true)
-    expect(screen.getByText('N\'a pas joué : 0 min')).toBeTruthy()
+    const save = () => screen.getAllByRole('button', { name: 'Enregistrer' })[0] as HTMLButtonElement
+    fireEvent.click(screen.getAllByRole('radio', { name: /Pas évaluable/ })[0])
+    fireEvent.change(time, { target: { value: '8' } })
+    expect(save().disabled).toBe(false)
+    fireEvent.click(screen.getAllByRole('radio', { name: /Pas au niveau attendu/ })[0])
+    fireEvent.change(time, { target: { value: '0' } })
+    expect(save().disabled).toBe(true)
+    expect(screen.getByText('Avec une note de couleur, le temps de jeu est d\'au moins 1 min')).toBeTruthy()
   })
 })

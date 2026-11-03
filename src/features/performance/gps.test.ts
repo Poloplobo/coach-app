@@ -102,7 +102,7 @@ describe('ratingSeason', () => {
     ]
     expect(ratingSeason(matches, ratings, 'a').map(({ name, staff, player, minutes }) => ({ name, staff, player, minutes }))).toEqual([
       { name: 'Racing 92', staff: 4, player: 3, minutes: 70 },
-      { name: 'J3', staff: null, player: null, minutes: 0 }, // gris : n'a pas joué, hors courbe
+      { name: 'J3', staff: null, player: null, minutes: 0 }, // gris : pas évaluable, hors courbe
     ])
   })
 })

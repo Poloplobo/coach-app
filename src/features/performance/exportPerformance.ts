@@ -10,7 +10,7 @@ import { C, DISPLAY, FONT, chart, deck, empty, pct, slide } from '../staff/expor
 import { COLOR_LABEL, GPS_COLORS, type RatingColor } from './gps'
 import type { matchReport, playerReport, teamBlockReport } from './report'
 
-const COLOR_HEX: Record<RatingColor, string> = { rouge: C.red, jaune: C.gold, vert: C.green, bleu: '3B82F6', gris: C.grey } // gris : n'a pas joué
+const COLOR_HEX: Record<RatingColor, string> = { rouge: C.red, jaune: C.gold, vert: C.green, bleu: '3B82F6', gris: C.grey } // gris : pas évaluable
 const INK_ON: Record<RatingColor, string> = { rouge: C.ink, jaune: '1A1A1A', vert: '1A1A1A', bleu: C.ink, gris: C.ink }
 const n = (v: number | null, unit = '') => (v === null ? '—' : `${v.toLocaleString('fr-FR')}${unit}`)
 const matchName = (m: { opponent: string; label: string | null; match_date: string }) => `${m.label ? `${m.label} · ` : ''}${m.opponent} · ${formatDay(m.match_date)}`

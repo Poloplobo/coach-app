@@ -115,8 +115,8 @@ function PlayerRating({ matchId, player, name, ariaName, own, staff }: { matchId
   const [minutes, setMinutes] = useState(staff?.minutes?.toString() ?? '')
   const playTime = minutes.trim() === '' ? null : Number(minutes) // saisie non numérique : NaN, refusée ci-dessous
   const validTime = playTime === null || (Number.isInteger(playTime) && playTime >= 0 && playTime <= 120)
-  // « N'a pas joué » avec des minutes, ou une note avec 0 min : le résumé et la courbe se contrediraient
-  const coherent = playTime === null || !color || (color === 'gris') === (playTime === 0)
+  // Une note de couleur suppose d'avoir joué ; « pas évaluable » (gris) accepte 0 min comme quelques minutes
+  const coherent = playTime === null || !color || color === 'gris' || playTime > 0
   const changed = color !== (staff?.color ?? null) || comment.trim() !== (staff?.comment ?? '') || playTime !== (staff?.minutes ?? null)
   return (
     // Une ligne par joueur : nom et sa note | 5 coqs (libellé du coq choisi) | temps de jeu | commentaire | Enregistrer
@@ -129,7 +129,7 @@ function PlayerRating({ matchId, player, name, ariaName, own, staff }: { matchId
         <div role="radiogroup" aria-label={`Note du coach : ${ariaName}`} className="flex gap-1">
           {RATING_COLORS.map(c => (
             <button key={c} type="button" role="radio" aria-checked={color === c} aria-label={RATING_LABEL[c]} title={RATING_LABEL[c]}
-              onClick={() => { setColor(c); if (c === 'gris') setMinutes('0') }}
+              onClick={() => setColor(c)}
               className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition-transform active:scale-95 ${color === c ? 'scale-110 bg-field' : 'border-transparent opacity-45 hover:opacity-100'}`}
               style={color === c ? { borderColor: RATING_HEX[c] } : undefined}>
               <Coq color={c} className="h-6 w-6" />
@@ -156,7 +156,7 @@ function PlayerRating({ matchId, player, name, ariaName, own, staff }: { matchId
         {rate.isSuccess && !changed && <span role="status" className="text-xs text-ink/60">Enregistré</span>}
         {rate.isError && <span role="alert" className="text-xs text-rnr">Non enregistré</span>}
         {!validTime && <span role="alert" className="text-xs text-rnr">Temps de jeu : 0 à 120 min</span>}
-        {validTime && !coherent && <span role="alert" className="text-xs text-rnr">{color === 'gris' ? 'N\'a pas joué : 0 min' : 'Avec une note, le temps de jeu est d\'au moins 1 min'}</span>}
+        {validTime && !coherent && <span role="alert" className="text-xs text-rnr">Avec une note de couleur, le temps de jeu est d'au moins 1 min</span>}
         {!color && changed && <span className="text-xs text-ink/60">Choisis d'abord un coq</span>}
       </div>
     </li>
@@ -198,7 +198,7 @@ export function PlayerSeason() {
         {roster.data.map(p => <option key={p.id} value={p.id}>{fullName(p)}</option>)}
       </ViewSelect>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard order={1} label="Matchs joués" value={played.length} suffix={` / ${season.length}`} color={BRAND.muted} hint="Matchs avec un coq du coach (hors « n'a pas joué »)." />
+        <StatCard order={1} label="Matchs évalués" value={played.length} suffix={` / ${season.length}`} color={BRAND.muted} hint="Matchs avec un coq de couleur du coach (hors « pas évaluable »)." />
         <StatCard order={2} label="Temps de jeu moyen" value={timed.length ? Math.round(total / timed.length) : 0} suffix=" min" color={BRAND.ok}
           trend={season.map(s => ({ day: s.name, value: s.minutes }))} />
         <StatCard order={3} decimals={1} label="Note moyenne du coach" value={meanScore ?? 0} suffix=" / 4" color={BRAND.gold}
@@ -207,10 +207,10 @@ export function PlayerSeason() {
           hint={both.length ? `${agree} match${agree > 1 ? 's' : ''} sur ${both.length} notés par les deux.` : 'Aucun match noté par les deux.'} />
       </div>
       <Card title={`${fullName(player)} — notes de la saison`}
-        help="Point plein : note du coach. Rond vide : note du joueur. La couleur du point est celle du coq ; « n'a pas joué » ne figure pas sur la courbe.">
+        help="Point plein : note du coach. Rond vide : note du joueur. La couleur du point est celle du coq ; « pas évaluable » ne figure pas sur la courbe.">
         <p className="text-sm">
           {season.filter(s => s.staffColor).length} / {season.length} match{season.length > 1 ? 's' : ''} noté{season.length > 1 ? 's' : ''} par le coach
-          · {played.length} match{played.length > 1 ? 's' : ''} joué{played.length > 1 ? 's' : ''}
+          · {played.length} match{played.length > 1 ? 's' : ''} évalué{played.length > 1 ? 's' : ''}
           {' · '}{total} min de jeu{timed.length > 0 && ` sur ${timed.length} match${timed.length > 1 ? 's' : ''} saisi${timed.length > 1 ? 's' : ''} (moyenne ${Math.round(total / timed.length)} min)`}
         </p>
         {season.length > 0 && (

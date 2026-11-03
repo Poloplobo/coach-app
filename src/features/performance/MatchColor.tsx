@@ -3,7 +3,7 @@ import type { Match } from './usePerformance'
 
 // Coq de couleur (GPS ou note de match), toujours avec un libellé texte : la couleur seule ne suffit pas à la lecture.
 // Une seule silhouette (coq FFR) teintée par masque CSS : les 5 couleurs ont la même forme, un fond transparent, et
-// suivent la charte (le gris « je n'ai pas joué » compris). -webkit-mask pour Safari sur iPhone.
+// suivent la charte (le gris « pas évaluable » compris). -webkit-mask pour Safari sur iPhone.
 // Mêmes couleurs que RATING_HEX (gps.ts), en classes Tailwind
 const TINT: Record<RatingColor, string> = { rouge: 'bg-rnr', jaune: 'bg-gold', vert: 'bg-ok', bleu: 'bg-blue', gris: 'bg-muted' }
 const MASK = { WebkitMaskImage: 'url(/coq/silhouette.png)', maskImage: 'url(/coq/silhouette.png)', WebkitMaskSize: 'contain', maskSize: 'contain',

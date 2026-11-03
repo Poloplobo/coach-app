@@ -5,7 +5,7 @@ import { BRAND } from '../../lib/brand'
 export type GpsReference = { position_group: string; distance_m: number; accelerations: number; hi_distance_m: number; ref_minutes: number }
 export type GpsRecord = { match_id: string; player_id: string; position: string; minutes: number; distance_m: number; hi_distance_m: number; accelerations: number; vmax: number | null }
 export type GpsColor = 'rouge' | 'jaune' | 'vert' | 'bleu'
-// Note de match : les 4 couleurs du coq, plus le gris « je n'ai pas joué » (jamais une couleur GPS)
+// Note de match : les 4 couleurs du coq, plus le gris « pas évaluable » (jamais une couleur GPS)
 export type RatingColor = GpsColor | 'gris'
 
 // Couleur selon le nombre d'attendus remplis (distance totale, distance HI, accélérations) : 0 → rouge … 3 → bleu
@@ -14,11 +14,11 @@ export const GPS_COLORS: GpsColor[] = ['rouge', 'jaune', 'vert', 'bleu']
 // Couleur GPS (attendus remplis) : libellés de niveau, utilisés par les écrans et rapports GPS
 export const RATING_COLORS: RatingColor[] = [...GPS_COLORS, 'gris']
 export const COLOR_LABEL: Record<RatingColor, string> = {
-  rouge: 'En dessous du niveau', jaune: 'Niveau moyen', vert: 'Bon niveau Crabos', bleu: 'A dominé le niveau', gris: 'Je n\'ai pas joué',
+  rouge: 'En dessous du niveau', jaune: 'Niveau moyen', vert: 'Bon niveau Crabos', bleu: 'A dominé le niveau', gris: 'Pas évaluable',
 }
-// Note de match (joueur et coach), indépendante des GPS (décision du 02/11/2026)
+// Note de match (joueur et coach), indépendante des GPS (décisions du 02/11 et du 03/11/2026 : rouge et gris renommés)
 export const RATING_LABEL: Record<RatingColor, string> = {
-  gris: 'N\'a pas joué', rouge: 'Match difficile', jaune: 'Match moyen', vert: 'Bon match', bleu: 'Très bon match',
+  gris: 'Pas évaluable', rouge: 'Pas au niveau attendu', jaune: 'Match moyen', vert: 'Bon match', bleu: 'Très bon match',
 }
 
 // Poste saisi (export GPS ou fiche joueur) → groupe de poste du référentiel ; null si poste inconnu (à ajouter par le staff)
@@ -59,7 +59,7 @@ export function vmaxTimeline(records: { date: string; vmax: number | null }[], r
   })
 }
 
-// Graphique de l'année (espace Match) : note sur une échelle de rouge à bleu ; gris (n'a pas joué) n'est pas une note
+// Graphique de l'année (espace Match) : note sur une échelle de rouge à bleu ; gris (pas évaluable) n'est pas une note
 export const RATING_SCORE: Record<GpsColor, number> = { rouge: 1, jaune: 2, vert: 3, bleu: 4 }
 // Couleurs des coqs pour les graphiques (Recharts attend des valeurs, pas des classes)
 export const RATING_HEX: Record<RatingColor, string> = { rouge: BRAND.rnr, jaune: BRAND.gold, vert: BRAND.ok, bleu: BRAND.blue, gris: BRAND.muted }
@@ -68,7 +68,7 @@ const score = (c?: RatingColor) => c && c !== 'gris' ? RATING_SCORE[c] : null
 type SeasonMatch = { id: string; match_date: string; opponent: string; label: string | null }
 type SeasonRating = { match_id: string; player_id: string; rater: 'player' | 'staff'; color: RatingColor; minutes?: number | null }
 
-// Matchs du plus ancien au plus récent avec la note du coach et celle du joueur (null : pas notée ou n'a pas joué)
+// Matchs du plus ancien au plus récent avec la note du coach et celle du joueur (null : pas notée ou pas évaluable)
 export function ratingSeason(matches: SeasonMatch[], ratings: SeasonRating[], playerId: string) {
   const mine = ratings.filter(r => r.player_id === playerId)
   return [...matches].sort((a, b) => a.match_date.localeCompare(b.match_date)).map(m => {

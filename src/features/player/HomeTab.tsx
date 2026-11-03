@@ -7,6 +7,8 @@ import { useAvailability, useCatchUpDay, usePlanRange } from '../rpe/useRpe'
 import { completion } from '../seances/program'
 import { useWeekProgram } from '../seances/useSeance'
 import { MyGoals } from '../tests/MyGoals'
+import { SeasonProfileCard } from '../tests/SeasonProfileCard'
+import { WeekendSummary } from '../performance/WeekendSummary'
 import { FatigueBody } from '../wellness/FatigueBody'
 import { fatiguePercent } from '../wellness/fatigue'
 import { useWellnessDay } from '../wellness/useWellness'
@@ -17,7 +19,7 @@ import { Loading } from '../../components/ui/Loading'
 
 const shortDay = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', timeZone: 'UTC' })
 
-// Accueil : résumé de la semaine (fatigue, charge, musculation, à venir, objectifs)
+// Accueil : résumé de la semaine (fatigue, charge, musculation, à venir), dernier match, profil de saison et objectifs
 export function HomeTab() {
   const { playerId, today } = usePlayerDay()
   // Les blocs apparaissent l'un après l'autre (une fois ; coupé si l'appareil demande moins d'animations)
@@ -29,7 +31,9 @@ export function HomeTab() {
       <div {...rise(1)}><TodoToday playerId={playerId} today={today} /></div>
       <div {...rise(2)}><MyWeek playerId={playerId} date={today} footer={<MuscuWeek playerId={playerId} today={today} />} /></div>
       <div {...rise(3)}><Upcoming playerId={playerId} today={today} /></div>
-      <div {...rise(4)}><MyGoals playerId={playerId} date={today} /></div>
+      <div {...rise(4)}><WeekendSummary playerId={playerId} /></div>
+      <div {...rise(5)}><SeasonProfileCard playerId={playerId} date={today} /></div>
+      <div {...rise(6)}><MyGoals playerId={playerId} date={today} /></div>
     </>
   )
 }

@@ -25,3 +25,16 @@ export function useTargets(playerId: string, season: string) {
     },
   })
 }
+
+// Profil de saison (PPID) affiché au joueur : jamais l'objectif santé, donnée réservée au staff à l'écran
+export function useSeasonProfile(playerId: string, season: string) {
+  return useQuery({
+    queryKey: ['seasonProfile', playerId, season],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('player_season_profiles')
+        .select('profile_type, main_objective, power_to_develop').eq('player_id', playerId).eq('season', season).maybeSingle()
+      if (error) throw error
+      return data
+    },
+  })
+}

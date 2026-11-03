@@ -11,15 +11,13 @@ export type RatingColor = GpsColor | 'gris'
 // Couleur selon le nombre d'attendus remplis (distance totale, distance HI, accélérations) : 0 → rouge … 3 → bleu
 export const GPS_COLORS: GpsColor[] = ['rouge', 'jaune', 'vert', 'bleu']
 
-// Couleur GPS (attendus remplis) : libellés de niveau, utilisés par les écrans et rapports GPS
 export const RATING_COLORS: RatingColor[] = [...GPS_COLORS, 'gris']
-export const COLOR_LABEL: Record<RatingColor, string> = {
-  rouge: 'En dessous du niveau', jaune: 'Niveau moyen', vert: 'Bon niveau Crabos', bleu: 'A dominé le niveau', gris: 'Pas évaluable',
-}
 // Note de match (joueur et coach), indépendante des GPS (décisions du 02/11 et du 03/11/2026 : rouge et gris renommés)
 export const RATING_LABEL: Record<RatingColor, string> = {
   gris: 'Pas évaluable', rouge: 'Pas au niveau attendu', jaune: 'Match moyen', vert: 'Bon match', bleu: 'Très bon match',
 }
+// Couleur GPS (attendus remplis) : même barème et mêmes libellés que la note de match (demande du 03/11/2026)
+export const COLOR_LABEL = RATING_LABEL
 
 // Poste saisi (export GPS ou fiche joueur) → groupe de poste du référentiel ; null si poste inconnu (à ajouter par le staff)
 export const positionGroup = (position: string | null, positions: Map<string, string>) =>

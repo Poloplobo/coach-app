@@ -7,14 +7,14 @@ import { Card } from '../../components/ui/Card'
 import { Kpi } from '../../components/ui/Kpi'
 import { ViewSelect } from '../../components/ui/ViewSelect'
 import { BRAND } from '../../lib/brand'
-import { parisDate } from '../../lib/week'
+import { addDays, parisDate } from '../../lib/week'
 import { pct } from '../../lib/format'
 import { PILLAR_LABEL, downloadWeek, weekEnd } from './exportWeek'
 import {
-  DAY_NAMES, STATUS_TONE, dailySynthesis, fullName, pillarSplit, rangeLabel, rpeMatrix, weekMatrix, weekOf,
-  type MatrixRow, type Pillar, type WeekType,
+  DAY_NAMES, STATUS_TONE, dailySynthesis, fullName, hotSessions, pillarSplit, rangeLabel, rpeMatrix, weekMatrix, weekOf, weekPace,
+  type Heat, type MatrixRow, type Pillar, type WeekType,
 } from './load'
-import { useAllLogs, useReference, useRoster } from './useStaff'
+import { useAllLogs, useAllPlan, useReference, useRoster } from './useStaff'
 import { Loading } from '../../components/ui/Loading'
 
 // Un tableau à la fois : le résumé du coach d'abord, le détail sur demande
@@ -40,6 +40,7 @@ export function WeekView() {
   const weeks = ref.data?.weeks ?? []
   const week = weeks.find(w => w.code === code) ?? weekOf(weeks, parisDate())
   const logs = useAllLogs(week?.start_date ?? '', week ? weekEnd(week) : '')
+  const plan = useAllPlan(week?.start_date ?? '', week ? weekEnd(week) : '')
 
   if (ref.isPending || roster.isPending || (week && logs.isPending)) return <Loading />
   if (ref.isError || roster.isError || logs.isError) return <p>Impossible de charger la semaine.</p>
@@ -49,6 +50,11 @@ export function WeekView() {
   const weekLogs = logs.data ?? []
   const m = weekMatrix(roster.data, weekLogs, week.start_date, wt, { inProgress: weekEnd(week) >= parisDate() })
   const types = ref.data.types
+  // Seuils de charge (0030) : séances au-dessus du seuil de leur activité, et rythme de la semaine en cours selon le planning
+  const alerts: Alerts = new Map(m.rows.map(r => [r.player.id, {
+    hot: hotSessions(weekLogs.filter(l => l.player_id === r.player.id), types),
+    pace: m.inProgress ? weekPace(r.player, r.total, plan.data ?? [], parisDate(), wt) : null,
+  }]))
   // Export au clic ; module absent (hors ligne, ou onglet resté ouvert après une mise à jour) : message plutôt qu'un bouton muet
   const run = async (kind: 'pptx' | 'xlsx', task: () => Promise<void>) => {
     setExporting(kind)
@@ -84,8 +90,8 @@ export function WeekView() {
 
 
       <div className="flex flex-col gap-8">
-      {tab === 'resume' && <CoachSummary m={m} wt={wt} code={week.code} pillars={pillarSplit(weekLogs, types, wt)} />}
-      {tab === 'charge' && <LoadTable m={m} />}
+      {tab === 'resume' && <CoachSummary m={m} wt={wt} code={week.code} pillars={pillarSplit(weekLogs, types, wt)} alerts={alerts} />}
+      {tab === 'charge' && <LoadTable m={m} alerts={alerts} weekStart={week.start_date} />}
       {tab === 'rpe' && <RpeTable data={rpeMatrix(roster.data, weekLogs, week.start_date)} />}
       {tab === 'jours' && (
         <Card title="Synthèse collective jour par jour" help="Pour chaque jour : combien de joueurs ont déclaré, durée et charge moyennes. UA/min : intensité moyenne de la journée.">
@@ -106,7 +112,11 @@ export function WeekView() {
 }
 
 // LE tableau du coach : charges vs cible, joueurs hors plage bien visibles, répartition de l'activité
-function CoachSummary({ m, wt, code, pillars }: { m: ReturnType<typeof weekMatrix>; wt: WeekType | null; code: string; pillars: ReturnType<typeof pillarSplit> }) {
+type Alerts = Map<string, { hot: ReturnType<typeof hotSessions>; pace: ReturnType<typeof weekPace> }>
+const HEAT_CELL: Record<Heat, string> = { warn: 'bg-gold/20 font-semibold', bad: 'bg-rnr/25 font-semibold text-rnr' }
+const shortDay = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-FR', { weekday: 'short', timeZone: 'UTC' })
+
+function CoachSummary({ m, wt, code, pillars, alerts }: { m: ReturnType<typeof weekMatrix>; wt: WeekType | null; code: string; pillars: ReturnType<typeof pillarSplit>; alerts: Alerts }) {
   const bars = [...m.rows].sort((a, b) => b.total - a.total).map(r => ({
     name: fullName(r.player), total: r.total,
     color: r.player.injured || !r.status ? BRAND.muted : STATUS_COLOR[r.status],
@@ -114,6 +124,9 @@ function CoachSummary({ m, wt, code, pillars }: { m: ReturnType<typeof weekMatri
   const under = m.anomalies.filter(r => r.status === 'sous-charge')
   const over = m.anomalies.filter(r => r.status === 'surcharge')
   const injured = m.rows.filter(r => r.player.injured)
+  const ahead = m.rows.filter(r => alerts.get(r.player.id)?.pace?.over)
+  const hot = m.rows.flatMap(r => (alerts.get(r.player.id)?.hot ?? []).map(h => ({ ...h, player: r.player })))
+    .sort((a, b) => b.srpe / b.max - a.srpe / a.max)
   const shownPillars = pillars.filter(p => p.pct > 0)
 
   const verdict = m.groupStatus ? { 'sous-charge': 'en sous-charge', conforme: 'dans la plage visée', surcharge: 'en surcharge' }[m.groupStatus] : null
@@ -154,6 +167,27 @@ function CoachSummary({ m, wt, code, pillars }: { m: ReturnType<typeof weekMatri
         </div>
 
         <div className="flex flex-col gap-4">
+          <Card title="Charge trop haute" help="Rythme : charge du joueur comparée au haut de la plage de la semaine, au prorata du planning déjà passé. Séances : au-dessus du seuil de leur activité (Programmation › Seuils de charge), orange puis rouge au-delà de 1,25 × le seuil.">
+            {m.inProgress && (ahead.length
+              ? <Group title={`Au-dessus du rythme de la semaine (${ahead.length})`} rows={ahead} tone="bad"
+                  detail={r => { const p = alerts.get(r.player.id)!.pace!; return `${r.total} UA pour ${p.limit} au rythme (${p.share} % du planning passé)` }} />
+              : <p className="text-sm text-ok">Aucun joueur au-dessus du rythme de la semaine.</p>)}
+            {hot.length > 0 ? (
+              <div>
+                <p className="text-sm font-semibold">Séances au-dessus du seuil ({hot.length})</p>
+                <ul className="mt-1 flex flex-col gap-1 text-sm">
+                  {hot.slice(0, 8).map((h, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <Badge tone={h.heat}>{h.srpe} UA</Badge>
+                      <span><Link to={`/staff/joueur/${h.player.id}`} className="font-semibold hover:underline">{fullName(h.player)}</Link> · {shortDay(h.date)} · {h.name} <span className="text-ink/60">(seuil {h.max})</span></span>
+                    </li>
+                  ))}
+                  {hot.length > 8 && <li className="text-ink/60">… et {hot.length - 8} autre{hot.length - 8 > 1 ? 's' : ''} (onglet « Charge par joueur »)</li>}
+                </ul>
+              </div>
+            ) : <p className="text-sm text-ok">Aucune séance au-dessus du seuil de son activité.</p>}
+          </Card>
+
           <Card title="Joueurs hors plage" help="Joueurs aptes dont la charge de la semaine sort de la plage visée. Un nom ouvre sa fiche.">
             {m.inProgress && <p className="text-sm text-ink/70">Semaine en cours : la liste se remplit une fois la semaine terminée.</p>}
             <Group title={`En sous-charge (${under.length})`} rows={under} tone="warn" />
@@ -193,7 +227,7 @@ function CoachSummary({ m, wt, code, pillars }: { m: ReturnType<typeof weekMatri
   )
 }
 
-function Group({ title, rows, tone }: { title: string; rows: MatrixRow[]; tone: 'warn' | 'bad' | 'neutral' }) {
+function Group({ title, rows, tone, detail }: { title: string; rows: MatrixRow[]; tone: 'warn' | 'bad' | 'neutral'; detail?: (r: MatrixRow) => string }) {
   if (!rows.length) return null
   return (
     <div>
@@ -202,7 +236,7 @@ function Group({ title, rows, tone }: { title: string; rows: MatrixRow[]; tone: 
         {rows.map(r => (
           <li key={r.player.id}>
             <Link to={`/staff/joueur/${r.player.id}`} className="hover:underline">
-              <Badge tone={tone}>{fullName(r.player)} · {r.total} UA · {pct(r.pct)}</Badge>
+              <Badge tone={tone}>{fullName(r.player)} · {detail ? detail(r) : `${r.total} UA · ${pct(r.pct)}`}</Badge>
             </Link>
           </li>
         ))}
@@ -211,9 +245,9 @@ function Group({ title, rows, tone }: { title: string; rows: MatrixRow[]; tone: 
   )
 }
 
-function LoadTable({ m }: { m: ReturnType<typeof weekMatrix> }) {
+function LoadTable({ m, alerts, weekStart }: { m: ReturnType<typeof weekMatrix>; alerts: Alerts; weekStart: string }) {
   return (
-    <Card title="Charge par joueur" help="Charge (sRPE = RPE × minutes) jour par jour et sur la semaine. % cible : total ÷ charge visée. vs groupe : écart à la moyenne des joueurs aptes.">
+    <Card title="Charge par joueur" help="Charge (sRPE = RPE × minutes) jour par jour et sur la semaine. Case orange ou rouge : une séance du jour dépasse le seuil de son activité (survol : le détail). % cible : total ÷ charge visée. Rythme (semaine en cours) : total ÷ charge au rythme du planning, au haut de la plage. vs groupe : écart à la moyenne des joueurs aptes.">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="text-left text-ink/60">
@@ -221,7 +255,8 @@ function LoadTable({ m }: { m: ReturnType<typeof weekMatrix> }) {
               <th className="py-2 pr-3 font-normal">Joueur</th><th className="pr-3 font-normal">Séances</th>
               {DAY_NAMES.map(d => <th key={d} className="pr-3 font-normal text-right">{d.slice(0, 3)}</th>)}
               <th className="pr-3 font-normal text-right">Total</th><th className="pr-3 font-normal text-right">% cible</th>
-              <th className="pr-3 font-normal text-right">Écart</th><th className="pr-3 font-normal text-right">vs groupe</th><th className="font-normal">Statut</th>
+              <th className="pr-3 font-normal text-right">Écart</th><th className="pr-3 font-normal text-right">vs groupe</th>
+              {m.inProgress && <th className="pr-3 font-normal text-right">Rythme</th>}<th className="font-normal">Statut</th>
             </tr>
           </thead>
           <tbody>
@@ -229,18 +264,33 @@ function LoadTable({ m }: { m: ReturnType<typeof weekMatrix> }) {
               <tr key={r.player.id} className="border-t border-line">
                 <td className="py-2 pr-3"><Link to={`/staff/joueur/${r.player.id}`} className="font-semibold hover:underline">{fullName(r.player)}</Link></td>
                 <td className="pr-3">{r.sessions}</td>
-                {r.byDay.map((v, i) => <td key={i} className="pr-3 text-right">{v || '—'}</td>)}
+                {r.byDay.map((v, i) => {
+                  const day = (alerts.get(r.player.id)?.hot ?? []).filter(h => h.date === addDays(weekStart, i))
+                  const heat: Heat | null = day.some(h => h.heat === 'bad') ? 'bad' : day.length ? 'warn' : null
+                  return (
+                    <td key={i} className={`pr-3 text-right ${heat ? `${HEAT_CELL[heat]} rounded` : ''}`}
+                      title={day.map(h => `${h.name} : ${h.srpe} UA (seuil ${h.max})`).join('\n') || undefined}>
+                      {v || '—'}{heat && <span className="sr-only"> (au-dessus du seuil : {day.map(h => h.name).join(', ')})</span>}
+                    </td>
+                  )
+                })}
                 <td className="pr-3 text-right font-semibold">{r.total}</td>
                 <td className="pr-3 text-right">{pct(r.pct)}</td>
                 <td className="pr-3 text-right">{r.gap > 0 ? '+' : ''}{r.gap}</td>
                 <td className="pr-3 text-right">{pct(r.vsGroupPct, true)}</td>
+                {m.inProgress && (() => {
+                  const p = alerts.get(r.player.id)?.pace
+                  return <td className="pr-3 text-right" title={p ? `${r.total} UA pour ${p.limit} au rythme (${p.share} % du planning passé)` : 'Pas de haut de plage ou pas de planning'}>
+                    {!p ? '—' : p.over ? <Badge tone="bad">{pct(p.pct ?? 0)}</Badge> : pct(p.pct ?? 0)}
+                  </td>
+                })()}
                 <td>{r.player.injured ? <Badge tone="neutral">blessé</Badge> : r.status ? <Badge tone={STATUS_TONE[r.status]}>{r.status}</Badge> : m.inProgress ? <Badge tone="neutral">en cours</Badge> : '—'}</td>
               </tr>
             ))}
             <tr className="border-t-2 border-line font-semibold">
               <td className="py-2 pr-3">Moyenne du groupe (aptes)</td><td />
               {m.dayMeans.map((v, i) => <td key={i} className="pr-3 text-right">{v || '—'}</td>)}
-              <td className="pr-3 text-right">{m.groupMean}</td><td className="pr-3 text-right">{pct(m.groupPct)}</td><td colSpan={3} />
+              <td className="pr-3 text-right">{m.groupMean}</td><td className="pr-3 text-right">{pct(m.groupPct)}</td><td colSpan={m.inProgress ? 4 : 3} />
             </tr>
           </tbody>
         </table>

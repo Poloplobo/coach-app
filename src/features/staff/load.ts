@@ -5,7 +5,7 @@ import { MUSCULATION } from '../rpe/activities'
 import { WELLNESS_ITEMS, type WellnessKey } from '../wellness/items'
 
 export type Pillar = 'rugby' | 'physique' | 'accompagnement' | 'ppid'
-export type ActivityType = { id: string; name: string; pillar: Pillar; requires_rpe: boolean; default_duration_min?: number | null }
+export type ActivityType = { id: string; name: string; pillar: Pillar; requires_rpe: boolean; default_duration_min?: number | null; max_srpe?: number | null }
 export type Log = {
   player_id: string; session_date: string; activity_type_id: string | null
   duration_min: number; rpe: number | null; srpe: number | null; source: string; created_at: string; validated_at?: string | null
@@ -85,6 +85,46 @@ export function weekMatrix(players: Player[], weekLogs: Log[], weekStart: string
     // Anomalies : hors plage, blessés exclus des alertes (leur charge réduite est attendue)
     anomalies: fit.filter(r => r.status && r.status !== 'conforme'),
   }
+}
+
+// ---------- Seuils de charge (0030) ----------
+
+export type Heat = 'warn' | 'bad'
+export const OVER_FACTOR = 1.25 // rouge au-delà de 1,25 × le seuil de l'activité
+
+// Une séance au-dessus du seuil de son activité : orange, puis rouge au-delà de 1,25 × le seuil ; pas de seuil : rien
+export function overLoad(srpe: number, max: number | null | undefined): Heat | null {
+  if (!max || srpe <= max) return null
+  return srpe > max * OVER_FACTOR ? 'bad' : 'warn'
+}
+
+// Séances d'un joueur au-dessus du seuil de leur activité, la plus chaude d'abord
+export function hotSessions(playerLogs: Log[], types: ActivityType[]) {
+  return playerLogs.flatMap(l => {
+    const type = types.find(t => t.id === l.activity_type_id)
+    const heat = overLoad(srpeOf(l), type?.max_srpe)
+    return heat && type ? [{ date: l.session_date, name: type.name, srpe: srpeOf(l), max: type.max_srpe!, heat }] : []
+  }).sort((a, b) => b.srpe / b.max - a.srpe / a.max)
+}
+
+export type PlanItem = {
+  player_id: string | null; session_date: string; planned_duration_min?: number | null
+  activity_types?: { default_duration_min?: number | null } | null
+}
+
+// Rythme de la semaine en cours : la part du planning déjà passée (minutes prévues jusqu'à aujourd'hui inclus) fixe la
+// charge « au rythme » ; au-dessus du haut de la plage à ce rythme, le joueur est trop haut pour le moment de la semaine.
+// Séances du groupe (player_id nul) pour les aptes, plus ses séances individuelles. Pas de plan ou pas de haut de plage
+// (semaine DEV) : null.
+export function weekPace(player: Player, total: number, plan: PlanItem[], today: string, wt: Pick<WeekType, 'srpe_max'> | null) {
+  if (!wt?.srpe_max) return null
+  const mine = plan.filter(s => (s.player_id === null ? !player.injured : s.player_id === player.id))
+  const minutes = (s: PlanItem) => s.planned_duration_min ?? s.activity_types?.default_duration_min ?? 0
+  const all = mine.reduce((n, s) => n + minutes(s), 0)
+  if (!all) return null
+  const share = mine.filter(s => s.session_date <= today).reduce((n, s) => n + minutes(s), 0) / all
+  const limit = Math.round(wt.srpe_max * share)
+  return { share: round(100 * share), limit, over: total > limit, pct: limit > 0 ? round((100 * total) / limit) : null }
 }
 
 // ---------- RPE moyen de la semaine (activités avec RPE seulement : vidéo, kiné, récup exclues) ----------

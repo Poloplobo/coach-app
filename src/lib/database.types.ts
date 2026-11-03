@@ -43,6 +43,7 @@ export type Database = {
         Row: {
           default_duration_min: number | null
           id: string
+          max_srpe: number | null
           name: string
           pillar: Database["public"]["Enums"]["per_pillar"]
           requires_rpe: boolean
@@ -50,6 +51,7 @@ export type Database = {
         Insert: {
           default_duration_min?: number | null
           id?: string
+          max_srpe?: number | null
           name: string
           pillar: Database["public"]["Enums"]["per_pillar"]
           requires_rpe?: boolean
@@ -57,6 +59,7 @@ export type Database = {
         Update: {
           default_duration_min?: number | null
           id?: string
+          max_srpe?: number | null
           name?: string
           pillar?: Database["public"]["Enums"]["per_pillar"]
           requires_rpe?: boolean

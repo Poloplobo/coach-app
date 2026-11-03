@@ -4,12 +4,14 @@ import { WeeksPanel } from './WeeksPanel'
 import { GroupPlanPanel } from './GroupPlanPanel'
 import { MuscuEditor } from './MuscuEditor'
 import { ImportPanel } from './ImportPanel'
+import { ThresholdsPanel } from './ThresholdsPanel'
 
 const VIEWS = [
   { id: 'semaines', label: 'Semaines et duplication' },
   { id: 'planning', label: 'Planning du groupe' },
   { id: 'muscu', label: 'Séance de musculation' },
   { id: 'import', label: 'Import d\'un cycle' },
+  { id: 'seuils', label: 'Seuils de charge par activité' },
 ] as const
 type ViewId = (typeof VIEWS)[number]['id']
 
@@ -26,6 +28,7 @@ export function ProgrammingView() {
         {view === 'planning' && <GroupPlanPanel />}
         {view === 'muscu' && <MuscuEditor />}
         {view === 'import' && <ImportPanel />}
+        {view === 'seuils' && <ThresholdsPanel />}
       </div>
     </>
   )

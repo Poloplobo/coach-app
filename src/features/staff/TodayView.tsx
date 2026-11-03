@@ -7,14 +7,14 @@ import { Loading } from '../../components/ui/Loading'
 import { ViewSelect } from '../../components/ui/ViewSelect'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { BRAND } from '../../lib/brand'
-import { addDays, formatDay } from '../../lib/week'
+import { addDays, formatDay, isoWeekStart } from '../../lib/week'
 import { useParisToday } from '../../lib/useParisToday'
 import { useProfile, useUserId } from '../auth/useAuth'
 import { StatCard } from './StatCard'
 import { fatiguePercent, postureOf } from '../wellness/fatigue'
 import { WELLNESS_ITEMS } from '../wellness/items'
-import { fullName, itemValue, latecomers, reminderMessage, wellnessAlerts } from './load'
-import { useAllLogs, useAllPlan, useAllWellness, usePushEnabled, useRemind, useReminders, useRoster } from './useStaff'
+import { fullName, hotSessions, itemValue, latecomers, reminderMessage, weekOf, weekPace, wellnessAlerts } from './load'
+import { useAllLogs, useAllPlan, useAllWellness, usePushEnabled, useReference, useRemind, useReminders, useRoster } from './useStaff'
 
 // Seules les réponses moyennes ou mauvaises ressortent : l'œil va droit aux problèmes
 const itemLook = (v: number) => (v >= 4 ? 'text-ink/45' : v === 3 ? 'text-gold font-semibold' : 'text-rnr font-bold')
@@ -39,10 +39,22 @@ export function TodayView() {
   const plan = useAllPlan(yesterday, yesterday)
   const reminded = useReminders(yesterday)
   const push = usePushEnabled()
+  // Charge de la semaine en cours : seuils par activité et rythme selon le planning (0030)
+  const monday = isoWeekStart(today)
+  const ref = useReference()
+  const weekLogs = useAllLogs(monday, today)
+  const weekPlan = useAllPlan(monday, addDays(monday, 6))
   const [filter, setFilter] = useState<Filter>('tous')
 
   if (roster.isPending || wellness.isPending || logs.isPending || plan.isPending) return <Loading />
   if (roster.isError || wellness.isError || logs.isError || plan.isError) return <p>Impossible de charger les données du jour.</p>
+  const wt = ref.data ? ref.data.weekTypes.find(t => t.code === weekOf(ref.data.weeks, today)?.week_type_code) ?? null : null
+  const load = (p: (typeof roster.data)[number]) => {
+    if (!weekLogs.data || !ref.data) return null
+    const own = weekLogs.data.filter(l => l.player_id === p.id)
+    const total = Math.round(own.reduce((n, l) => n + Number(l.srpe ?? 0), 0))
+    return { total, pace: weekPace(p, total, weekPlan.data ?? [], today, wt), hot: hotSessions(own.filter(l => l.session_date >= yesterday), ref.data.types) }
+  }
 
   const todayW = wellness.data.filter(w => w.entry_date === today)
   const byPlayer = new Map(todayW.map(w => [w.player_id, w]))
@@ -116,6 +128,7 @@ export function TodayView() {
                   <th className="pr-3 font-normal">Score</th>
                   {WELLNESS_ITEMS.map(i => <th key={i.key} className="px-1 text-center font-normal">{SHORT[i.key] ?? i.label}</th>)}
                   <th className="pl-2 font-normal">Alerte</th>
+                  <th className="pl-2 font-normal" title="Charge de la semaine en cours ; rouge : au-dessus du rythme de la semaine (haut de la plage au prorata du planning passé). En dessous : séances d'hier ou d'aujourd'hui au-dessus du seuil de leur activité.">Charge sem.</th>
                   <th className="pl-2 font-normal" title="Notification du matin activée sur son téléphone">Rappel activé</th>
                 </tr>
               </thead>
@@ -145,6 +158,7 @@ export function TodayView() {
                         return <td key={i.key} className={`px-1 text-center tabular-nums ${v !== null ? itemLook(v) : 'text-ink/30'}`}>{v ?? '·'}</td>
                       })}
                       <td className="pl-2 text-xs font-semibold text-rnr" title={alerts.join(' · ')}><span className="block max-w-40 truncate">{alerts.length ? (alerts.length > 1 ? `${alerts.length} alertes` : alerts[0]) : ''}</span></td>
+                      <td className="pl-2 text-xs"><LoadCell load={load(player)} /></td>
                       <td className="pl-2 text-xs">{push.isError ? <span className="text-ink/45">?</span> : push.data?.has(player.id) ? <span className="text-ok">oui</span> : <span className="text-ink/45">non</span>}</td>
                     </tr>
                   )
@@ -205,6 +219,24 @@ export function TodayView() {
         </div>
       </div>
     </>
+  )
+}
+
+// Charge de la semaine : total, rythme (rouge si au-dessus), séances d'hier / aujourd'hui au-dessus du seuil de leur activité
+function LoadCell({ load }: { load: { total: number; pace: ReturnType<typeof weekPace>; hot: ReturnType<typeof hotSessions> } | null }) {
+  if (!load) return <span className="text-ink/45">…</span>
+  const { total, pace, hot } = load
+  return (
+    <span className="flex flex-col gap-0.5 whitespace-nowrap">
+      <span title={pace ? `${total} UA pour ${pace.limit} au rythme de la semaine (${pace.share} % du planning passé)` : undefined}>
+        {pace?.over ? <Badge tone="bad">{total} UA · {pace.pct} % du rythme</Badge> : <span className="tabular-nums">{total} UA</span>}
+      </span>
+      {hot.map((h, i) => (
+        <span key={i} className={h.heat === 'bad' ? 'font-semibold text-rnr' : 'font-semibold text-gold'} title={`Seuil ${h.name} : ${h.max} UA`}>
+          {h.name} {h.srpe} UA
+        </span>
+      ))}
+    </span>
   )
 }
 

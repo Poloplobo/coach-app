@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  acwr, rpeMatrix, dailySynthesis, latecomers, loadStatus, pctOfTarget, pillarSplit, playerDays, reminderMessage, weekMatrix, wellnessAlerts,
+  acwr, hotSessions, overLoad, rpeMatrix, dailySynthesis, latecomers, weekPace, loadStatus, pctOfTarget, pillarSplit, playerDays, reminderMessage, weekMatrix, wellnessAlerts,
   type ActivityType, type Log, type Player, type WeekType,
 } from './load'
 
@@ -158,4 +158,37 @@ it('rpeMatrix : RPE moyen par jour et sur la semaine, activités sans RPE ignor�
   expect(r.rows[0]).toMatchObject({ byDay: [6, null, 9, null, null, null, null], week: 7.5 })
   expect(r.groupByDay[0]).toBe(6)
   expect(r.groupWeek).toBe(7.5)
+})
+
+describe('seuils de charge par activité', () => {
+  it('overLoad : rien sous le seuil ou sans seuil, orange au-dessus, rouge au-delà de 1,25 ×', () => {
+    expect([overLoad(480, 480), overLoad(490, 480), overLoad(600, 480), overLoad(601, 480), overLoad(900, null)]).toEqual([null, 'warn', 'warn', 'bad', null])
+  })
+  it('hotSessions : séances au-dessus du seuil de leur activité, la plus chaude d\'abord', () => {
+    const t = [{ ...types[0], max_srpe: 480 }, { ...types[1], max_srpe: 200 }, types[2]]
+    const logs = [log('a', '2026-11-02', 'muscu', 70, 7), log('a', '2026-11-02', 'poste', 60, 4), log('a', '2026-11-03', 'poste', 60, 5), log('a', '2026-11-03', 'video', 20, null)]
+    expect(hotSessions(logs, t).map(h => [h.name, h.srpe, h.heat])).toEqual([['Jeu au Poste', 300, 'bad'], ['Jeu au Poste', 240, 'warn'], ['Musculation', 490, 'warn']])
+  })
+})
+
+describe('weekPace : rythme de la semaine selon le planning', () => {
+  const plan = [
+    { player_id: null, session_date: '2026-11-02', planned_duration_min: 60 },
+    { player_id: null, session_date: '2026-11-03', planned_duration_min: 60 },
+    { player_id: null, session_date: '2026-11-04', activity_types: { default_duration_min: 90 } },
+    { player_id: 'a', session_date: '2026-11-02', planned_duration_min: 70 },
+    { player_id: 'b', session_date: '2026-11-05', planned_duration_min: 500 }, // séance d'un autre joueur : ignorée
+    { player_id: null, session_date: '2026-11-06', planned_duration_min: 70 },
+  ]
+  const COMP = { srpe_max: 2500 }
+  it('part du planning passée × haut de la plage ; au-dessus : trop haut pour le moment de la semaine', () => {
+    // a : 190 min prévues jusqu'à mardi sur 350 → 54 % → limite 1357
+    expect(weekPace(player('a'), 1060, plan, '2026-11-03', COMP)).toEqual({ share: 54, limit: 1357, over: false, pct: 78 })
+    expect(weekPace(player('a'), 1400, plan, '2026-11-03', COMP)?.over).toBe(true)
+  })
+  it('blessé : seulement ses séances individuelles ; semaine sans haut de plage (DEV) ou sans planning : rien', () => {
+    expect(weekPace(player('a', true), 600, plan, '2026-11-03', COMP)).toMatchObject({ share: 100, limit: 2500 })
+    expect(weekPace(player('a'), 1060, plan, '2026-11-03', { srpe_max: null })).toBeNull()
+    expect(weekPace(player('c'), 100, [], '2026-11-03', COMP)).toBeNull()
+  })
 })

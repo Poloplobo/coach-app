@@ -78,6 +78,27 @@ const tests = [{ test_id: 'dc', test_date: '2026-09-20', value: 92, test_definit
 const targets = [{ test_id: 'dc', target_value: 100, label: null, test_definitions: def('Développé couché 1RM', 'kg') },
   { test_id: 's10', target_value: 1.75, label: null, test_definitions: def('Sprint 10 m', 's', false) }]
 
+// Performance : 6 matchs passés, GPS de 20 joueurs, référentiel des postes, notes du coach et des joueurs
+import { readdirSync } from 'node:fs'
+const LOGOS = readdirSync(new URL('../../public/logos-clubs/', import.meta.url)).slice(0, 6)
+const matches = ['R92', 'USON Nevers', 'Stade Français', 'Lyon OU', 'Clermont', 'Toulon'].map((opponent, i) => ({
+  id: `g${i}`, match_date: addDays(TODAY, -7 * (6 - i) - 1), opponent, label: `J${i + 1}`, home: i % 2 === 0, logo: LOGOS[i] ?? null }))
+const GPOS = [['PILIER', 'Avants', 4970, 10, 15], ['TALONNEUR', 'Avants', 5300, 40, 18], ['2EME LIGNE', 'Avants', 5400, 60, 16], ['3EME LIGNE', 'Avants', 5900, 150, 20],
+  ['DEMI DE MELEE', 'Demis', 6100, 220, 24], ['OUVREUR', 'Demis', 6000, 200, 20], ['CENTRE', 'Trois-quarts', 5800, 300, 22], ['AILIER', 'Trois-quarts', 5600, 400, 20], ['ARRIERE', 'Trois-quarts', 6000, 380, 21]]
+const gpsRef = GPOS.map(([p, , d, h, a]) => ({ position_group: p, distance_m: d, hi_distance_m: h, accelerations: a, ref_minutes: 70 }))
+const gpsPos = GPOS.map(([p]) => ({ position: p, position_group: p }))
+const gpsRecs = matches.flatMap((m, mi) => roster.slice(0, 20).map((p, i) => {
+  const [pos, , d, h, a] = GPOS[i % GPOS.length]; const minutes = i > 16 ? 12 + Math.round(rnd() * 20) : 45 + Math.round(rnd() * 25); const k = (0.8 + rnd() * 0.45 + mi * 0.01) * minutes / 70
+  return { match_id: m.id, player_id: p.id, position: pos, minutes, distance_m: Math.round(d * k), hi_distance_m: Math.round(h * k * (0.7 + rnd() * 0.7)), accelerations: Math.round(a * k), vmax: Math.round((26 + rnd() * 8) * 10) / 10 }
+}))
+const RC = ['rouge', 'jaune', 'vert', 'bleu']
+const ratings = matches.slice(0, 5).flatMap((m, mi) => roster.slice(0, 18).flatMap((p, i) => {
+  const out = []
+  if (mi < 4 || i < 10) out.push({ match_id: m.id, player_id: p.id, rater: 'staff', color: i === 17 ? 'gris' : RC[Math.floor(rnd() * 4)], comment: i % 5 === 0 ? 'Bon engagement en défense, à confirmer.' : null, minutes: i === 17 ? 0 : 40 + Math.round(rnd() * 30) })
+  if (rnd() > 0.35) out.push({ match_id: m.id, player_id: p.id, rater: 'player', color: RC[Math.floor(rnd() * 4)], comment: null, minutes: null })
+  return out
+}))
+
 // Filtres PostgREST utilisés par l'app : eq / gte / lte / in
 function filtered(rows, params) {
   return rows.filter(r => [...params.entries()].every(([k, v]) => {
@@ -108,6 +129,11 @@ function table(name, url) {
     case 'groups': return [{ id: 'g1', name: 'Pôle Espoir' }, { id: 'g2', name: 'Crabos' }]
     case 'exercises': return ['Squat arrière', 'Développé couché', 'Gainage latéral', 'Tirage vertical'].map((name, i) => ({ id: `x${i}`, name }))
     case 'test_definitions': return tests.map(t => ({ id: t.test_id, ...t.test_definitions }))
+    case 'matches': return matches.slice().reverse()
+    case 'gps_records': return gpsRecs
+    case 'gps_reference': return gpsRef
+    case 'gps_positions': return gpsPos
+    case 'match_ratings': return ratings
     default: return []
   }
 }
@@ -135,7 +161,14 @@ const page = await ctx.newPage()
 const heights = {}
 const shot = async name => { await page.waitForTimeout(400); await page.screenshot({ path: `${out}/staff-${theme}-${width}-${name}.png`, fullPage: true }) }
 const open = async path => { await page.goto(`http://localhost:5199${path}`); await page.waitForLoadState('networkidle'); await page.waitForTimeout(1500) }
-if (only === 'prog') {
+if (only === 'perf') {
+  const cap = async name => { await page.waitForTimeout(1300); heights[name] = await page.evaluate(() => document.documentElement.scrollHeight); await shot(name) }
+  await open('/staff/performance')
+  await page.getByRole('tab', { name: 'GPS' }).click(); await cap('perf-gps')
+  await page.getByRole('tab', { name: 'Match' }).click(); await cap('perf-saison')
+  await page.getByLabel('Afficher').selectOption('notes'); await cap('perf-matchs')
+  await page.getByRole('button', { name: /Voir et modifier|Noter/ }).first().click(); await cap('perf-noter')
+} else if (only === 'prog') {
   await open('/staff/programmation')
   for (const v of ['semaines', 'planning', 'muscu', 'import']) {
     await page.getByLabel('Afficher').selectOption(v); await page.waitForTimeout(1200)

@@ -6,7 +6,8 @@ import { Area, AreaChart, ResponsiveContainer, Tooltip } from 'recharts'
 function useCountUp(target: number, ms = 700) {
   const [shown, setShown] = useState(0)
   useEffect(() => {
-    const dur = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : ms // 0 : valeur finale dès la 1re image
+    // 0 : valeur finale dès la 1re image ; matchMedia absent (tests, très vieux navigateur) : animation normale
+    const dur = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : ms
     let raf = 0
     const start = performance.now()
     const tick = (t: number) => {
@@ -25,11 +26,13 @@ type Props = {
   // écart avec la veille ; better : le sens qui est une bonne nouvelle (flèche verte), l'autre est rouge
   delta?: number | null; better?: 'up' | 'down'
   trend?: { day: string; value: number | null }[]; color: string; hint?: string; order?: number
+  deltaLabel?: string; decimals?: number // « vs hier » par défaut ; décimales affichées (ex. Vmax 33,9)
 }
 
 // Carte de chiffre clé : valeur, écart à la veille, tendance des 7 derniers jours (survol = valeur du jour)
-export function StatCard({ label, value, suffix = '', delta, better = 'up', trend, color, hint, order = 0 }: Props) {
-  const shown = useCountUp(value)
+export function StatCard({ label, value, suffix = '', delta, better = 'up', trend, color, hint, order = 0, deltaLabel = 'vs hier', decimals = 0 }: Props) {
+  const k = 10 ** decimals
+  const shown = (useCountUp(Math.round(value * k)) / k).toLocaleString('fr-FR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
   const good = delta != null && delta !== 0 && (delta > 0) === (better === 'up')
   const Arrow = (delta ?? 0) >= 0 ? ArrowUpRight : ArrowDownRight
   const gradient = `spark-${label.replace(/\W/g, '')}`
@@ -40,8 +43,8 @@ export function StatCard({ label, value, suffix = '', delta, better = 'up', tren
         <p className="font-display text-4xl font-semibold leading-none tabular-nums">{shown}<span className="text-xl text-ink/60">{suffix}</span></p>
         {delta != null && (
           <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${delta === 0 ? 'bg-field text-ink/60' : good ? 'bg-ok/15 text-ok' : 'bg-rnr/15 text-rnr'}`}
-            title="Écart avec hier">
-            {delta !== 0 && <Arrow size={14} aria-hidden="true" />}{delta > 0 ? '+' : ''}{delta} vs hier
+            title={`Écart ${deltaLabel}`}>
+            {delta !== 0 && <Arrow size={14} aria-hidden="true" />}{delta > 0 ? '+' : ''}{delta.toLocaleString('fr-FR')} {deltaLabel}
           </span>
         )}
       </div>

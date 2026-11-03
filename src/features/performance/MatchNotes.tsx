@@ -10,6 +10,7 @@ import { fullName } from '../staff/load'
 import { useRoster } from '../staff/useStaff'
 import { GPS_COLORS, RATING_COLORS, RATING_HEX, RATING_LABEL, RATING_SCORE, ratingSeason, type RatingColor } from './gps'
 import { ClubLogo, Coq, MatchColor } from './MatchColor'
+import { StatCard } from '../staff/StatCard'
 import { useMatches, useRateMatch, useRatings, type Match, type Rating } from './usePerformance'
 
 // Espace Match (staff) : tous les matchs joués avec leurs coqs ; un match choisi, une note et un commentaire par joueur.
@@ -28,25 +29,26 @@ export function MatchNotes() {
 
   if (match) return <MatchRating match={match} players={roster.data} ratings={ratings.data.filter(r => r.match_id === match.id)} onBack={() => setMatchId('')} />
   return (
-    <Card title="Matchs joués" help="Coqs donnés par le staff à chaque match. Choisis un match pour noter les joueurs (coq et commentaire).">
-      <ul className="flex flex-col divide-y divide-line">
-        {matches.data.map(m => {
+    <Card title="Matchs joués" help="Barre : coqs donnés par le coach. Choisis un match pour noter les joueurs (coq, temps de jeu, commentaire).">
+      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {matches.data.map((m, i) => {
           const staff = of(m.id, 'staff')
           return (
-            <li key={m.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2">
-              <ClubLogo match={m} />
-              <span className="min-w-56 font-semibold">{m.label ? `${m.label} · ` : ''}{m.opponent}
-                <span className="block text-xs font-normal text-ink/60">{formatDay(m.match_date)}{m.home === null ? '' : m.home ? ' · domicile' : ' · extérieur'}</span>
-              </span>
-              <span className="flex items-center gap-3 text-sm">
-                {RATING_COLORS.map(c => {
-                  const n = staff.filter(r => r.color === c).length
-                  return n ? <span key={c} className="flex items-center gap-1"><Coq color={c} />{n}</span> : null
-                })}
-                {!staff.length && <span className="text-ink/50">pas encore noté</span>}
-              </span>
-              <span className="text-xs text-ink/60">{of(m.id, 'player').length} joueur{of(m.id, 'player').length > 1 ? 's' : ''} noté{of(m.id, 'player').length > 1 ? 's' : ''}</span>
-              <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setMatchId(m.id)}>{staff.length ? 'Voir et modifier' : 'Noter'}</Button>
+            <li key={m.id} className="rise" style={{ animationDelay: `${i * 50}ms` }}>
+              <div className={`flex h-full flex-col gap-3 rounded-2xl bg-surface p-4 ring-1 ${staff.length ? 'ring-line/60' : 'ring-rnr/50'}`}>
+                <div className="flex items-center gap-3">
+                  <ClubLogo match={m} className="h-11 w-11" />
+                  <div className="min-w-0">
+                    <p className="truncate font-display text-xl font-semibold leading-tight">{m.label ? `${m.label} · ` : ''}{m.opponent}</p>
+                    <p className="text-xs text-ink/60 first-letter:uppercase">{formatDay(m.match_date)}{m.home === null ? '' : m.home ? ' · domicile' : ' · extérieur'}</p>
+                  </div>
+                </div>
+                <CoqBar ratings={staff} total={roster.data.length} />
+                <div className="mt-auto flex items-center justify-between gap-2">
+                  <span className="text-xs text-ink/60">{staff.length}/{roster.data.length} notés par le coach · {of(m.id, 'player').length} par les joueurs</span>
+                  <Button size="sm" variant={staff.length ? 'ghost' : 'primary'} onClick={() => setMatchId(m.id)}>{staff.length ? 'Voir et modifier' : 'Noter'}</Button>
+                </div>
+              </div>
             </li>
           )
         })}
@@ -55,13 +57,45 @@ export function MatchNotes() {
   )
 }
 
+// Répartition des coqs du coach : une barre empilée (taille = nombre de joueurs), le reste en gris clair = pas encore noté
+function CoqBar({ ratings, total }: { ratings: Rating[]; total: number }) {
+  if (!ratings.length) return <p className="text-sm text-ink/50">Pas encore noté.</p>
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex h-2.5 overflow-hidden rounded-full bg-field" role="img"
+        aria-label={RATING_COLORS.map(c => `${ratings.filter(r => r.color === c).length} ${RATING_LABEL[c].toLowerCase()}`).join(', ')}>
+        {RATING_COLORS.map(c => {
+          const n = ratings.filter(r => r.color === c).length
+          return n ? <span key={c} style={{ width: `${(100 * n) / Math.max(total, ratings.length)}%`, background: RATING_HEX[c] }} /> : null
+        })}
+      </div>
+      <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+        {RATING_COLORS.map(c => {
+          const n = ratings.filter(r => r.color === c).length
+          return n ? <span key={c} className="flex items-center gap-1" title={RATING_LABEL[c]}><Coq color={c} className="h-4 w-4" />{n}</span> : null
+        })}
+      </div>
+    </div>
+  )
+}
+
 type Player = { id: string; first_name: string; last_name: string }
 
 function MatchRating({ match, players, ratings, onBack }: { match: Match; players: Player[]; ratings: Rating[]; onBack: () => void }) {
+  const staff = ratings.filter(r => r.rater === 'staff')
+  const both = players.filter(p => ratings.some(r => r.player_id === p.id && r.rater === 'staff') && ratings.some(r => r.player_id === p.id && r.rater === 'player'))
+  const agree = both.filter(p => ratings.find(r => r.player_id === p.id && r.rater === 'staff')!.color === ratings.find(r => r.player_id === p.id && r.rater === 'player')!.color)
   return (
     <Card title={`${match.label ? `${match.label} · ` : ''}${match.opponent} — ${formatDay(match.match_date)}`}
-      help="Un coq et un commentaire par joueur ; enregistré joueur par joueur. Le joueur les découvre après avoir validé sa propre note."
+      help="Un coq, le temps de jeu et un commentaire par joueur, puis Enregistrer. Le joueur les découvre après avoir validé sa propre note."
       aside={<Button size="sm" variant="ghost" onClick={onBack}>← Tous les matchs</Button>}>
+      <div className="grid gap-4 rounded-xl bg-field p-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
+        <CoqBar ratings={staff} total={players.length} />
+        <p className="text-sm"><strong className="font-display text-2xl tabular-nums">{staff.length}/{players.length}</strong> <span className="text-ink/60">notés</span></p>
+        <p className="text-sm" title="Joueurs notés par eux-mêmes et par le coach : même coq">
+          <strong className="font-display text-2xl tabular-nums">{both.length ? `${agree.length}/${both.length}` : '—'}</strong> <span className="text-ink/60">d'accord avec le joueur</span>
+        </p>
+      </div>
       <ul className="flex flex-col divide-y divide-line">
         {players.map(p => (
           <PlayerRating key={p.id} matchId={match.id} player={p} name={fullName(p)} ariaName={fullName(p)}
@@ -85,28 +119,34 @@ function PlayerRating({ matchId, player, name, ariaName, own, staff }: { matchId
   const coherent = playTime === null || !color || (color === 'gris') === (playTime === 0)
   const changed = color !== (staff?.color ?? null) || comment.trim() !== (staff?.comment ?? '') || playTime !== (staff?.minutes ?? null)
   return (
-    <li className="flex flex-col gap-2 py-3 lg:flex-row lg:items-start lg:gap-4">
-      <div className="lg:w-56">
-        <p className="font-semibold">{name}</p>
+    // Une ligne par joueur : nom et sa note | 5 coqs (libellé du coq choisi) | temps de jeu | commentaire | Enregistrer
+    <li className="flex flex-col gap-2 py-2.5 xl:grid xl:grid-cols-[16rem_auto_5.5rem_minmax(0,1fr)_auto] xl:items-center xl:gap-4">
+      <div className="min-w-0">
+        <p className="truncate font-semibold">{name}</p>
         <p className="text-xs text-ink/60">Sa note : {own ? <MatchColor color={own.color} label={RATING_LABEL[own.color]} /> : 'pas encore notée'}</p>
       </div>
-      <div role="radiogroup" aria-label={`Note du coach : ${ariaName}`} className="flex flex-wrap gap-1.5">
-        {RATING_COLORS.map(c => (
-          <button key={c} type="button" role="radio" aria-checked={color === c} onClick={() => { setColor(c); if (c === 'gris') setMinutes('0') }} title={RATING_LABEL[c]}
-            className={`flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs font-semibold ${color === c ? 'border-ink bg-field' : 'border-line opacity-70'}`}>
-            <Coq color={c} className="h-6 w-6" />{RATING_LABEL[c]}
-          </button>
-        ))}
+      <div className="flex items-center gap-2">
+        <div role="radiogroup" aria-label={`Note du coach : ${ariaName}`} className="flex gap-1">
+          {RATING_COLORS.map(c => (
+            <button key={c} type="button" role="radio" aria-checked={color === c} aria-label={RATING_LABEL[c]} title={RATING_LABEL[c]}
+              onClick={() => { setColor(c); if (c === 'gris') setMinutes('0') }}
+              className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition-transform active:scale-95 ${color === c ? 'scale-110 bg-field' : 'border-transparent opacity-45 hover:opacity-100'}`}
+              style={color === c ? { borderColor: RATING_HEX[c] } : undefined}>
+              <Coq color={c} className="h-6 w-6" />
+            </button>
+          ))}
+        </div>
+        <span className="w-28 text-xs font-semibold leading-tight" style={color ? { color: RATING_HEX[color] } : undefined}>{color ? RATING_LABEL[color] : <span className="font-normal text-ink/40">Choisir un coq</span>}</span>
       </div>
-      <label className="flex flex-col gap-1 text-xs text-ink/70">
-        Temps de jeu (min)
+      <label className="flex items-center gap-2 text-xs text-ink/70 xl:flex-col xl:items-start xl:gap-0.5">
+        <span className="xl:sr-only">Temps de jeu (min)</span>
         <input type="number" inputMode="numeric" min={0} max={120} value={minutes} onChange={e => setMinutes(e.target.validity.badInput ? 'x' : e.target.value)}
-          aria-invalid={!validTime} className="w-20 rounded-lg bg-field border border-line px-2 py-1.5 text-base text-ink" />
+          aria-invalid={!validTime} placeholder="min" className="w-20 rounded-lg bg-field border border-line px-2 py-1.5 text-base text-ink" />
       </label>
-      <label className="flex min-w-60 flex-1 flex-col gap-1 text-sm">
+      <label className="flex min-w-0 flex-col text-sm">
         <span className="sr-only">Commentaire : {ariaName}</span>
-        <textarea value={comment} rows={2} maxLength={500} onChange={e => setComment(e.target.value)} placeholder="Commentaire (facultatif)"
-          className="rounded-lg bg-field border border-line px-3 py-2 text-base" />
+        <textarea value={comment} rows={1} maxLength={500} onChange={e => setComment(e.target.value)} placeholder="Commentaire (facultatif)"
+          className="min-h-10 resize-y rounded-lg bg-field border border-line px-3 py-2 text-base" />
       </label>
       <div className="flex items-center gap-2">
         <Button size="sm" disabled={!color || !changed || !validTime || !coherent || rate.isPending}
@@ -140,6 +180,11 @@ export function PlayerSeason() {
   const timed = season.filter(s => s.minutes)
   const total = timed.reduce((n, s) => n + (s.minutes ?? 0), 0)
   const label = (score: number) => RATING_LABEL[GPS_COLORS.find(c => RATING_SCORE[c] === score)!]
+  // Cartes : note moyenne du coach (1 à 4) et accord coach / joueur sur les matchs notés par les deux
+  const scored = season.filter(s => s.staff != null)
+  const meanScore = scored.length ? scored.reduce((n, s) => n + s.staff!, 0) / scored.length : null
+  const both = season.filter(s => s.staffColor && s.playerColor)
+  const agree = both.filter(s => s.staffColor === s.playerColor).length
   const colorDot = (key: 'staffColor' | 'playerColor', hollow: boolean) => (props: { cx?: number; cy?: number; index?: number }) => {
     const c = season[props.index ?? -1]?.[key]
     if (!c || c === 'gris' || props.cx == null || props.cy == null) return <g key={`${key}-${props.index}`} />
@@ -152,6 +197,15 @@ export function PlayerSeason() {
       <ViewSelect label="Joueur" value={player.id} onChange={setPlayerId}>
         {roster.data.map(p => <option key={p.id} value={p.id}>{fullName(p)}</option>)}
       </ViewSelect>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard order={1} label="Matchs joués" value={played.length} suffix={` / ${season.length}`} color={BRAND.muted} hint="Matchs avec un coq du coach (hors « n'a pas joué »)." />
+        <StatCard order={2} label="Temps de jeu moyen" value={timed.length ? Math.round(total / timed.length) : 0} suffix=" min" color={BRAND.ok}
+          trend={season.map(s => ({ day: s.name, value: s.minutes }))} />
+        <StatCard order={3} decimals={1} label="Note moyenne du coach" value={meanScore ?? 0} suffix=" / 4" color={BRAND.gold}
+          trend={season.map(s => ({ day: s.name, value: s.staff }))} hint={meanScore === null ? 'Pas encore noté.' : undefined} />
+        <StatCard order={4} label="D'accord avec le joueur" value={both.length ? Math.round((100 * agree) / both.length) : 0} suffix=" %" color={BRAND.blue}
+          hint={both.length ? `${agree} match${agree > 1 ? 's' : ''} sur ${both.length} notés par les deux.` : 'Aucun match noté par les deux.'} />
+      </div>
       <Card title={`${fullName(player)} — notes de la saison`}
         help="Point plein : note du coach. Rond vide : note du joueur. La couleur du point est celle du coq ; « n'a pas joué » ne figure pas sur la courbe.">
         <p className="text-sm">

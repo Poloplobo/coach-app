@@ -129,10 +129,18 @@ describe('wellnessAlerts', () => {
 
 describe('latecomers', () => {
   const today = '2026-10-27'
-  const plan = [{ player_id: null, session_date: '2026-10-26' }]
+  const plan = [{ player_id: null, session_date: '2026-10-26', activity_type_id: 'poste' }]
   it('forme du jour non remplie, RPE de la veille manquant alors que le groupe s\'entraînait', () => {
-    const late = latecomers([player('a'), player('b')], [{ player_id: 'b' }], plan, [{ player_id: 'b', session_date: '2026-10-26' }], today)
+    const late = latecomers([player('a'), player('b')], [{ player_id: 'b' }], plan, [{ player_id: 'b', session_date: '2026-10-26', activity_type_id: 'poste' }], today)
     expect(late.map(l => [l.player.id, l.missing])).toEqual([['a', ['état de forme du jour', "RPE d'hier"]]])
+  })
+  it('veille partielle : une activité prévue non déclarée ou une muscu non validée relance', () => {
+    const day = '2026-10-26'
+    const both = [{ player_id: null, session_date: day, activity_type_id: 'poste' }, { player_id: 'a', session_date: day, activity_type_id: 'muscu', activity_types: { name: 'Musculation' } }]
+    const w = [{ player_id: 'a' }]
+    expect(latecomers([player('a')], w, both, [{ player_id: 'a', session_date: day, activity_type_id: 'poste' }], today)[0]?.missing).toEqual(["RPE d'hier"])
+    expect(latecomers([player('a')], w, both, [{ player_id: 'a', session_date: day, activity_type_id: 'poste' }, { player_id: 'a', session_date: day, activity_type_id: 'muscu', validated_at: null }], today)[0]?.missing).toEqual(["RPE d'hier"])
+    expect(latecomers([player('a')], w, both, [{ player_id: 'a', session_date: day, activity_type_id: 'poste' }, { player_id: 'a', session_date: day, activity_type_id: 'muscu', validated_at: '2026-10-26T19:00:00Z' }], today)).toEqual([])
   })
   it('joueur blessé : pas relancé pour les séances du groupe', () => {
     expect(latecomers([player('c', true)], [{ player_id: 'c' }], plan, [], today)).toEqual([])

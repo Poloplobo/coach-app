@@ -6,7 +6,7 @@ import { type DayActivity } from './activities'
 import { RpePicker } from './RpePicker'
 import { useSaveLog } from './useRpe'
 
-type Log = { duration_min: number; rpe: number | null; srpe: number | null; validated_at: string | null }
+type Log = { duration_min: number; rpe: number | null; srpe: number | null; validated_at: string | null; source?: string }
 
 export function ActivityRow({ playerId, date, activity, log, onRemove }: {
   playerId: string; date: string; activity: DayActivity; log?: Log; onRemove?: () => void
@@ -30,8 +30,9 @@ export function ActivityRow({ playerId, date, activity, log, onRemove }: {
           </p>
           <SavedFlash shown={flash} />
         </div>
-        {/* une séance validée est verrouillée ; sinon modifiable toute la journée */}
-        {!log.validated_at && <Button variant="quiet" onClick={() => setEditing(true)}>Modifier</Button>}
+        {/* une séance validée ou corrigée par le staff est verrouillée ; sinon modifiable toute la journée */}
+        {log.source && log.source !== 'app' && <span className="text-xs text-ink/60">saisi par le staff</span>}
+        {!log.validated_at && (!log.source || log.source === 'app') && <Button variant="quiet" onClick={() => setEditing(true)}>Modifier</Button>}
       </li>
     )
   }
@@ -55,7 +56,7 @@ export function ActivityRow({ playerId, date, activity, log, onRemove }: {
         />
         min
       </label>
-      {save.isError && <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">Enregistrement impossible, réessaie.</p>}
+      {save.isError && <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">{(save.error as { code?: string } | null)?.code === '42501' ? 'Délai dépassé : ce jour n\'est plus modifiable, demande au staff.' : 'Enregistrement impossible, réessaie.'}</p>}
       <div className="flex gap-2">
         <Button className="flex-1" onClick={submit} disabled={save.isPending || !validDuration || (activity.requiresRpe && rpe === null)}>
           {save.isPending ? 'Enregistrement…' : activity.requiresRpe ? 'Enregistrer' : 'J\'y étais'}

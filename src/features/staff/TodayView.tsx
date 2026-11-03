@@ -7,7 +7,8 @@ import { Loading } from '../../components/ui/Loading'
 import { ViewSelect } from '../../components/ui/ViewSelect'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { BRAND } from '../../lib/brand'
-import { addDays, formatDay, parisDate } from '../../lib/week'
+import { addDays, formatDay } from '../../lib/week'
+import { useParisToday } from '../../lib/useParisToday'
 import { useProfile, useUserId } from '../auth/useAuth'
 import { StatCard } from './StatCard'
 import { fatiguePercent, postureOf } from '../wellness/fatigue'
@@ -29,7 +30,7 @@ const LEVELS = [
 const shortDay = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', timeZone: 'UTC' })
 
 export function TodayView() {
-  const today = parisDate()
+  const today = useParisToday() // écran resté ouvert après minuit : « hier » suit
   const yesterday = addDays(today, -1)
   const roster = useRoster()
   const me = useProfile(useUserId())

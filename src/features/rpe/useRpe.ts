@@ -46,7 +46,7 @@ export function useLogsRange(playerId: string, from: string, to: string) {
     queryKey: ['sessionLogs', playerId, from, to],
     queryFn: async () => {
       const { data, error } = await supabase.from('session_logs')
-        .select('id, session_date, activity_type_id, planned_session_id, duration_min, rpe, srpe, validated_at')
+        .select('id, session_date, activity_type_id, planned_session_id, duration_min, rpe, srpe, validated_at, source')
         .eq('player_id', playerId).gte('session_date', from).lte('session_date', to)
       if (error) throw error
       return data

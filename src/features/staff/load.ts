@@ -1,13 +1,14 @@
 // Calculs du tableau de bord staff, calqués sur les onglets TABLEAU_DE_BORD et SUIVI_INDIVIDUEL du classeur PER.
 // Fonctions pures : la vue, l'export Excel et les tests utilisent exactement les mêmes chiffres.
 import { addDays } from '../../lib/week'
+import { MUSCULATION } from '../rpe/activities'
 import { WELLNESS_ITEMS, type WellnessKey } from '../wellness/items'
 
 export type Pillar = 'rugby' | 'physique' | 'accompagnement' | 'ppid'
 export type ActivityType = { id: string; name: string; pillar: Pillar; requires_rpe: boolean; default_duration_min?: number | null }
 export type Log = {
   player_id: string; session_date: string; activity_type_id: string | null
-  duration_min: number; rpe: number | null; srpe: number | null; source: string; created_at: string
+  duration_min: number; rpe: number | null; srpe: number | null; source: string; created_at: string; validated_at?: string | null
 }
 export type WeekType = {
   code: string; name: string; target_srpe: number; srpe_min: number | null; srpe_max: number | null
@@ -198,16 +199,22 @@ export function wellnessAlerts(w: WellnessScores): string[] {
 
 // Qui relancer : état de forme du jour non rempli ; RPE manquant la veille alors qu'une activité était prévue
 export function latecomers(
-  players: Player[], wellnessToday: { player_id: string }[], plan: { player_id: string | null; session_date: string }[],
-  logs: Pick<Log, 'player_id' | 'session_date'>[], today: string,
+  players: Player[], wellnessToday: { player_id: string }[],
+  plan: { player_id: string | null; session_date: string; activity_type_id?: string | null; activity_types?: { name: string } | null }[],
+  logs: Pick<Log, 'player_id' | 'session_date' | 'activity_type_id' | 'validated_at'>[], today: string,
 ) {
   const yesterday = addDays(today, -1)
   const filled = new Set(wellnessToday.map(w => w.player_id))
   return players.flatMap(p => {
     const missing: string[] = []
     if (!filled.has(p.id)) missing.push('état de forme du jour')
-    const plannedYesterday = plan.some(s => s.session_date === yesterday && (s.player_id === null ? !p.injured : s.player_id === p.id))
-    if (plannedYesterday && !logs.some(l => l.player_id === p.id && l.session_date === yesterday)) missing.push('RPE d\'hier')
+    // Une activité prévue hier sans déclaration (ou une muscu non validée) suffit : la veille partiellement remplie se relance aussi
+    const pendingYesterday = plan.some(s => {
+      if (s.session_date !== yesterday || (s.player_id === null ? p.injured : s.player_id !== p.id)) return false
+      const l = logs.find(x => x.player_id === p.id && x.session_date === yesterday && x.activity_type_id === s.activity_type_id)
+      return !l || (s.activity_types?.name === MUSCULATION && !l.validated_at)
+    })
+    if (pendingYesterday) missing.push('RPE d\'hier')
     return missing.length ? [{ player: p, missing }] : []
   })
 }

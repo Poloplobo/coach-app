@@ -1,25 +1,15 @@
-import { useEffect, useState } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { TabLink } from '../../components/ui/TabLink'
 import { Activity, Dumbbell, HeartPulse, House, Lock, Settings, Users, type LucideIcon } from 'lucide-react'
 import { Loading } from '../../components/ui/Loading'
-import { formatDay, parisDate } from '../../lib/week'
+import { formatDay } from '../../lib/week'
+import { useParisToday } from '../../lib/useParisToday'
 import { useProfile, useUserId } from '../auth/useAuth'
 import { useWellnessDay } from '../wellness/useWellness'
 import { TABS, isTabLocked, type PlayerDay } from './playerDay'
 
 const ICON: Record<string, LucideIcon> = {
   '/joueur': House, '/joueur/seance': Dumbbell, '/joueur/rugby': Users, '/joueur/performance': Activity, '/joueur/forme': HeartPulse, '/joueur/reglages': Settings,
-}
-
-// Le jour de saisie suit l'heure de Paris, même si l'app reste ouverte après minuit
-function useParisToday() {
-  const [today, setToday] = useState(parisDate)
-  useEffect(() => {
-    const id = setInterval(() => setToday(parisDate()), 60_000)
-    return () => clearInterval(id)
-  }, [])
-  return today
 }
 
 export function PlayerLayout() {

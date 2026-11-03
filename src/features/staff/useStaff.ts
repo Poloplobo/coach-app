@@ -39,7 +39,7 @@ export function useReference() {
 export function useAllLogs(from: string, to: string, playerId?: string) {
   return useQuery({
     ...query(['staff', 'logs', from, to, playerId ?? 'all'], (): Promise<Log[]> => fetchAll((a, b) => {
-      let q = supabase.from('session_logs').select('player_id, session_date, activity_type_id, duration_min, rpe, srpe, source, created_at')
+      let q = supabase.from('session_logs').select('player_id, session_date, activity_type_id, duration_min, rpe, srpe, source, created_at, validated_at')
         .gte('session_date', from).lte('session_date', to)
       if (playerId) q = q.eq('player_id', playerId)
       return q.order('id').range(a, b)
@@ -60,7 +60,7 @@ export function useAllWellness(from: string, to: string, playerId?: string) {
 
 export function useAllPlan(from: string, to: string) {
   return useQuery(query(['staff', 'plan', from, to], async () => check(await supabase.from('planned_sessions')
-    .select('player_id, session_date').gte('session_date', from).lte('session_date', to))))
+    .select('player_id, session_date, activity_type_id, activity_types(name)').gte('session_date', from).lte('session_date', to))))
 }
 
 export function useAvailabilityDetail(playerId: string) {

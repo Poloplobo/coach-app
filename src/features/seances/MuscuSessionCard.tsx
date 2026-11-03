@@ -24,6 +24,7 @@ export function MuscuSessionCard({ playerId, date, catchUp = false }: { playerId
   const [duration, setDuration] = useState('')
   const [finishing, setFinishing] = useState(false) // 2e étape : effort de la séance et validation
 
+  if (catchUp && (program.isPending || logs.isPending || types.isPending)) return null
   if (program.isPending || logs.isPending || types.isPending) return <Card title="Musculation"><Loading /></Card>
   if (program.isError || logs.isError || types.isError) return <Card title="Musculation"><p>Impossible de charger ton programme.</p></Card>
 
@@ -37,7 +38,7 @@ export function MuscuSessionCard({ playerId, date, catchUp = false }: { playerId
       {Array.from({ length: 7 }, (_, i) => addDays(from, i)).map((d, i) => {
         const s = program.data.find(x => x.session_date === d)
         const done = s && validated.has(s.id), isToday = d === date
-        const label = !s ? 'pas de musculation' : done ? `séance faite (${completion(s.planned_exercises).done}/${s.planned_exercises.length})` : d < date ? 'séance non validée' : isToday ? "séance d'aujourd'hui" : 'séance à venir'
+        const label = !s ? 'pas de musculation' : done ? `séance faite (${completion(s.planned_exercises).done}/${s.planned_exercises.length})` : d < date ? 'séance non validée' : isToday ? (catchUp ? "séance d'hier à remplir" : "séance d'aujourd'hui") : 'séance à venir'
         return (
           <li key={d} aria-label={`${formatDay(d)} : ${label}`}
             className={`flex h-12 flex-col items-center justify-center rounded-lg text-xs font-display font-semibold ${
@@ -124,7 +125,9 @@ export function MuscuSessionCard({ playerId, date, catchUp = false }: { playerId
           </label>
           <p className="text-xs text-ink/60">Une fois validée, la séance ne peut plus être modifiée. Les exercices sans réponse seront notés « non fait ».</p>
           {validate.isError && (
-            <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">Enregistrement impossible, réessaie.</p>
+            <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">
+              {(validate.error as { code?: string } | null)?.code === '42501' ? 'Délai dépassé : cette séance n\'est plus modifiable, demande au staff.' : 'Enregistrement impossible, réessaie.'}
+            </p>
           )}
           <ConfirmButton confirmLabel="Confirmer : la séance sera verrouillée" disabled={sessionEffort === null || !validDuration || validate.isPending}
             onClick={() => validate.mutate({

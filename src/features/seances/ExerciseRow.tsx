@@ -92,7 +92,7 @@ export function ExerciseRow({ playerId, exercise, editable }: { playerId: string
             <input value={comment} onChange={e => setComment(e.target.value)} placeholder="ex. douleur, manque de temps"
               className="rounded-lg bg-field border border-line px-3 py-2 text-base" />
           </label>
-          {save.isError && <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">Enregistrement impossible, réessaie.</p>}
+          {save.isError && <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">{(save.error as { code?: string } | null)?.code === '42501' ? 'Délai dépassé : cette séance n\'est plus modifiable, demande au staff.' : 'Enregistrement impossible, réessaie.'}</p>}
           <div className="flex gap-2">
             <Button className="flex-1" onClick={submit} disabled={save.isPending}>{save.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>
             {saved?.status && <Button variant="quiet" onClick={() => setEditing(false)}>Annuler</Button>}

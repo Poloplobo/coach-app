@@ -1,5 +1,6 @@
 // Import de l'export brut du GPS d'un match (une ligne par joueur : POSTE, NOM, KM Total, DHI, Accélération, Vmax,
-// Temps (min), GPS, Joueurs). Lu dans le navigateur ; xlsx chargé seulement à l'import.
+// Temps (min), GPS, Joueurs), ou de l'onglet « Données » du classeur GPS - MATCH (plusieurs matchs, colonne Match
+// « J1 - R92 » : seules les lignes de la journée choisie sont lues). Lu dans le navigateur ; xlsx chargé seulement à l'import.
 import * as XLSX from 'xlsx'
 import { nameKey } from '../../lib/names'
 
@@ -14,18 +15,35 @@ const num = (v: unknown) => {
   return String(v ?? '').trim() === '' || !Number.isFinite(n) ? null : n
 }
 
-export function readGps(data: ArrayBuffer, ctx: { players: Player[]; positions: Map<string, string> }): GpsPreview {
+// Journée de la colonne Match : « J1 - R92 » → « J1 »
+const dayOf = (v: unknown) => String(v ?? '').trim().split(/\s*-\s*/)[0].toUpperCase()
+
+export function readGps(data: ArrayBuffer, ctx: { players: Player[]; positions: Map<string, string> }, label: string | null = null): GpsPreview {
   const wb = XLSX.read(data)
   const errors: string[] = []
-  // L'onglet du match : celui dont une ligne contient « POSTE » et « NOM »
+  // Les onglets de match : ceux dont une ligne contient « POSTE » et « NOM » ; avec une colonne Match, plusieurs matchs
   const found = wb.SheetNames.map(name => {
     const all = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[name], { header: 1, defval: '' })
-    return { name, all, h: all.findIndex(r => r.some(c => /^poste$/i.test(String(c).trim())) && r.some(c => /^nom$/i.test(String(c).trim()))) }
+    const h = all.findIndex(r => r.some(c => /^poste$/i.test(String(c).trim())) && r.some(c => /^nom$/i.test(String(c).trim())))
+    return { name, all, h, match: h < 0 ? -1 : all[h].findIndex(c => /^match$/i.test(String(c).trim())) }
   }).filter(s => s.h >= 0)
-  if (found.length !== 1) {
-    return { sheet: '', rows: [], errors: [found.length ? `Plusieurs onglets de match (${found.map(f => f.name).join(', ')}) : un match par fichier.` : 'En-tête « POSTE | NOM | KM Total… » introuvable : est-ce bien l\'export GPS du match ?'] }
+  const day = label?.trim().toUpperCase()
+  // Classeur avec un onglet Données : seules ses lignes de la journée comptent (un onglet d'export à côté, ex. « R92 (1) »,
+  // appartient à un autre match et serait importé sous le mauvais)
+  const multi = found.find(f => f.match >= 0)
+  const history = multi && day && multi.all.slice(multi.h + 1).some(r => dayOf(r[multi.match]) === day) ? multi : null
+  const exports = found.filter(f => f.match < 0)
+  if (multi && !history) {
+    return { sheet: '', rows: [], errors: [`Aucune ligne « ${label?.trim() || 'de journée'} » dans l'onglet « ${multi.name} »${day ? '' : ' : choisis un match du calendrier'}. Pour un nouveau match, importe l'export du GPS seul.`] }
   }
-  const { name: sheet, all, h } = found[0]
+  if (!history && exports.length !== 1) {
+    return { sheet: '', rows: [], errors: [exports.length > 1 ? `Plusieurs onglets de match (${exports.map(f => f.name).join(', ')}) : un match par fichier.`
+      : 'En-tête « POSTE | NOM | KM Total… » introuvable : est-ce bien l\'export GPS du match ?'] }
+  }
+  const src = history ?? exports[0]!
+  const sheet = history ? `${src.name} (${day})` : src.name
+  const { h } = src
+  const all = history ? [...src.all.slice(0, h + 1), ...src.all.slice(h + 1).filter(r => dayOf(r[src.match]) === day)] : src.all
   const head = all[h].map(c => String(c).trim())
   const col = (re: RegExp, label: string) => {
     const i = head.findIndex(c => re.test(c))
@@ -33,10 +51,10 @@ export function readGps(data: ArrayBuffer, ctx: { players: Player[]; positions: 
     return i
   }
   const c = {
-    position: col(/^poste$/i, 'POSTE'), name: col(/^nom$/i, 'NOM'), distance: col(/^km total/i, 'KM Total'),
-    hi: col(/^dhi/i, 'DHI'), accel: col(/^acc[ée]l[ée]ration/i, 'Accélération'), vmax: col(/^vmax/i, 'Vmax'), minutes: col(/^temps/i, 'Temps (min)'),
+    position: col(/^poste$/i, 'POSTE'), name: col(/^nom$/i, 'NOM'), distance: col(/^(km total|distance totale)/i, 'KM Total'),
+    hi: col(/^(dhi|distance hi)/i, 'DHI'), accel: col(/^acc[ée]l[ée]ration/i, 'Accélération'), vmax: col(/^vmax/i, 'Vmax'), minutes: col(/^temps/i, 'Temps (min)'),
   }
-  const full = head.findIndex(c => /^joueurs?$/i.test(c)) // « Prénom NOM », plus sûr que le seul nom de famille
+  const full = head.findIndex(c => /^(joueurs?|pr[ée]nom nom)$/i.test(c)) // « Prénom NOM », plus sûr que le seul nom de famille
   if (errors.length) return { sheet, rows: [], errors }
 
   const byFull = (name: string) => ctx.players.filter(p => [p.import_name ?? '', `${p.first_name} ${p.last_name}`].some(n => n && nameKey(n) === nameKey(name)))

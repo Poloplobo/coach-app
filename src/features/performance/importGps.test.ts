@@ -96,3 +96,22 @@ describe('readGps : export brut du GPS d\'un match', () => {
     expect(p.rows[0].distance_m).toBe(85)
   })
 })
+
+describe('readGps : onglet « Données » du classeur GPS - MATCH (plusieurs matchs)', () => {
+  const DATA = ['Match', 'Date', 'Adversaire', 'Nom', 'Poste', 'Temps (min)', 'Distance totale (m)', 'Distance HI >21 km/h (m)', 'Accélérations', 'Vmax (km/h)', 'Groupe de poste', 'Prénom NOM']
+  const book = file([['PILIER', 'MARTIN', 1, 1, 1, 20, 70, 3, 'Paul MARTIN']], { 'Données': [['Données GPS par match'], [], DATA,
+    ['J1 - R92', '', 'R92', 'MARTIN', 'PILIER', 40, 3310, 58, 10, 25.2, 'Pilier', 'Paul MARTIN'],
+    ['J2 - USON', '', 'USON', 'MARTIN', 'PILIER', 70, 4900, 120, 14, 26, 'Pilier', 'Paul MARTIN'],
+    ['J2 - USON', '', 'USON', 'DUPONT', 'CENTRE', 65, 5100, 300, 12, 29, 'Centre', 'Léo DUPONT']] })
+  it('lit seulement les lignes de la journée choisie, jamais l\'onglet d\'export voisin', () => {
+    const p = readGps(book, ctx, 'J2')
+    expect(p.errors).toEqual([])
+    expect(p.sheet).toBe('Données (J2)')
+    expect(p.rows.map(r => [r.player.id, r.minutes, r.distance_m, r.hi_distance_m, r.vmax])).toEqual([['a', 70, 4900, 120, 26], ['b', 65, 5100, 300, 29]])
+    expect(readGps(book, ctx, 'J1').rows.map(r => r.distance_m)).toEqual([3310])
+  })
+  it('journée absente ou non choisie : refusé (pas de repli sur l\'onglet d\'export)', () => {
+    expect(readGps(book, ctx, 'J3').errors[0]).toMatch(/Aucune ligne « J3 »/)
+    expect(readGps(book, ctx).errors[0]).toMatch(/choisis un match du calendrier/)
+  })
+})

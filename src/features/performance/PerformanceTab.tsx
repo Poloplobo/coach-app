@@ -86,7 +86,7 @@ export function PerformanceTab() {
 
           {reference.data && (
             <LastMatches report={playerReport({ player: { id: playerId, first_name: '', last_name: '' }, matches: matches.data!.slice(0, 3),
-              records: gps.data!, ratings: ratings.data!, ref: reference.data })} />
+              records: gps.data!, ref: reference.data })} />
           )}
 
           {/* Sans GPS sur ce match (8 boîtiers pour le groupe) : partie grisée, la note et les objectifs restent */}

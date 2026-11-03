@@ -8,7 +8,7 @@ import { fullName } from '../staff/load'
 import { useRoster } from '../staff/useStaff'
 import { GPS_COLORS, MIN_MINUTES, gpsAnalysis, positionGroup, vmaxTimeline, type GpsColor } from './gps'
 import { MatchColor } from './MatchColor'
-import { playerPhoto, useGpsRecords, useGpsReference, useMatches, useRatings } from './usePerformance'
+import { playerPhoto, useGpsRecords, useGpsReference, useMatches } from './usePerformance'
 
 // Espace GPS (staff) : GPS d'un match et couleur GPS de chaque joueur, rapports PowerPoint. Les notes de match sont dans
 // l'espace Match, sans lien avec les GPS (décision du 02/11/2026).
@@ -16,7 +16,6 @@ export function MatchBoard() {
   const matches = useMatches()
   const roster = useRoster()
   const gps = useGpsRecords()
-  const ratings = useRatings()
   const reference = useGpsReference()
   const [matchId, setMatchId] = useState('')
   const [exporting, setExporting] = useState<'match' | 'player' | 'team' | null>(null)
@@ -25,8 +24,8 @@ export function MatchBoard() {
   const [fromId, setFromId] = useState('')
   const [toId, setToId] = useState('')
 
-  if (matches.isPending || roster.isPending || gps.isPending || ratings.isPending || reference.isPending) return <Loading />
-  if (matches.isError || roster.isError || gps.isError || ratings.isError || reference.isError) return <p role="alert">Impossible de charger les matchs.</p>
+  if (matches.isPending || roster.isPending || gps.isPending || reference.isPending) return <Loading />
+  if (matches.isError || roster.isError || gps.isError || reference.isError) return <p role="alert">Impossible de charger les matchs.</p>
   const match = matches.data.find(m => m.id === matchId) ?? matches.data[0]
   if (!match) return <Card title="GPS"><p className="text-sm text-ink/70">Aucun match joué pour l'instant.</p></Card>
 
@@ -62,7 +61,7 @@ export function MatchBoard() {
         </ViewSelect>
         <Button variant="ghost" size="sm" disabled={!!exporting} onClick={() => run('match', async () => {
           const [{ matchReport }, { downloadMatchReport }] = await Promise.all([import('./report'), import('./exportPerformance')])
-          const r = matchReport({ match, players: roster.data, records: gps.data, ratings: ratings.data, ref: reference.data, allRecords: gps.data, matches: matches.data })
+          const r = matchReport({ match, players: roster.data, records: gps.data, ref: reference.data, allRecords: gps.data, matches: matches.data })
           await downloadMatchReport(r, match, `Match_${match.match_date}_${match.opponent.replace(/\W+/g, '-')}.pptx`)
         })}>{exporting === 'match' ? 'Préparation…' : 'Rendu équipe (PowerPoint)'}</Button>
       </div>
@@ -111,13 +110,13 @@ export function MatchBoard() {
           </ViewSelect>
           <Button size="sm" disabled={!!exporting || !player || !block.length} onClick={() => run('player', async () => {
             const [{ playerReport }, { downloadPlayerReport }] = await Promise.all([import('./report'), import('./exportPerformance')])
-            const r = playerReport({ player, matches: block, records: gps.data, ratings: ratings.data, ref: reference.data })
+            const r = playerReport({ player, matches: block, records: gps.data, ref: reference.data })
             const period = `${block.length} match${block.length > 1 ? 's' : ''} · ${formatDay(block[0].match_date)} → ${formatDay(block.at(-1)!.match_date)}`
             await downloadPlayerReport(r, player, period, `Bilan_GPS_${player.last_name}_${player.first_name}.pptx`, await playerPhoto(player.id))
           })}>{exporting === 'player' ? 'Préparation…' : 'Bilan individuel'}</Button>
           <Button variant="ghost" size="sm" disabled={!!exporting || !block.length} onClick={() => run('team', async () => {
             const [{ teamBlockReport }, { downloadTeamBlockReport }] = await Promise.all([import('./report'), import('./exportPerformance')])
-            const r = teamBlockReport({ matches: block, players: roster.data, records: gps.data, ratings: ratings.data, ref: reference.data })
+            const r = teamBlockReport({ matches: block, players: roster.data, records: gps.data, ref: reference.data })
             await downloadTeamBlockReport(r, `Bloc_${block[0].match_date}_${block.at(-1)!.match_date}.pptx`)
           })}>{exporting === 'team' ? 'Préparation…' : 'Collectif du bloc'}</Button>
         </div>

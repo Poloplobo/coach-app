@@ -1,7 +1,8 @@
 // PowerPoint Performance (étape 11g) : une diapo par rendu, lisible d'un coup d'œil.
 // - Rendu collectif d'un match : carte de chaleur des attendus GPS de tout l'effectif + répartition des couleurs.
 // - Rendu collectif d'un bloc de matchs : moyennes de chaque joueur, couleur du bloc, régularité match par match.
-// - Rendu individuel (un match, un bloc de matchs ou un cycle) : profil du joueur, jauges des attendus, évolution, regards croisés.
+// - Rendu individuel (un match, un bloc de matchs ou un cycle) : profil du joueur, jauges des attendus, évolution, couleur GPS match par match.
+// GPS seulement : les notes de match n'y figurent pas (espace Match, décision du 02/11/2026).
 // Même charte et mêmes briques que les extractions de charge (staff/exportPptx.ts) ; créés dans le navigateur.
 import type PptxGenJS from 'pptxgenjs'
 import { formatDay } from '../../lib/week'
@@ -44,13 +45,13 @@ export async function downloadMatchReport(r: ReturnType<typeof matchReport>, mat
   const top = 1.9, bottom = 6.35
   const rowH = Math.min(0.3, (bottom - top - 0.3) / Math.max(1, rows.length))
   const font = rowH < 0.22 ? 8 : 10
-  const col = { name: 0.6, pos: 2.85, min: 3.95, cells: 4.5, gps: 7.25, own: 8.05, staff: 8.75 }
+  const col = { name: 0.6, pos: 2.85, min: 3.95, cells: 4.5, gps: 7.75 }
   const cellW = 0.86
   const head = (t: string, x: number, w: number, align: 'left' | 'center' = 'center') =>
     s.addText(t, { x, y: top, w, h: 0.28, fontFace: FONT, fontSize: 9, color: C.muted, align, margin: 0, valign: 'bottom' })
   head('Joueur', col.name, 2.2, 'left'); head('Poste', col.pos, 1.05, 'left'); head('Min', col.min, 0.5)
   ;['Distance', 'Haute int.', 'Accél.'].forEach((t, i) => head(t, col.cells + i * (cellW + 0.05), cellW))
-  head('GPS', col.gps, 0.7); head('Joueur', col.own, 0.6); head('Staff', col.staff, 0.6)
+  head('Couleur GPS', col.gps, 1.2)
   if (!rows.length) empty(s, 'Aucun GPS importé pour ce match.')
   rows.forEach((x, i) => {
     const y = top + 0.32 + i * rowH, mid = y + rowH / 2
@@ -69,14 +70,13 @@ export async function downloadMatchReport(r: ReturnType<typeof matchReport>, mat
       text(v === null ? (j === 1 ? '< 20 min' : '') : `${v} %`, col.cells + j * (cellW + 0.05), cellW,
         { align: 'center', color: ok ? '1A1A1A' : C.soft, bold: ok })
     })
-    if (x.analysis) dot(s, pptx, col.gps + 0.35, mid, x.analysis.color)
-    else text('—', col.gps, 0.7, { align: 'center', color: C.muted })
-    dot(s, pptx, col.own + 0.3, mid, x.own); dot(s, pptx, col.staff + 0.3, mid, x.staff)
+    if (x.analysis) dot(s, pptx, col.gps + 0.6, mid, x.analysis.color)
+    else text('—', col.gps, 1.2, { align: 'center', color: C.muted })
   })
   if (missing.length) s.addText(`Sans GPS : ${missing.map(x => `${x.player.last_name} ${x.player.first_name}`).join(', ')}`,
     { x: 0.6, y: 6.38, w: 8.75, h: 0.28, fontFace: FONT, fontSize: 9, color: C.muted, margin: 0 })
 
-  // Colonne de droite : répartition des couleurs GPS, groupes de poste, regards croisés
+  // Colonne de droite : répartition des couleurs GPS, groupes de poste
   const px = 9.75, pw = 2.98
   s.addShape(pptx.ShapeType.roundRect, { x: px - 0.15, y: 1.85, w: pw + 0.3, h: 4.75, fill: { color: C.surface }, line: { color: C.surface }, rectRadius: 0.12 })
   s.addText([
@@ -94,9 +94,6 @@ export async function downloadMatchReport(r: ReturnType<typeof matchReport>, mat
     { text: 'Par groupe de poste', options: { bold: true, color: C.gold, fontSize: 12, breakLine: true } },
     ...(r.groups.length ? r.groups : []).map(g => ({ text: `${g.group} · ${n(g.filled)}/3 attendus · dist. ${pct(g.distance)}`, options: { color: C.soft, fontSize: 9, breakLine: true } })),
     ...(r.groups.length ? [] : [{ text: 'Aucun joueur analysé.', options: { color: C.muted, fontSize: 10, breakLine: true } }]),
-    { text: ' ', options: { fontSize: 6, breakLine: true } },
-    { text: 'Regards croisés', options: { bold: true, color: C.gold, fontSize: 12, breakLine: true } },
-    { text: r.bothRated ? `Joueur et staff d'accord sur ${r.agreement} joueur${r.agreement > 1 ? 's' : ''} sur ${r.bothRated}.` : 'Pas encore de match noté à la fois par le joueur et le staff.', options: { color: C.soft, fontSize: 10 } },
   ], { x: px, y: 4.2, w: pw, h: 2.35, fontFace: FONT, margin: 0, valign: 'top', paraSpaceAfter: 2 })
   if (r.rows.some(x => x.record_vmax)) s.addText('★ record de Vmax battu', { x: 6.9, y: 6.38, w: 2.45, h: 0.28, align: 'right', fontFace: FONT, fontSize: 9, color: C.gold, margin: 0 })
   scaleLegend(s, pptx, 0.6, 6.68, 2.2) // sous le tableau seulement : la colonne de droite descend jusqu'au pied
@@ -252,18 +249,18 @@ export async function downloadPlayerReport(r: ReturnType<typeof playerReport>, p
         catAxisLabelFontSize: 9, valAxisLabelFontSize: 8, showLegend: true, legendPos: 'b', legendFontSize: 8 })
   }
 
-  // Regards croisés : couleur GPS, note du joueur, note du staff, match par match
-  const rx = single ? gx : 9.95, rw = single ? gw : 2.78
-  s.addText('Regards croisés', { x: rx, y: 4.45, w: rw, h: 0.3, fontFace: FONT, fontSize: 11, bold: true, color: C.gold, margin: 0 })
-  const heads = ['GPS', 'Joueur', 'Staff']
-  heads.forEach((h, j) => s.addText(h, { x: rx + rw - 1.95 + j * 0.65, y: 4.78, w: 0.65, h: 0.25, align: 'center', fontFace: FONT, fontSize: 9, color: C.muted, margin: 0 }))
-  r.history.slice(-6).forEach((h, i) => {
-    const y = 5.05 + i * 0.3
-    s.addText(single ? 'Ce match' : (h.match.label ?? h.match.opponent), { x: rx, y, w: rw - 2, h: 0.28, fontFace: FONT, fontSize: 10, color: C.soft, margin: 0, valign: 'middle', fit: 'shrink' })
-    ;[h.analysis?.color ?? null, h.own, h.staff].forEach((c, j) => dot(s, pptx, rx + rw - 1.95 + j * 0.65 + 0.325, y + 0.14, c))
-  })
+  // Bloc : couleur GPS de chaque match (les 6 derniers) ; match seul : la couleur est déjà en grand à gauche
+  if (!single) {
+    const rx = 9.95, rw = 2.78
+    s.addText('Couleur GPS par match', { x: rx, y: 4.45, w: rw, h: 0.3, fontFace: FONT, fontSize: 11, bold: true, color: C.gold, margin: 0 })
+    r.history.slice(-6).forEach((h, i) => {
+      const y = 4.85 + i * 0.3
+      s.addText(h.match.label ?? h.match.opponent, { x: rx, y, w: rw - 0.7, h: 0.28, fontFace: FONT, fontSize: 10, color: C.soft, margin: 0, valign: 'middle', fit: 'shrink' })
+      dot(s, pptx, rx + rw - 0.35, y + 0.14, h.analysis?.color ?? null)
+    })
+  }
   if (single) {
-    // Match seul : les chiffres bruts en tuiles sous les regards croisés
+    // Match seul : les chiffres bruts en tuiles sous les jauges
     const rec = r.history[0].record
     const tiles: [string, string][] = rec ? [[n(rec.minutes), 'min jouées'], [n(rec.distance_m), 'm parcourus'], [n(rec.hi_distance_m), 'm à haute intensité'],
       [n(rec.accelerations), 'accélérations'], [rec.vmax ? n(rec.vmax) : '—', 'km/h Vmax']] : []

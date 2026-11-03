@@ -63,6 +63,7 @@ export function SettingsTab() {
 function MorningReminder({ className }: { className: string }) {
   const state = usePushState()
   const toggle = useTogglePush()
+  if (state.isError) return <p className={`${className} text-sm text-ink/60`}>Rappel du matin : réglage indisponible pour l'instant (connexion ?).</p>
   if (!state.data || state.data === 'unavailable') return null
   const on = state.data === 'on'
   const hint = state.data === 'install' ? 'Sur iPhone : installe d\'abord l\'app (Partager → « Sur l\'écran d\'accueil »), puis ouvre-la depuis l\'icône.'

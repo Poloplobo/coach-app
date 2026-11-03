@@ -12,8 +12,9 @@ self.addEventListener('notificationclick', event => {
   event.notification.close()
   const url = event.notification.data?.url || '/joueur/forme'
   event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
-    const open = list.find(c => 'focus' in c)
-    if (open) return open.navigate(url).then(c => (c || open).focus())
-    return self.clients.openWindow(url)
+    // fenêtre de l'app déjà ouverte : on y va ; sinon (ou si elle refuse) nouvelle fenêtre
+    const open = list.find(c => 'focus' in c && c.url.startsWith(self.registration.scope))
+    if (!open) return self.clients.openWindow(url)
+    return open.focus().then(c => c.navigate(url)).catch(() => self.clients.openWindow(url))
   }))
 })

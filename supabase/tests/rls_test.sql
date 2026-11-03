@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(145);
+select plan(146);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -484,6 +484,9 @@ select throws_ok($$insert into public.push_subscriptions (endpoint, player_id, p
                  '42501', null, 'B ne peut pas abonner A');
 select throws_ok($$insert into public.push_subscriptions (endpoint, p256dh, auth) values ('https://exemple.fr/espion', repeat('k', 40), repeat('a', 16))$$,
                  '23514', null, 'adresse hors services de notification refusée');
+select throws_ok($$insert into public.push_subscriptions (endpoint, p256dh, auth)
+                   select 'https://fcm.googleapis.com/fcm/send/lot-' || i, repeat('k', 40), repeat('a', 16) from generate_series(1, 5) i$$,
+                 'P0001', null, 'au plus 5 téléphones par joueur');
 select throws_ok($$select public.push_enabled_players()$$, '42501', null, 'un joueur ne voit pas qui a activé le rappel');
 select throws_ok($$select public.send_wellness_reminders()$$, '42501', null, 'un joueur ne déclenche pas l''envoi');
 

@@ -37,10 +37,25 @@ export function usePushState() {
   })
 }
 
+// Déconnexion : ce téléphone ne reçoit plus les rappels de ce joueur (un autre peut s'y connecter) ; au mieux, sans bloquer
+export async function unsubscribeThisDevice() {
+  try {
+    if (!supported()) return
+    // sans service worker actif (dev, navigateur qui l'a coupé), ready n'aboutit jamais : on n'attend pas plus de 2 s
+    const reg = await Promise.race([navigator.serviceWorker.ready, new Promise<null>(r => setTimeout(() => r(null), 2000))])
+    const sub = await reg?.pushManager.getSubscription()
+    if (!sub) return
+    await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint)
+    await sub.unsubscribe()
+  } catch { /* hors ligne : l'abonnement sera refusé puis retiré plus tard */ }
+}
+
 export function useTogglePush() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (on: boolean): Promise<PushState> => {
+      // iPhone : la demande d'autorisation doit partir directement du toucher, avant toute attente
+      const permission = on ? Notification.requestPermission() : null
       const reg = await navigator.serviceWorker.ready
       if (!on) {
         const sub = await reg.pushManager.getSubscription()
@@ -51,7 +66,7 @@ export function useTogglePush() {
         }
         return 'off'
       }
-      if (await Notification.requestPermission() !== 'granted') return 'denied'
+      if (await permission !== 'granted') return Notification.permission === 'denied' ? 'denied' : 'off' // fermé sans répondre : réessayable
       const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: toKey(KEY!) })
       await save(sub)
       return 'on'

@@ -1,3 +1,4 @@
+import { unsubscribeThisDevice } from '../settings/usePush'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabaseClient'
 import { toAuthEmail } from '../../lib/login'
@@ -71,6 +72,7 @@ export function useSignOut() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async () => {
+      await unsubscribeThisDevice()
       const { error } = await supabase.auth.signOut()
       if (error) throw error
     },

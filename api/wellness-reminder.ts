@@ -21,9 +21,9 @@ export function readBody(body: unknown): { kind: keyof typeof MESSAGES; subscrip
   if (!body || typeof body !== 'object') return null
   const { kind, subscriptions } = body as { kind?: unknown; subscriptions?: unknown }
   if ((kind !== 'morning' && kind !== 'late') || !Array.isArray(subscriptions) || subscriptions.length > 500) return null
-  const ok = subscriptions.every(s => typeof s?.endpoint === 'string' && PUSH_HOST.test(s.endpoint)
-    && typeof s.keys?.p256dh === 'string' && typeof s.keys?.auth === 'string')
-  return ok ? { kind, subscriptions } : null
+  // Une entrée mal formée est ignorée : les autres joueurs reçoivent quand même leur rappel
+  return { kind, subscriptions: subscriptions.filter((s): s is Subscription => typeof s?.endpoint === 'string' && PUSH_HOST.test(s.endpoint)
+    && typeof s.keys?.p256dh === 'string' && typeof s.keys?.auth === 'string') }
 }
 
 export async function POST(request: Request) {
@@ -38,5 +38,7 @@ export async function POST(request: Request) {
   const results = await Promise.allSettled(body.subscriptions.map(s => webpush.sendNotification(s, payload, { TTL: 2 * 3600, urgency: 'high' })))
   // Abonnement expiré ou retiré : la base le supprime au prochain envoi
   const gone = results.flatMap((r, i) => r.status === 'rejected' && [404, 410].includes((r.reason as { statusCode?: number })?.statusCode ?? 0) ? [body.subscriptions[i].endpoint] : [])
-  return Response.json({ sent: results.filter(r => r.status === 'fulfilled').length, failed: results.length - gone.length - results.filter(r => r.status === 'fulfilled').length, gone })
+  const sent = results.filter(r => r.status === 'fulfilled').length
+  console.log(`rappel ${body.kind} : ${sent} envoyés, ${gone.length} expirés, ${results.length - sent - gone.length} en échec`)
+  return Response.json({ sent, failed: results.length - sent - gone.length, gone })
 }

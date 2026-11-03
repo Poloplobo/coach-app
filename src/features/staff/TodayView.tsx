@@ -145,7 +145,7 @@ export function TodayView() {
                         return <td key={i.key} className={`px-1 text-center tabular-nums ${v !== null ? itemLook(v) : 'text-ink/30'}`}>{v ?? '·'}</td>
                       })}
                       <td className="pl-2 text-xs font-semibold text-rnr" title={alerts.join(' · ')}><span className="block max-w-40 truncate">{alerts.length ? (alerts.length > 1 ? `${alerts.length} alertes` : alerts[0]) : ''}</span></td>
-                      <td className="pl-2 text-xs">{push.data?.has(player.id) ? <span className="text-ok">oui</span> : <span className="text-ink/45">non</span>}</td>
+                      <td className="pl-2 text-xs">{push.isError ? <span className="text-ink/45">?</span> : push.data?.has(player.id) ? <span className="text-ok">oui</span> : <span className="text-ink/45">non</span>}</td>
                     </tr>
                   )
                 })}

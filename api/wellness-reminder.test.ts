@@ -11,8 +11,9 @@ describe('api/wellness-reminder', () => {
   })
   it('accepte seulement les services de notification connus et un type de message prévu', () => {
     expect(readBody({ kind: 'morning', subscriptions: [sub('https://fcm.googleapis.com/fcm/send/abc'), sub('https://web.push.apple.com/QX')] })).not.toBeNull()
-    expect(readBody({ kind: 'morning', subscriptions: [sub('https://exemple.fr/x')] })).toBeNull()
-    expect(readBody({ kind: 'morning', subscriptions: [sub('http://fcm.googleapis.com/x')] })).toBeNull()
+    // adresse hors liste ou en http : écartée, les autres partent quand même
+    expect(readBody({ kind: 'morning', subscriptions: [sub('https://exemple.fr/x'), sub('http://fcm.googleapis.com/x'), sub('https://fcm.googleapis.com/ok')] })?.subscriptions
+      .map(s => s.endpoint)).toEqual(['https://fcm.googleapis.com/ok'])
     expect(readBody({ kind: 'autre', subscriptions: [] })).toBeNull()
     expect(readBody(null)).toBeNull()
   })

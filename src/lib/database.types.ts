@@ -366,6 +366,7 @@ export type Database = {
           comment: string | null
           id: string
           match_id: string
+          minutes: number | null
           player_id: string
           rated_by: string | null
           rater: string
@@ -376,6 +377,7 @@ export type Database = {
           comment?: string | null
           id?: string
           match_id: string
+          minutes?: number | null
           player_id: string
           rated_by?: string | null
           rater: string
@@ -386,6 +388,7 @@ export type Database = {
           comment?: string | null
           id?: string
           match_id?: string
+          minutes?: number | null
           player_id?: string
           rated_by?: string | null
           rater?: string

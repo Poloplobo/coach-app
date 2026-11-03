@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(125);
+select plan(127);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -285,6 +285,8 @@ select throws_ok($$insert into public.match_ratings (match_id, player_id, rater,
 select lives_ok($$insert into public.match_ratings (match_id, player_id, rater, color)
                   values ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-00000000000a', 'staff', 'jaune')$$,
                 'le staff note un joueur');
+select isnt_empty($$update public.match_ratings set minutes = 65 where rater = 'staff' and match_id = '00000000-0000-0000-0000-0000000000d1'
+                    and player_id = '00000000-0000-0000-0000-00000000000a' returning 1$$, 'le staff saisit le temps de jeu');
 
 -- Performance (revue) : le staff note aussi un match à venir et peut modifier le référentiel GPS
 select lives_ok($$insert into public.match_ratings (match_id, player_id, rater, color)
@@ -393,6 +395,9 @@ select throws_ok($$insert into public.match_ratings (match_id, player_id, rater,
 select throws_ok($$insert into public.match_ratings (match_id, player_id, rater, color)
                    values ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-00000000000b', 'staff', 'bleu')$$,
                  '42501', null, 'B ne peut pas écrire une note staff');
+select throws_ok($$insert into public.match_ratings (match_id, player_id, rater, color, minutes)
+                   values ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-00000000000b', 'player', 'jaune', 70)$$,
+                 '23514', null, 'B ne saisit pas son temps de jeu (réservé au coach)');
 select lives_ok($$insert into public.match_ratings (match_id, player_id, rater, color)
                   values ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-00000000000b', 'player', 'jaune')$$,
                 'B note son match');

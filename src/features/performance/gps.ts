@@ -1,5 +1,6 @@
 // Analyse GPS d'un match, reprise du classeur « GPS - MATCH » (attendus aux postes A. Peters 2023).
 // Fonctions pures, testées : l'écran joueur, la vue staff et les PowerPoint utilisent les mêmes chiffres.
+import { BRAND } from '../../lib/brand'
 
 export type GpsReference = { position_group: string; distance_m: number; accelerations: number; hi_distance_m: number; ref_minutes: number }
 export type GpsRecord = { match_id: string; player_id: string; position: string; minutes: number; distance_m: number; hi_distance_m: number; accelerations: number; vmax: number | null }
@@ -54,6 +55,29 @@ export function vmaxTimeline(records: { date: string; vmax: number | null }[], r
       pctOfBest: r.vmax !== null && best ? Math.round((100 * r.vmax) / best) : null,
       record: r.vmax !== null && before !== null && r.vmax > before,
       first: before === null && r.vmax !== null, // première mesure : pas encore de record à battre
+    }
+  })
+}
+
+// Graphique de l'année (espace Match) : note sur une échelle de rouge à bleu ; gris (n'a pas joué) n'est pas une note
+export const RATING_SCORE: Record<GpsColor, number> = { rouge: 1, jaune: 2, vert: 3, bleu: 4 }
+// Couleurs des coqs pour les graphiques (Recharts attend des valeurs, pas des classes)
+export const RATING_HEX: Record<RatingColor, string> = { rouge: BRAND.rnr, jaune: BRAND.gold, vert: BRAND.ok, bleu: BRAND.blue, gris: BRAND.muted }
+const score = (c?: RatingColor) => c && c !== 'gris' ? RATING_SCORE[c] : null
+
+type SeasonMatch = { id: string; match_date: string; opponent: string; label: string | null }
+type SeasonRating = { match_id: string; player_id: string; rater: 'player' | 'staff'; color: RatingColor; minutes?: number | null }
+
+// Matchs du plus ancien au plus récent avec la note du coach et celle du joueur (null : pas notée ou n'a pas joué)
+export function ratingSeason(matches: SeasonMatch[], ratings: SeasonRating[], playerId: string) {
+  const mine = ratings.filter(r => r.player_id === playerId)
+  return [...matches].sort((a, b) => a.match_date.localeCompare(b.match_date)).map(m => {
+    const staff = mine.find(r => r.match_id === m.id && r.rater === 'staff')
+    const own = mine.find(r => r.match_id === m.id && r.rater === 'player')
+    return {
+      match: m, name: m.label ?? m.opponent,
+      staff: score(staff?.color), player: score(own?.color),
+      staffColor: staff?.color ?? null, playerColor: own?.color ?? null, minutes: staff?.minutes ?? null,
     }
   })
 }

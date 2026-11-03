@@ -4,12 +4,12 @@ import { GuidelinesPanel } from './GuidelinesPanel'
 import { ImportGpsPanel } from './ImportGpsPanel'
 import { ImportMaxiPanel } from './ImportMaxiPanel'
 import { MatchBoard } from './MatchBoard'
-import { MatchNotes } from './MatchNotes'
+import { MatchNotes, PlayerSeason } from './MatchNotes'
 
 // Performance (staff) : trois espaces indépendants (décision du 02/11/2026) — GPS, Match (notes), Test (maxi et objectifs)
 const SPACES = {
   gps: { label: 'GPS', views: [{ id: 'tableau', label: 'GPS d\'un match et rapports' }, { id: 'import', label: 'Importer les GPS d\'un match' }] },
-  match: { label: 'Match', views: [{ id: 'notes', label: 'Matchs et notes' }, { id: 'consignes', label: 'Consignes de notation' }] },
+  match: { label: 'Match', views: [{ id: 'joueur', label: 'Notes d\'un joueur sur l\'année' }, { id: 'notes', label: 'Noter un match' }, { id: 'consignes', label: 'Consignes de notation' }] },
   test: { label: 'Test', views: [{ id: 'maxi', label: 'Importer les maxi et objectifs' }] },
 } as const
 type Space = keyof typeof SPACES
@@ -38,6 +38,7 @@ export function StaffPerformanceView() {
       <div role="tabpanel" className="flex flex-col gap-6">
         {space === 'gps' && view === 'tableau' && <MatchBoard />}
         {space === 'gps' && view === 'import' && <ImportGpsPanel />}
+        {space === 'match' && view === 'joueur' && <PlayerSeason />}
         {space === 'match' && view === 'notes' && <MatchNotes />}
         {space === 'match' && view === 'consignes' && <GuidelinesPanel />}
         {space === 'test' && <ImportMaxiPanel />}

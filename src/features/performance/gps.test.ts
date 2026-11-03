@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { gpsAnalysis, positionGroup, vmaxTimeline, type GpsReference } from './gps'
+import { gpsAnalysis, positionGroup, ratingSeason, vmaxTimeline, type GpsReference } from './gps'
 
 const ref = (position_group: string, distance_m: number, accelerations: number, hi_distance_m: number): GpsReference =>
   ({ position_group, distance_m, accelerations, hi_distance_m, ref_minutes: 70 })
@@ -86,4 +86,23 @@ describe('vmaxTimeline', () => {
     expect(vmaxTimeline([{ date: '2026-10-04', vmax: null }], 28)[0]).toMatchObject({ bestToDate: 28, pctOfBest: null })
   })
   it('liste vide', () => { expect(vmaxTimeline([])).toEqual([]) })
+})
+
+describe('ratingSeason', () => {
+  it('range les matchs du plus ancien au plus récent avec les deux notes et le temps de jeu', () => {
+    const matches = [
+      { id: 'm2', match_date: '2026-11-01', opponent: 'ABCD XV', label: 'J3' },
+      { id: 'm1', match_date: '2026-10-11', opponent: 'Racing 92', label: null },
+    ]
+    const ratings = [
+      { match_id: 'm1', player_id: 'a', rater: 'staff' as const, color: 'bleu' as const, minutes: 70 },
+      { match_id: 'm1', player_id: 'a', rater: 'player' as const, color: 'vert' as const },
+      { match_id: 'm2', player_id: 'a', rater: 'staff' as const, color: 'gris' as const, minutes: 0 },
+      { match_id: 'm2', player_id: 'b', rater: 'player' as const, color: 'rouge' as const },
+    ]
+    expect(ratingSeason(matches, ratings, 'a').map(({ name, staff, player, minutes }) => ({ name, staff, player, minutes }))).toEqual([
+      { name: 'Racing 92', staff: 4, player: 3, minutes: 70 },
+      { name: 'J3', staff: null, player: null, minutes: 0 }, // gris : n'a pas joué, hors courbe
+    ])
+  })
 })

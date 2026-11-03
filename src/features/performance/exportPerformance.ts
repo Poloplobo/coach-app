@@ -75,16 +75,17 @@ function metric(s: Slide, pptx: Pptx, x: number, y: number, h: number, value: nu
 function colorRing(s: Slide, pptx: Pptx, coqs: Coqs, x: number, y: number, w: number, counts: Record<string, number>, center: string, centerLabel: string) {
   const colors = GPS_COLORS.filter(c => counts[c] > 0)
   if (colors.length) s.addChart(pptx.ChartType.doughnut, [{ name: 'Couleur GPS', labels: colors.map(c => COLOR_LABEL[c]), values: colors.map(c => counts[c]) }],
-    { ...chart, x, y, w: 1.5, h: 1.5, holeSize: 62, chartColors: colors.map(c => COLOR_HEX[c]), dataBorder: { pt: 1.5, color: C.surface },
+    { ...chart, x, y: y + 0.15, w: 1.05, h: 1.05, holeSize: 60, chartColors: colors.map(c => COLOR_HEX[c]), dataBorder: { pt: 1.5, color: C.surface },
       plotArea: { fill: { color: C.surface } }, chartArea: { fill: { color: C.surface } }, showLegend: false, showValue: false, showPercent: false })
   s.addText([
-    { text: center, options: { fontFace: DISPLAY, fontSize: 22, bold: true, color: C.ink, breakLine: true } },
+    { text: center, options: { fontFace: DISPLAY, fontSize: 18, bold: true, color: C.ink, breakLine: true } },
     { text: centerLabel, options: { fontFace: FONT, fontSize: 8, color: C.muted } },
-  ], { x, y: y + 0.45, w: 1.5, h: 0.6, align: 'center', valign: 'middle', margin: 0 })
+  ], { x, y: y + 0.38, w: 1.05, h: 0.6, align: 'center', valign: 'middle', margin: 0 })
   GPS_COLORS.slice().reverse().forEach((c, i) => {
+    // une ligne par libellé, hauteur fixe : la légende ne peut pas se chevaucher, même si la police est rendue plus large
     const ly = y + 0.12 + i * 0.32
-    coq(s, pptx, coqs, c, x + 1.75, ly + 0.12, 0.24)
-    s.addText(COLOR_LABEL[c], { x: x + 1.93, y: ly, w: w - 2.25, h: 0.24, fontFace: FONT, fontSize: 9, color: counts[c] ? C.soft : C.muted, margin: 0, valign: 'middle', fit: 'shrink' })
+    coq(s, pptx, coqs, c, x + 1.22, ly + 0.12, 0.24)
+    s.addText(COLOR_LABEL[c], { x: x + 1.38, y: ly, w: w - 1.75, h: 0.24, fontFace: FONT, fontSize: 8, color: counts[c] ? C.soft : C.muted, margin: 0, valign: 'middle', fit: 'shrink', wrap: false })
     s.addText(String(counts[c]), { x: x + w - 0.35, y: ly, w: 0.3, h: 0.24, fontFace: FONT, fontSize: 9, bold: true, color: counts[c] ? C.ink : C.muted, align: 'right', margin: 0, valign: 'middle' })
   })
 }

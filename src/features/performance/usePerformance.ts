@@ -33,6 +33,14 @@ export function useImportGps() {
   })
 }
 
+// Feuille Google GPS (onglet Données), relayée par /api/gps-sheet pour un compte staff
+export async function fetchGpsSheet(): Promise<unknown[][]> {
+  const token = (await supabase.auth.getSession()).data.session?.access_token
+  const r = await fetch('/api/gps-sheet', { headers: { Authorization: `Bearer ${token ?? ''}` } })
+  if (!r.ok) throw new Error(r.status === 503 ? 'Feuille Google pas encore reliée à l\'app.' : r.status === 502 ? 'Feuille Google illisible (onglet « Données » ?).' : 'Lecture de la feuille refusée.')
+  return (await r.json() as { lignes: unknown[][] }).lignes
+}
+
 // Maxi = résultat de test daté (l'historique reste), objectif = objectif de la saison (remplacé)
 export function useImportMaxi() {
   const qc = useQueryClient()

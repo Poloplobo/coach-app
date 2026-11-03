@@ -8,7 +8,7 @@ import { useGroup, useImportPlayers } from '../staff/programming/useProgramming'
 import { MIN_MINUTES, gpsAnalysis, positionGroup } from './gps'
 import type { GpsPreview } from './importGps'
 import { MatchColor } from './MatchColor'
-import { useGpsRecords, useGpsReference, useImportGps, useMatches } from './usePerformance'
+import { fetchGpsSheet, useGpsRecords, useGpsReference, useImportGps, useMatches } from './usePerformance'
 
 const field = 'rounded-lg bg-field border border-line px-3 py-2 text-base'
 
@@ -27,7 +27,9 @@ export function ImportGpsPanel() {
   const [opponent, setOpponent] = useState('')
   const [label, setLabel] = useState('')
   const [readError, setReadError] = useState(false)
-  const [file, setFile] = useState<File | null>(null)
+  const [source, setSource] = useState<(() => Promise<ArrayBuffer>) | null>(null) // fichier ou feuille Google, relu au changement de match
+  const [sheetError, setSheetError] = useState<string | null>(null)
+  const [sheetLoading, setSheetLoading] = useState(false)
 
   if (group.isPending || players.isPending || reference.isPending || matches.isPending || gps.isPending) return <Loading />
   if (group.isError || players.isError || reference.isError || matches.isError || gps.isError) return <p role="alert">Impossible de préparer l'import GPS.</p>
@@ -37,14 +39,14 @@ export function ImportGpsPanel() {
   const target = chosen ? { date: chosen.match_date, opponent: chosen.opponent, label: chosen.label ?? '' } : { date, opponent, label }
 
   // Relu à chaque changement de match : l'onglet Données du classeur contient plusieurs journées
-  const read = async (file: File | null, journee: string | null) => {
-    if (!file) return
-    setFile(file)
+  const read = async (load: (() => Promise<ArrayBuffer>) | null, journee: string | null) => {
+    if (!load) return
+    setSource(() => load)
     setReadError(false)
     save.reset()
     try {
       const { readGps } = await import('./importGps') // xlsx chargé seulement ici
-      const p = readGps(await file.arrayBuffer(), { players: players.data, positions }, journee)
+      const p = readGps(await load(), { players: players.data, positions }, journee)
       setPreview(p)
       if (!opponent) setOpponent(p.sheet.replace(/\s*\(\d+\)$/, '')) // autre match : onglet « R92 (1) » → « R92 »
     } catch {
@@ -60,7 +62,7 @@ export function ImportGpsPanel() {
   return (
     <Card title="Importer les GPS d'un match"
       help={`Choisis le match, puis l'export du GPS ou le classeur GPS - MATCH (onglet Données : lignes de la journée du match). Export : POSTE, NOM, KM Total, DHI, Accélération, Vmax, Temps). Chaque joueur est comparé à l'attendu de son poste du match, ramené à 70 min ; sous ${MIN_MINUTES} min jouées, pas de couleur. Réimporter le même match corrige ses lignes.`}>
-      <ViewSelect label="Match" value={chosen?.id ?? ''} onChange={v => { setMatchId(v); save.reset(); void read(file, matches.data.find(m => m.id === v)?.label ?? null) }}>
+      <ViewSelect label="Match" value={chosen?.id ?? ''} onChange={v => { setMatchId(v); save.reset(); void read(source, matches.data.find(m => m.id === v)?.label ?? null) }}>
         {matches.data.map(m => <option key={m.id} value={m.id}>{m.label ? `${m.label} · ` : ''}{m.opponent} · {formatDay(m.match_date)}{withGps.has(m.id) ? ' · GPS déjà importé' : ''}</option>)}
         <option value="">Autre match (hors calendrier)…</option>
       </ViewSelect>
@@ -74,9 +76,21 @@ export function ImportGpsPanel() {
           </>
         )}
         <label className="flex flex-col gap-1 text-sm">Export GPS (.xlsx)
-          <input type="file" accept=".xlsx" onChange={e => { const f = e.target.files?.[0] ?? null; e.target.value = ''; void read(f, chosen?.label ?? null) }} className="text-sm file:mr-3 file:rounded-md file:border file:border-line file:bg-field file:px-3 file:py-1.5 file:text-ink" />
+          <input type="file" accept=".xlsx" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void read(() => f.arrayBuffer(), chosen?.label ?? null) }} className="text-sm file:mr-3 file:rounded-md file:border file:border-line file:bg-field file:px-3 file:py-1.5 file:text-ink" />
         </label>
+        <div className="flex flex-col gap-1 text-sm">ou la feuille Google
+          <Button size="sm" variant="ghost" disabled={sheetLoading} onClick={async () => {
+            setSheetError(null)
+            setSheetLoading(true)
+            try {
+              const [rows, { sheetToXlsx }] = await Promise.all([fetchGpsSheet(), import('./importGps')])
+              const data = sheetToXlsx(rows) // lue une fois, puis relue localement à chaque changement de match
+              await read(async () => data, chosen?.label ?? null)
+            } catch (e) { setSheetError(e instanceof Error ? e.message : 'Lecture de la feuille impossible.') } finally { setSheetLoading(false) }
+          }}>{sheetLoading ? 'Lecture…' : 'Lire le Google Sheet'}</Button>
+        </div>
       </div>
+      {sheetError && <p role="alert" className="text-sm text-rnr">{sheetError}</p>}
       {readError && <p role="alert" className="text-sm text-rnr">Fichier illisible (un .xlsx est attendu) ; recharge la page si le problème continue.</p>}
       {preview && (
         <>

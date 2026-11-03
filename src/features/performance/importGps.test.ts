@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as XLSX from 'xlsx'
-import { readGps } from './importGps'
+import { readGps, sheetToXlsx } from './importGps'
 
 // Même disposition que l'export du GPS (onglet « R92 ») : une ligne de titre, puis l'en-tête
 const HEAD = ['POSTE', 'NOM', 'KM Total', 'DHI (>21km/h)', 'Accélération (>6m/s)', 'Vmax', 'Temps (min)', 'GPS', 'Joueurs']
@@ -114,5 +114,15 @@ describe('readGps : onglet « Données » du classeur GPS - MATCH (plusieurs mat
   it('journée absente ou non choisie : refusé (pas de repli sur l\'onglet d\'export)', () => {
     expect(readGps(book, ctx, 'J3').errors[0]).toMatch(/Aucune ligne « J3 »/)
     expect(readGps(book, ctx).errors[0]).toMatch(/choisis un match du calendrier/)
+  })
+})
+
+describe('sheetToXlsx : lignes de la feuille Google', () => {
+  it('mêmes lignes que le classeur : même contrôle et même résultat', () => {
+    const rows = [['Données GPS par match'], [], ['Match', 'Date', 'Adversaire', 'Nom', 'Poste', 'Temps (min)', 'Distance totale (m)', 'Distance HI >21 km/h (m)', 'Accélérations', 'Vmax (km/h)', 'Prénom NOM'],
+      ['J1 - R92', '', 'R92', 'MARTIN', 'PILIER', 40, 3310, 58, 10, 25.2, 'Paul MARTIN']]
+    const p = readGps(sheetToXlsx(rows), ctx, 'J1')
+    expect(p.errors).toEqual([])
+    expect(p.rows.map(r => [r.player.id, r.distance_m])).toEqual([['a', 3310]])
   })
 })

@@ -90,3 +90,10 @@ export function readGps(data: ArrayBuffer, ctx: { players: Player[]; positions: 
   if (!rows.length && !errors.length) errors.push('Aucune ligne joueur dans l\'export.')
   return { sheet, rows, errors, warnings }
 }
+
+// Lignes de l'onglet « Données » lues dans la feuille Google : même contrôle que le fichier (readGps)
+export function sheetToXlsx(rows: unknown[][]): ArrayBuffer {
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Données')
+  return XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+}

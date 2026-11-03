@@ -38,7 +38,7 @@ describe('readGps : export brut du GPS d\'un match', () => {
   it('vigilance poste : un poste sans attendu bloque, avec la liste des postes connus', () => {
     expect(readGps(file([['OUVREUR', 'MARTIN', 4970, 12, 15, 26, 70, 3, 'Paul MARTIN']]), ctx).errors.join()).toMatch(/poste « OUVREUR » sans attendu.*PILIER/)
   })
-  it('joueur inconnu, doublon, valeurs illisibles, distance en km : bloqués', () => {
+  it('doublon, valeurs illisibles, distance en km : bloqués ; joueur hors effectif : écarté avec avertissement', () => {
     const p = readGps(file([
       ['PILIER', 'INCONNU', 4970, 12, 15, 26, 70, 1, 'Jean INCONNU'],
       ['PILIER', 'MARTIN', 4970, 12, 15, 26, 70, 3, 'Paul MARTIN'],
@@ -47,7 +47,8 @@ describe('readGps : export brut du GPS d\'un match', () => {
       ['CENTRE', 'DUPONT', 4.97, 12, 15, 26, 70, 5, 'Hugo DUPONT'],
     ]), ctx)
     const e = p.errors.join('\n')
-    expect(e).toMatch(/INCONNU.*introuvable/)
+    expect(e).not.toMatch(/INCONNU/)
+    expect(p.warnings.join()).toMatch(/Jean INCONNU hors effectif, non importé/)
     expect(e).toMatch(/présent deux fois/)
     expect(e).toMatch(/illisibles/)
     expect(e).toMatch(/en kilomètres/)

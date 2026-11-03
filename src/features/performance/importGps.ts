@@ -8,7 +8,7 @@ type Player = { id: string; first_name: string; last_name: string; import_name: 
 export type GpsRow = {
   player: Player; position: string; minutes: number; distance_m: number; hi_distance_m: number; accelerations: number; vmax: number | null
 }
-export type GpsPreview = { sheet: string; rows: GpsRow[]; errors: string[] }
+export type GpsPreview = { sheet: string; rows: GpsRow[]; errors: string[]; warnings: string[] }
 
 const num = (v: unknown) => {
   const n = typeof v === 'number' ? v : Number(String(v ?? '').replace(/\s/g, '').replace(',', '.'))
@@ -21,6 +21,7 @@ const dayOf = (v: unknown) => String(v ?? '').trim().split(/\s*-\s*/)[0].toUpper
 export function readGps(data: ArrayBuffer, ctx: { players: Player[]; positions: Map<string, string> }, label: string | null = null): GpsPreview {
   const wb = XLSX.read(data)
   const errors: string[] = []
+  const warnings: string[] = [] // non bloquant : joueurs hors effectif ignorés
   // Les onglets de match : ceux dont une ligne contient « POSTE » et « NOM » ; avec une colonne Match, plusieurs matchs
   const found = wb.SheetNames.map(name => {
     const all = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[name], { header: 1, defval: '' })
@@ -34,11 +35,11 @@ export function readGps(data: ArrayBuffer, ctx: { players: Player[]; positions: 
   const history = multi && day && multi.all.slice(multi.h + 1).some(r => dayOf(r[multi.match]) === day) ? multi : null
   const exports = found.filter(f => f.match < 0)
   if (multi && !history) {
-    return { sheet: '', rows: [], errors: [`Aucune ligne « ${label?.trim() || 'de journée'} » dans l'onglet « ${multi.name} »${day ? '' : ' : choisis un match du calendrier'}. Pour un nouveau match, importe l'export du GPS seul.`] }
+    return { sheet: '', rows: [], errors: [`Aucune ligne « ${label?.trim() || 'de journée'} » dans l'onglet « ${multi.name} »${day ? '' : ' : choisis un match du calendrier'}. Pour un nouveau match, importe l'export du GPS seul.`], warnings }
   }
   if (!history && exports.length !== 1) {
     return { sheet: '', rows: [], errors: [exports.length > 1 ? `Plusieurs onglets de match (${exports.map(f => f.name).join(', ')}) : un match par fichier.`
-      : 'En-tête « POSTE | NOM | KM Total… » introuvable : est-ce bien l\'export GPS du match ?'] }
+      : 'En-tête « POSTE | NOM | KM Total… » introuvable : est-ce bien l\'export GPS du match ?'], warnings }
   }
   const src = history ?? exports[0]!
   const sheet = history ? `${src.name} (${day})` : src.name
@@ -55,7 +56,7 @@ export function readGps(data: ArrayBuffer, ctx: { players: Player[]; positions: 
     hi: col(/^(dhi|distance hi)/i, 'DHI'), accel: col(/^acc[ée]l[ée]ration/i, 'Accélération'), vmax: col(/^vmax/i, 'Vmax'), minutes: col(/^temps/i, 'Temps (min)'),
   }
   const full = head.findIndex(c => /^(joueurs?|pr[ée]nom nom)$/i.test(c)) // « Prénom NOM », plus sûr que le seul nom de famille
-  if (errors.length) return { sheet, rows: [], errors }
+  if (errors.length) return { sheet, rows: [], errors, warnings }
 
   const byFull = (name: string) => ctx.players.filter(p => [p.import_name ?? '', `${p.first_name} ${p.last_name}`].some(n => n && nameKey(n) === nameKey(name)))
   const byLast = (name: string) => ctx.players.filter(p => nameKey(p.last_name) === nameKey(name))
@@ -69,7 +70,9 @@ export function readGps(data: ArrayBuffer, ctx: { players: Player[]; positions: 
     // Repli sur le nom de famille seulement si l'export n'a pas de colonne Joueurs : sinon un invité homonyme serait rattaché
     if (full >= 0 && !fullName) return void errors.push(`${line} : colonne « Joueurs » vide (Prénom NOM attendu).`)
     const matches = full >= 0 ? byFull(fullName) : byLast(last)
-    if (matches.length !== 1) return void errors.push(`${line} : ${matches.length ? 'plusieurs joueurs de l\'effectif portent ce nom' : 'joueur introuvable dans l\'effectif'}.`)
+    if (matches.length > 1) return void errors.push(`${line} : plusieurs joueurs de l'effectif portent ce nom.`)
+    // Renfort hors effectif (ou nom mal orthographié) : ses lignes sont écartées, les autres joueurs passent
+    if (!matches.length) return void warnings.push(`${line} : ${fullName || last} hors effectif, non importé (vérifie l'orthographe si c'est un joueur du groupe).`)
     const player = matches[0]
     if (seen.has(player.id)) return void errors.push(`${line} : joueur présent deux fois dans l'export.`)
     seen.add(player.id)
@@ -85,5 +88,5 @@ export function readGps(data: ArrayBuffer, ctx: { players: Player[]; positions: 
     rows.push({ player, position, minutes, distance_m: distance, hi_distance_m: hi, accelerations: accel, vmax })
   })
   if (!rows.length && !errors.length) errors.push('Aucune ligne joueur dans l\'export.')
-  return { sheet, rows, errors }
+  return { sheet, rows, errors, warnings }
 }

@@ -81,6 +81,7 @@ export function ImportGpsPanel() {
       {preview && (
         <>
           {preview.errors.length > 0 && <ul role="alert" className="list-disc pl-5 text-sm text-rnr">{preview.errors.map((e, i) => <li key={i}>{e}</li>)}</ul>}
+          {preview.warnings.length > 0 && <ul className="list-disc pl-5 text-sm text-gold">{preview.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>}
           {preview.rows.length > 0 && (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

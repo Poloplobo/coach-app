@@ -27,7 +27,7 @@ export type Deck = { pptx: PptxGenJS; crest: string | null; cover: string | null
 
 // Images de public/, lues sur notre propre domaine et passées en données (aucun appel vers un tiers).
 // Hors navigateur (test), pas d'adresse relative : diapos sans logo.
-async function asset(path: string) {
+export async function asset(path: string) {
   try {
     const res = await fetch(path)
     if (!res.ok) return null

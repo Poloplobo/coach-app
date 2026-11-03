@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(146);
+select plan(151);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -54,6 +54,15 @@ insert into public.planned_sessions (id, session_date, title, player_id, activit
 insert into public.planned_exercises (id, planned_session_id, exercise_id, position) values
   ('00000000-0000-0000-0000-0000000000f9', '00000000-0000-0000-0000-0000000000b9', '00000000-0000-0000-0000-0000000000e1', 1);
 
+
+-- Validation automatique de la muscu (0029) : séance de A le 2030-03-04, un exercice noté RPE 7, un sans réponse
+insert into public.planned_sessions (id, session_date, title, player_id, activity_type_id, planned_duration_min) values
+  ('00000000-0000-0000-0000-0000000000a9', '2030-03-04', 'Muscu A auto', '00000000-0000-0000-0000-00000000000a', (select id from public.activity_types where name = 'Musculation'), 50);
+insert into public.planned_exercises (id, planned_session_id, exercise_id, position) values
+  ('00000000-0000-0000-0000-0000000000fa', '00000000-0000-0000-0000-0000000000a9', '00000000-0000-0000-0000-0000000000e1', 1),
+  ('00000000-0000-0000-0000-0000000000fb', '00000000-0000-0000-0000-0000000000a9', '00000000-0000-0000-0000-0000000000e1', 2);
+insert into public.exercise_feedback (player_id, planned_exercise_id, status, rpe) values
+  ('00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-0000000000fa', 'fait', 7);
 
 -- Duplication (étape 8) : semaine source du lundi 2030-01-07, cibles S90 (normale) et S91 (OFF)
 insert into public.season_weeks (group_id, code, start_date, week_type_code, is_off) values
@@ -501,6 +510,15 @@ select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000
 set local role authenticated;
 select is_empty($$select 1 from public.push_subscriptions$$, 'le coach ne lit pas les adresses d''abonnement');
 select ok('00000000-0000-0000-0000-00000000000b' in (select public.push_enabled_players()), 'le coach voit que B a activé le rappel');
+
+-- Validation automatique de la muscu (0029) : un joueur ne la déclenche pas ; la base valide avec la moyenne des RPE
+select throws_ok($$select public.auto_validate_muscu('2030-03-04')$$, '42501', null, 'un utilisateur de l''app ne déclenche pas la validation automatique');
+reset role;
+select is(public.auto_validate_muscu('2030-03-04'), 1, 'séance remplie non validée : validée automatiquement');
+select is((select rpe::text || ' x ' || duration_min || ' ' || source from public.session_logs where planned_session_id = '00000000-0000-0000-0000-0000000000a9' and validated_at is not null),
+          '7.0 x 50 auto', 'RPE moyen des exercices × durée prévue, origine « auto »');
+select is((select status from public.exercise_feedback where planned_exercise_id = '00000000-0000-0000-0000-0000000000fb'), 'non fait', 'exercice sans réponse noté « non fait »');
+select is(public.auto_validate_muscu('2030-03-04'), 0, 'deuxième passage : rien à refaire');
 
 -- ---------- Visiteur non connecté ----------
 reset role;

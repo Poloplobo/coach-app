@@ -45,7 +45,7 @@ export function AvailabilityPanel({ player, today }: { player: Player; today: st
 }
 
 // Oubli ou erreur d'un joueur : le staff saisit à sa place, sur n'importe quel jour passé (« saisi par le staff »)
-const BY = { app: 'le joueur', staff: 'le staff', import_form: 'le formulaire' } as Record<string, string>
+const BY = { app: 'le joueur', staff: 'le staff', import_form: 'le formulaire', auto: 'la validation automatique du soir' } as Record<string, string>
 
 export function CorrectionPanel({ player, types, today, logs, wellness }: {
   player: Player; types: ActivityType[]; today: string

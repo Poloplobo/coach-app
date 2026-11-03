@@ -18,7 +18,7 @@ import { useAllLogs, useAllWellness, useIsAdmin, useReference, useRoster } from 
 import { Loading } from '../../components/ui/Loading'
 import { ViewSelect } from '../../components/ui/ViewSelect'
 
-const SOURCE = { app: 'joueur', staff: 'staff', import_form: 'formulaire' } as Record<string, string>
+const SOURCE = { app: 'joueur', staff: 'staff', import_form: 'formulaire', auto: 'validée auto. 23h30' } as Record<string, string>
 const ZONE_TONE = { bas: 'warn', optimal: 'ok', vigilance: 'warn', risque: 'bad' } as const
 const ZONE_LABEL = { bas: 'sous-entraînement', optimal: 'zone optimale', vigilance: 'vigilance', risque: 'risque' }
 const STATUS_TEXT = { ok: 'text-ok', warn: 'text-gold', bad: 'text-rnr', neutral: '' } as const

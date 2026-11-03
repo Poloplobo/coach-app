@@ -96,7 +96,7 @@ export function MuscuSessionCard({ playerId, date, catchUp = false }: { playerId
       </div>
 
       {log ? (
-        <p className="rounded-lg border border-ok px-3 py-2 text-sm">Séance validée · RPE {Number(log.rpe).toLocaleString('fr-FR')} · {log.duration_min} min · {Math.round(Number(log.srpe))} UA</p>
+        <p className="rounded-lg border border-ok px-3 py-2 text-sm">Séance validée{log.source === 'auto' ? ' automatiquement (23h30)' : ''} · RPE {Number(log.rpe).toLocaleString('fr-FR')} · {log.duration_min} min · {Math.round(Number(log.srpe))} UA</p>
       ) : (
         !finishing ? (
           <div className="flex flex-col gap-2 border-t border-line pt-3">

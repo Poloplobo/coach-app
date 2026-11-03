@@ -8,8 +8,16 @@ export async function GET(request: Request) {
   // Le jeton de l'utilisateur, vérifié par Supabase : seul un compte staff reçoit les données GPS
   const staff = await fetch(`${url}/rest/v1/rpc/is_staff`, { method: 'POST', headers: { apikey: anon, Authorization: auth, 'Content-Type': 'application/json' }, body: '{}' })
   if (!staff.ok || (await staff.json().catch(() => false)) !== true) return new Response('réservé au staff', { status: 403 })
-  const sheet = await fetch(`${GPS_SHEET_URL}?cle=${encodeURIComponent(GPS_SHEET_KEY)}`).catch(() => null)
-  if (!sheet?.ok) return new Response('La feuille Google ne répond pas : vérifie l\'URL du déploiement (elle finit par /exec).', { status: 502 })
+  let target: URL
+  try { target = new URL(GPS_SHEET_URL.trim()) } catch { return new Response('L\'adresse de la feuille enregistrée sur Vercel n\'est pas une URL (GPS_SHEET_URL).', { status: 502 }) }
+  // Sans la clé ni le reste de l'adresse : de quoi reconnaître l'erreur (URL /dev de test, mauvais site) sans rien divulguer
+  const shape = `${target.host}/…/${target.pathname.split('/').filter(Boolean).at(-1) ?? ''}`
+  if (target.host !== 'script.google.com' || !target.pathname.endsWith('/exec')) {
+    return new Response(`L'adresse enregistrée (${shape}) n'est pas celle d'une application Web Apps Script : il faut l'URL qui finit par /exec.`, { status: 502 })
+  }
+  target.searchParams.set('cle', GPS_SHEET_KEY)
+  const sheet = await fetch(target.toString()).catch(() => null)
+  if (!sheet?.ok) return new Response(`La feuille Google ne répond pas (${sheet ? `erreur ${sheet.status}` : 'injoignable'}, ${shape}).`, { status: 502 })
   // Page HTML au lieu de données : Google demande une connexion (accès du déploiement pas sur « Tout le monde »)
   const body = await sheet.json().catch(() => null) as { lignes?: unknown; erreur?: unknown } | null
   if (!body) return new Response('La feuille Google demande une connexion : dans Apps Script, le déploiement doit être « Qui peut accéder : Tout le monde ».', { status: 502 })

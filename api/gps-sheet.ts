@@ -9,7 +9,12 @@ export async function GET(request: Request) {
   const staff = await fetch(`${url}/rest/v1/rpc/is_staff`, { method: 'POST', headers: { apikey: anon, Authorization: auth, 'Content-Type': 'application/json' }, body: '{}' })
   if (!staff.ok || (await staff.json().catch(() => false)) !== true) return new Response('réservé au staff', { status: 403 })
   const sheet = await fetch(`${GPS_SHEET_URL}?cle=${encodeURIComponent(GPS_SHEET_KEY)}`).catch(() => null)
-  const body = sheet?.ok ? await sheet.json().catch(() => null) as { lignes?: unknown } | null : null
-  if (!body || !Array.isArray(body.lignes)) return new Response('feuille GPS illisible', { status: 502 })
+  if (!sheet?.ok) return new Response('La feuille Google ne répond pas : vérifie l\'URL du déploiement (elle finit par /exec).', { status: 502 })
+  // Page HTML au lieu de données : Google demande une connexion (accès du déploiement pas sur « Tout le monde »)
+  const body = await sheet.json().catch(() => null) as { lignes?: unknown; erreur?: unknown } | null
+  if (!body) return new Response('La feuille Google demande une connexion : dans Apps Script, le déploiement doit être « Qui peut accéder : Tout le monde ».', { status: 502 })
+  if (body.erreur === 'refusé') return new Response('La feuille refuse la clé : la propriété CLE_APP du script n\'est pas la même que celle de l\'app.', { status: 502 })
+  if (typeof body.erreur === 'string') return new Response(`Feuille Google : ${body.erreur.slice(0, 120)}.`, { status: 502 })
+  if (!Array.isArray(body.lignes)) return new Response('Réponse de la feuille Google inattendue.', { status: 502 })
   return Response.json({ lignes: body.lignes }, { headers: { 'Cache-Control': 'no-store' } })
 }

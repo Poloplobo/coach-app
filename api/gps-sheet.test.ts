@@ -19,6 +19,14 @@ describe('api/gps-sheet', () => {
     expect((await call('Bearer a.b.c')).status).toBe(403)
     expect(fetch).toHaveBeenCalledTimes(1)
   })
+  it('cause précise : clé refusée par la feuille, page de connexion Google', async () => {
+    vi.stubEnv('GPS_SHEET_URL', 'https://script.google.com/x'); vi.stubEnv('GPS_SHEET_KEY', 'k')
+    vi.stubEnv('VITE_SUPABASE_URL', 'https://s.supabase.co'); vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'anon')
+    vi.stubGlobal('fetch', vi.fn(async (u: string) => u.includes('is_staff') ? Response.json(true) : Response.json({ erreur: 'refusé' })))
+    expect(await (await call('Bearer a.b.c')).text()).toMatch(/CLE_APP/)
+    vi.stubGlobal('fetch', vi.fn(async (u: string) => u.includes('is_staff') ? Response.json(true) : new Response('<html>Connexion</html>')))
+    expect(await (await call('Bearer a.b.c')).text()).toMatch(/Tout le monde/)
+  })
   it('staff : lignes de la feuille relayées', async () => {
     vi.stubEnv('GPS_SHEET_URL', 'https://script.google.com/x'); vi.stubEnv('GPS_SHEET_KEY', 'k')
     vi.stubEnv('VITE_SUPABASE_URL', 'https://s.supabase.co'); vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'anon')

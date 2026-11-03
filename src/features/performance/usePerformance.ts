@@ -37,7 +37,7 @@ export function useImportGps() {
 export async function fetchGpsSheet(): Promise<unknown[][]> {
   const token = (await supabase.auth.getSession()).data.session?.access_token
   const r = await fetch('/api/gps-sheet', { headers: { Authorization: `Bearer ${token ?? ''}` } })
-  if (!r.ok) throw new Error(r.status === 503 ? 'Feuille Google pas encore reliée à l\'app.' : r.status === 502 ? 'Feuille Google illisible (onglet « Données » ?).' : 'Lecture de la feuille refusée.')
+  if (!r.ok) throw new Error(r.status === 503 ? 'Feuille Google pas encore reliée à l\'app.' : r.status === 502 ? (await r.text()).slice(0, 200) : 'Lecture de la feuille refusée (reconnecte-toi).')
   return (await r.json() as { lignes: unknown[][] }).lignes
 }
 

@@ -37,7 +37,7 @@ export function TodayActivities({ playerId, date, title = 'Mes activités du jou
         <p className="rounded-lg border border-gold px-3 py-2 text-sm">Tu es noté blessé : seul ton programme individuel apparaît.</p>
       )}
       {planned.length === 0 && extras.length === 0 && <p className="text-sm text-ink/70">Aucune activité prévue aujourd'hui.</p>}
-      <ul className="flex flex-col gap-3">
+      <ul className="flex flex-col divide-y divide-line/60">
         {[...planned, ...extras].map(a => (
           <ActivityRow key={a.activityTypeId} playerId={playerId} date={date} activity={a}
             log={logs.data.find(l => l.activity_type_id === a.activityTypeId)}

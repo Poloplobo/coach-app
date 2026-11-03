@@ -32,9 +32,16 @@ export function formatLoad(e: Pick<PlannedExercise, 'load_value' | 'load_unit' |
 
 // « 5 × 5 · 80 %RM · 3 RER · tempo 4.0.1.0 · repos 2' » : la consigne suit la charge (en charge libre, elle EST la charge)
 export function prescription(e: PlannedExercise): string {
-  const volume = e.sets && e.reps ? `${e.sets} × ${e.reps}` : e.reps ?? (e.sets ? `${e.sets} séries` : null)
-  const note = e.load_unit !== 'free' ? e.instructions : null
-  return [volume, formatLoad(e), note, e.tempo && `tempo ${e.tempo}`, e.rest && `repos ${e.rest}`].filter(Boolean).join(' · ')
+  const p = prescriptionParts(e)
+  return [p.volume, p.load, p.note, p.tempo && `tempo ${p.tempo}`, p.rest && `repos ${p.rest}`].filter(Boolean).join(' · ')
+}
+
+// Les mêmes éléments séparés, pour la fiche du joueur (volume en gros, charge, tempo et repos en pastilles)
+export function prescriptionParts(e: PlannedExercise) {
+  return {
+    volume: e.sets && e.reps ? `${e.sets} × ${e.reps}` : e.reps ?? (e.sets ? `${e.sets} séries` : null),
+    load: formatLoad(e), note: e.load_unit !== 'free' ? e.instructions : null, tempo: e.tempo, rest: e.rest,
+  }
 }
 
 // Taux de complétion : exercices « fait » sur le total de la séance

@@ -75,7 +75,8 @@ export function MuscuSessionCard({ playerId, date, catchUp = false }: { playerId
 
   return (
     <Card title={catchUp ? 'Ma séance d\'hier (relance du staff)' : 'Ma séance de musculation'}
-      help="1. Pour chaque exercice : fait, partiel ou non fait, et ton RPE. 2. Terminer la séance : le RPE de séance est la moyenne de tes exercices ; indique la durée, puis Valider.">
+      help="Note chaque exercice (fait, partiel ou non fait, et ton RPE), puis termine la séance."
+      aside={plannedMinutes ? <span className="text-sm tabular-nums text-ink/60">{plannedMinutes} min prévues</span> : undefined}>
       {strip}
       <div className="flex items-center gap-3" aria-label={`${c.done} exercices faits sur ${c.total}`}>
         <div className="h-2 flex-1 rounded-full bg-field" aria-hidden="true">
@@ -83,16 +84,30 @@ export function MuscuSessionCard({ playerId, date, catchUp = false }: { playerId
         </div>
         <span className="text-sm tabular-nums text-ink/70">{c.done}/{c.total} faits</span>
       </div>
-      {/* Blocs de la fiche : les exercices d'un même bloc (A1, A2…) s'enchaînent, reliés par un trait */}
-      <div className="flex flex-col gap-4">
-        {blockGroups(exercises).map(g => (
-          <section key={g.key + g.items[0].id} aria-label={g.label}>
-            <h3 className="mb-1 font-display text-base font-semibold text-gold">{g.label}{g.items.length > 1 && <span className="ml-2 font-sans text-xs font-normal text-ink/50">enchaîner</span>}</h3>
-            <ul className={`flex flex-col gap-3 ${g.items.length > 1 ? 'border-l-2 border-gold/40 pl-3' : ''}`}>
-              {g.items.map(e => <ExerciseRow key={e.id} playerId={playerId} exercise={e} editable={!log} />)}
-            </ul>
-          </section>
-        ))}
+      {/* Blocs de la fiche : les exercices d'un même bloc (A1, A2…) s'enchaînent ; l'en-tête le dit et compte les faits */}
+      <div className="flex flex-col gap-3">
+        {blockGroups(exercises).map(g => {
+          const gc = completion(g.items)
+          const rounds = new Set(g.items.map(e => e.sets))
+          const sets = rounds.size === 1 ? g.items[0].sets : null
+          return (
+            <section key={g.key + g.items[0].id} aria-label={g.label} className="rounded-xl bg-surface ring-1 ring-line/60">
+              <header className="flex items-center gap-3 border-b border-line/60 px-3 py-2.5">
+                <span aria-hidden="true" className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-display text-lg font-bold ${gc.done === gc.total ? 'bg-ok/15 text-ok' : 'bg-gold/15 text-gold'}`}>
+                  {g.key === 'MOB' ? 'M' : g.key === '—' ? '•' : g.key}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-display text-lg font-semibold leading-tight">{g.label}</h3>
+                  {g.items.length > 1 && <p className="text-xs text-ink/60">{g.items.length} exercices à enchaîner{sets ? ` · ${sets} tours` : ''}</p>}
+                </div>
+                <span className="text-sm tabular-nums text-ink/60" aria-label={`${gc.done} faits sur ${gc.total}`}>{gc.done}/{gc.total}</span>
+              </header>
+              <ul className="divide-y divide-line/60 px-3">
+                {g.items.map(e => <ExerciseRow key={e.id} playerId={playerId} exercise={e} editable={!log} />)}
+              </ul>
+            </section>
+          )
+        })}
       </div>
 
       {log ? (

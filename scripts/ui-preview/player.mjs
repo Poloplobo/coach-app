@@ -1,7 +1,8 @@
 // Aperçu visuel des écrans JOUEUR (390 × 844) sans compte ni donnée réelle : joueur fictif, réponses Supabase simulées,
 // toute autre requête vers Supabase bloquée.
-// Usage : npx vite --port 5199   puis   node scripts/ui-preview/player.mjs <dossier> [dark|light] [vide]
-// « vide » : état de forme du jour pas encore rempli (onglets verrouillés).
+// Usage : npx vite --port 5199   puis   node scripts/ui-preview/player.mjs <dossier> [dark|light] [vide|a-noter]
+// « a-noter » : dernier match pas encore noté par le joueur. « vide » : état de forme du jour pas encore rempli (onglets verrouillés).
+import { readdirSync } from 'node:fs'
 import { chromium } from 'playwright'
 
 const [out, theme = 'dark', scenario = 'rempli'] = process.argv.slice(2)
@@ -30,6 +31,21 @@ const muscu = { id: 'mock-muscu', session_date: TODAY, planned_duration_min: 60,
   ex('e3', 3, 'B1', 'Développé couché', 4, '6', 85, 'kg'),
 ] }
 
+// Performance : 4 matchs passés, GPS sur 3, notes du joueur et du coach sur le dernier (sauf scénario « a-noter »)
+const LOGOS = readdirSync(new URL('../../public/logos-clubs/', import.meta.url)).slice(0, 4)
+const matches = ['Clermont', 'Lyon OU', 'Stade Français', 'R92'].map((opponent, i) => ({
+  id: `g${i}`, match_date: addDays(TODAY, -7 * i - 2), opponent, label: `J${6 - i}`, home: i % 2 === 0, logo: LOGOS[i] ?? null }))
+const gps = [[0, 62, 5480, 410, 23, 33.4], [1, 70, 6120, 520, 26, 32.1], [3, 55, 4300, 220, 15, 31.2]].map(([i, minutes, distance_m, hi_distance_m, accelerations, vmax]) =>
+  ({ match_id: `g${i}`, player_id: PLAYER, position: 'AILIER', minutes, distance_m, hi_distance_m, accelerations, vmax }))
+const ratings = [
+  ...(scenario === 'a-noter' ? [] : [{ match_id: 'g0', player_id: PLAYER, rater: 'player', color: 'vert', comment: null, minutes: null },
+    { match_id: 'g0', player_id: PLAYER, rater: 'staff', color: 'bleu', comment: 'Très bon placement défensif, continue à attaquer la ligne.', minutes: 62 }]),
+  { match_id: 'g1', player_id: PLAYER, rater: 'player', color: 'jaune', comment: null, minutes: null },
+  { match_id: 'g1', player_id: PLAYER, rater: 'staff', color: 'vert', comment: null, minutes: 70 },
+]
+const guidelines = [['rouge', 'Engagement insuffisant'], ['jaune', 'Quelques bonnes actions'], ['vert', 'Rôle tenu'], ['bleu', 'Au-dessus du niveau attendu']]
+  .map(([color, guideline]) => ({ color, guideline }))
+
 function table(name, url) {
   const p = url.searchParams
   switch (name) {
@@ -43,6 +59,12 @@ function table(name, url) {
       { id: 'p2', session_date: TODAY, player_id: null, planned_duration_min: 25, activity_types: types[1] },
       { id: 'mock-muscu', session_date: TODAY, player_id: PLAYER, planned_duration_min: 60, activity_types: types[2] },
     ]
+    case 'matches': return matches
+    case 'gps_records': return gps
+    case 'gps_reference': return [{ position_group: 'AILIER', distance_m: 5600, hi_distance_m: 400, accelerations: 20, ref_minutes: 70 }]
+    case 'gps_positions': return [{ position: 'AILIER', position_group: 'AILIER' }]
+    case 'match_ratings': return ratings
+    case 'rating_guidelines': return guidelines
     default: return []
   }
 }
@@ -69,7 +91,7 @@ const pages = scenario === 'vide' ? ['forme'] : ['accueil', 'seance', 'rugby', '
 for (const p of pages) {
   await page.goto(`http://localhost:5199${p === 'accueil' ? '/joueur' : `/joueur/${p}`}`)
   await page.waitForLoadState('networkidle'); await page.waitForTimeout(1500)
-  await page.screenshot({ path: `${out}/player-${theme}-${scenario}-${p}.png` })
+  await page.screenshot({ path: `${out}/player-${theme}-${scenario}-${p}.png`, fullPage: true })
 }
 console.log({ pages, blocked: [...new Set(blocked)] })
 await browser.close()

@@ -41,7 +41,8 @@ describe('PerformanceTab', () => {
     h.ratings = [{ match_id: 'm1', player_id: 'p1', rater: 'player', color: 'vert' }, { match_id: 'm1', player_id: 'p1', rater: 'staff', color: 'bleu' }]
     render(<PerformanceTab />)
     expect(screen.queryByText(NOTE)).toBeNull()
-    expect(occurrences(COLOR_LABEL.bleu)).toBe(2)
+    expect(occurrences(COLOR_LABEL.bleu)).toBe(1) // les boutons de notation disparaissent une fois la note validée : c'est celle du coach
+    expect(screen.queryAllByRole('radio')).toHaveLength(0)
   })
 
   it('sans GPS sur le match : message grisé, la note reste possible', () => {

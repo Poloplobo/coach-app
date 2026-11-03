@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Check } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { SavedFlash } from '../../components/ui/SavedFlash'
 import { useSavedFlash } from '../../components/ui/useSavedFlash'
@@ -22,13 +23,14 @@ export function ActivityRow({ playerId, date, activity, log, onRemove }: {
 
   if (log && !editing) {
     return (
-      <li className="flex items-center justify-between gap-3 border-t border-line pt-3">
-        <div>
+      <li className="flex items-center gap-3 py-3">
+        <span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-ok bg-ok/15 text-ok"><Check size={14} strokeWidth={3} /></span>
+        <div className="min-w-0 flex-1">
           <p className="font-semibold">{activity.name}</p>
           <p className="text-sm text-ink/70">
-            {activity.requiresRpe ? `RPE ${log.rpe} · ` : ''}{log.duration_min} min{activity.requiresRpe ? ` · ${log.srpe} UA` : ''}
+            {activity.requiresRpe ? `RPE ${log.rpe} · ` : ''}{log.duration_min} min{activity.requiresRpe && <> · <strong className="font-semibold text-ink">{log.srpe} UA</strong></>}
+            {' '}<SavedFlash shown={flash} />
           </p>
-          <SavedFlash shown={flash} />
         </div>
         {/* une séance validée ou corrigée par le staff est verrouillée ; sinon modifiable toute la journée */}
         {log.source && log.source !== 'app' && <span className="text-xs text-ink/60">saisi par le staff</span>}
@@ -43,27 +45,31 @@ export function ActivityRow({ playerId, date, activity, log, onRemove }: {
   )
 
   return (
-    <li className="flex flex-col gap-3 border-t border-line pt-3">
-      <p className="font-semibold">{activity.name}</p>
-      {activity.requiresRpe && (
-        <RpePicker label="Effort ressenti (RPE)" value={rpe} onChange={setRpe} />
-      )}
-      <label className="flex items-center gap-3 text-sm">
-        Durée
-        <input
-          type="number" inputMode="numeric" min={1} max={300} value={duration} onChange={e => setDuration(e.target.value)}
-          className="w-20 rounded-lg bg-field border border-line px-3 py-2 text-base"
-        />
-        min
-      </label>
-      {save.isError && <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">{(save.error as { code?: string } | null)?.code === '42501' ? 'Délai dépassé : ce jour n\'est plus modifiable, demande au staff.' : 'Enregistrement impossible, réessaie.'}</p>}
-      <div className="flex gap-2">
-        <Button className="flex-1" onClick={submit} disabled={save.isPending || !validDuration || (activity.requiresRpe && rpe === null)}>
-          {save.isPending ? 'Enregistrement…' : activity.requiresRpe ? 'Enregistrer' : 'J\'y étais'}
-        </Button>
-        {/* Annuler repart de la saisie enregistrée ; une activité ajoutée mais pas encore déclarée peut être retirée */}
-        {log && <Button variant="quiet" onClick={() => { setRpe(log.rpe); setDuration(String(log.duration_min)); setEditing(false) }}>Annuler</Button>}
-        {!log && onRemove && <Button variant="quiet" onClick={onRemove}>Retirer</Button>}
+    <li className="flex flex-col gap-3 py-3">
+      <p className="flex items-center gap-3 font-semibold">
+        <span aria-hidden="true" className="h-6 w-6 shrink-0 rounded-full border border-line" />{activity.name}
+      </p>
+      <div className="flex flex-col gap-3 pl-9">
+        {activity.requiresRpe && (
+          <RpePicker label="Effort ressenti (RPE)" value={rpe} onChange={setRpe} />
+        )}
+        <label className="flex items-center gap-3 text-sm">
+          Durée
+          <input
+            type="number" inputMode="numeric" min={1} max={300} value={duration} onChange={e => setDuration(e.target.value)}
+            className="w-20 rounded-lg bg-field border border-line px-3 py-2 text-base"
+          />
+          min
+        </label>
+        {save.isError && <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">{(save.error as { code?: string } | null)?.code === '42501' ? 'Délai dépassé : ce jour n\'est plus modifiable, demande au staff.' : 'Enregistrement impossible, réessaie.'}</p>}
+        <div className="flex gap-2">
+          <Button className="flex-1" onClick={submit} disabled={save.isPending || !validDuration || (activity.requiresRpe && rpe === null)}>
+            {save.isPending ? 'Enregistrement…' : activity.requiresRpe ? 'Enregistrer' : 'J\'y étais'}
+          </Button>
+          {/* Annuler repart de la saisie enregistrée ; une activité ajoutée mais pas encore déclarée peut être retirée */}
+          {log && <Button variant="quiet" onClick={() => { setRpe(log.rpe); setDuration(String(log.duration_min)); setEditing(false) }}>Annuler</Button>}
+          {!log && onRemove && <Button variant="quiet" onClick={onRemove}>Retirer</Button>}
+        </div>
       </div>
     </li>
   )

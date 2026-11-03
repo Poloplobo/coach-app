@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, Copy } from 'lucide-react'
+import { BellRing, Check, Copy } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { Card } from '../../components/ui/Card'
 import { Loading } from '../../components/ui/Loading'
@@ -13,7 +13,7 @@ import { StatCard } from './StatCard'
 import { fatiguePercent, postureOf } from '../wellness/fatigue'
 import { WELLNESS_ITEMS } from '../wellness/items'
 import { fullName, itemValue, latecomers, reminderMessage, wellnessAlerts } from './load'
-import { useAllLogs, useAllPlan, useAllWellness, useRoster } from './useStaff'
+import { useAllLogs, useAllPlan, useAllWellness, useRemind, useReminders, useRoster } from './useStaff'
 
 // Seules les réponses moyennes ou mauvaises ressortent : l'œil va droit aux problèmes
 const itemLook = (v: number) => (v >= 4 ? 'text-ink/45' : v === 3 ? 'text-gold font-semibold' : 'text-rnr font-bold')
@@ -36,6 +36,7 @@ export function TodayView() {
   const wellness = useAllWellness(addDays(today, -6), today) // 7 jours : tendances des cartes
   const logs = useAllLogs(yesterday, today)
   const plan = useAllPlan(yesterday, yesterday)
+  const reminded = useReminders(yesterday)
   const [filter, setFilter] = useState<Filter>('tous')
 
   if (roster.isPending || wellness.isPending || logs.isPending || plan.isPending) return <Loading />
@@ -187,10 +188,13 @@ export function TodayView() {
 
           <div className="rise" style={{ animationDelay: '480ms' }}>
         <Card boxed title={`À relancer (${late.length})`}
-          help="Ont oublié une saisie hier ou aujourd'hui. Copiez le message, puis envoyez-le au joueur.">
+          help="Ont oublié une saisie hier ou aujourd'hui. « Relancer » : le joueur voit un bandeau dans l'app et peut déclarer sa journée d'hier jusqu'à minuit. « Copier » : message à envoyer vous-même.">
           {late.length === 0 && <p className="text-sm text-ok">Tout le monde est à jour.</p>}
           <ul className="flex flex-col">
-            {late.map(({ player, missing }) => <Reminder key={player.id} name={fullName(player)} missing={missing} message={reminderMessage(player, missing)} />)}
+            {late.map(({ player, missing }) => (
+              <Reminder key={player.id} playerId={player.id} name={fullName(player)} missing={missing} message={reminderMessage(player, missing)}
+                yesterday={missing.includes('RPE d\'hier') ? yesterday : null} reminded={reminded.data?.includes(player.id) ?? false} />
+            ))}
           </ul>
         </Card>
           </div>
@@ -206,7 +210,10 @@ function groupFatigue(rows: { w?: { score: number | null } }[]) {
   return scores.length ? Math.round(scores.reduce((s, v) => s + fatiguePercent(v), 0) / scores.length) : null
 }
 
-function Reminder({ name, missing, message }: { name: string; missing: string[]; message: string }) {
+function Reminder({ playerId, name, missing, message, yesterday, reminded }: {
+  playerId: string; name: string; missing: string[]; message: string; yesterday: string | null; reminded: boolean
+}) {
+  const remind = useRemind()
   const [copied, setCopied] = useState<boolean | null>(null)
   const copy = async () => {
     try { await navigator.clipboard.writeText(message); setCopied(true) } catch { setCopied(false) }
@@ -217,11 +224,21 @@ function Reminder({ name, missing, message }: { name: string; missing: string[];
       <span className="min-w-0 truncate text-sm" title={missing.join(', ')}>
         <span className="font-semibold">{name}</span> <span className="text-xs text-ink/55">{missing.join(', ')}</span>
       </span>
+      <span className="flex shrink-0 items-center gap-1.5">
+      {yesterday && (reminded
+        ? <span className="inline-flex items-center gap-1 text-xs text-ok"><Check size={14} aria-hidden="true" />Relancé</span>
+        : (
+          <button type="button" disabled={remind.isPending} onClick={() => remind.mutate({ playerId, date: yesterday })} aria-label={`Relancer ${name} dans l'app pour son RPE d'hier`}
+            className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm ${remind.isError ? 'border-rnr text-rnr' : 'border-line hover:border-ink/40'}`}>
+            <BellRing size={14} aria-hidden="true" />{remind.isError ? 'Réessayer' : 'Relancer'}
+          </button>
+        ))}
       <button type="button" onClick={copy} aria-label={`Copier le message pour ${name}`}
         className={`inline-flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm ${copied ? 'border-ok text-ok' : 'border-line hover:border-ink/40'}`}>
         {copied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
         {copied === null ? 'Copier' : copied ? 'Copié' : 'Impossible'}
       </button>
+      </span>
     </li>
   )
 }

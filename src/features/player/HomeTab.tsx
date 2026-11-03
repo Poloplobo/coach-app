@@ -3,7 +3,7 @@ import { addDays, isoWeekStart } from '../../lib/week'
 import { Check, ChevronRight } from 'lucide-react'
 import { TabLink } from '../../components/ui/TabLink'
 import { MUSCULATION, dayActivities, upcomingByDay } from '../rpe/activities'
-import { useAvailability, usePlanRange } from '../rpe/useRpe'
+import { useAvailability, useCatchUpDay, usePlanRange } from '../rpe/useRpe'
 import { completion } from '../seances/program'
 import { useWeekProgram } from '../seances/useSeance'
 import { MyGoals } from '../tests/MyGoals'
@@ -24,6 +24,7 @@ export function HomeTab() {
   const rise = (i: number) => ({ className: 'rise empty:hidden', style: { animationDelay: `${i * 70}ms` } })
   return (
     <>
+      <div {...rise(0)}><CatchUp playerId={playerId} today={today} /></div>
       <div {...rise(0)}><Scoreboard playerId={playerId} today={today} /></div>
       <div {...rise(1)}><TodoToday playerId={playerId} today={today} /></div>
       <div {...rise(2)}><MyWeek playerId={playerId} date={today} footer={<MuscuWeek playerId={playerId} today={today} />} /></div>
@@ -33,8 +34,14 @@ export function HomeTab() {
   )
 }
 
+// Relance du staff : ce qu'il reste à déclarer d'hier, en tête de l'accueil ; tout est déclaré ou pas de relance : rien
+function CatchUp({ playerId, today }: { playerId: string; today: string }) {
+  const day = useCatchUpDay(playerId, today).data
+  return day ? <TodoToday playerId={playerId} today={day} title="Le staff attend ta saisie d'hier" /> : null
+}
+
 // Ce qu'il reste à déclarer aujourd'hui, avec un raccourci vers le bon onglet ; rien de prévu : pas de bloc
-function TodoToday({ playerId, today }: { playerId: string; today: string }) {
+function TodoToday({ playerId, today, title }: { playerId: string; today: string; title?: string }) {
   const plan = usePlanRange(playerId, today, today)
   const logs = useLogsRange(playerId, today, today)
   const availability = useAvailability(playerId)
@@ -47,10 +54,10 @@ function TodoToday({ playerId, today }: { playerId: string; today: string }) {
     const l = logs.data.find(x => x.activity_type_id === a.activityTypeId)
     return isMuscu(a) ? !l?.validated_at : !l
   })
-  if (!pending.length) return <p className="flex items-center gap-2 rounded-xl bg-ok/10 px-4 py-3 font-semibold text-ok"><Check size={18} aria-hidden="true" />Tout est déclaré pour aujourd'hui.</p>
+  if (!pending.length) return title ? null : <p className="flex items-center gap-2 rounded-xl bg-ok/10 px-4 py-3 font-semibold text-ok"><Check size={18} aria-hidden="true" />Tout est déclaré pour aujourd'hui.</p>
   return (
-    <section aria-label="À faire aujourd'hui" className="flex flex-col gap-2 rounded-xl bg-surface p-4 ring-1 ring-line/60">
-      <h2 className="font-display text-xl font-semibold leading-tight">À faire aujourd'hui</h2>
+    <section aria-label={title ?? 'À faire aujourd\'hui'} className={`flex flex-col gap-2 rounded-xl bg-surface p-4 ring-1 ${title ? 'ring-2 ring-gold' : 'ring-line/60'}`}>
+      <h2 className="font-display text-xl font-semibold leading-tight">{title ?? 'À faire aujourd\'hui'}</h2>
       <ul className="flex flex-col gap-2">
         {pending.map(a => (
           <li key={a.activityTypeId}>

@@ -11,7 +11,8 @@ import { blockGroups, completion, sessionRpe, sortedExercises } from './program'
 import { useMarkNotDone, useValidateSession, useWeekProgram } from './useSeance'
 import { Loading } from '../../components/ui/Loading'
 
-export function MuscuSessionCard({ playerId, date }: { playerId: string; date: string }) {
+// catchUp : séance d'hier rouverte par une relance du staff ; rien à afficher si elle n'existe pas ou est déjà validée
+export function MuscuSessionCard({ playerId, date, catchUp = false }: { playerId: string; date: string; catchUp?: boolean }) {
   const from = isoWeekStart(date)
   const to = addDays(from, 6)
   const program = useWeekProgram(playerId, from, to)
@@ -50,6 +51,7 @@ export function MuscuSessionCard({ playerId, date }: { playerId: string; date: s
   )
   const next = others.find(x => x.session_date > date)
 
+  if (catchUp && (!session || !muscuType || logs.data.some(l => l.planned_session_id === session.id && l.validated_at))) return null
   if (!session || !muscuType) {
     return (
       <Card title="Musculation" help="Ta semaine de musculation : ✓ séance faite, ● séance prévue.">
@@ -71,7 +73,7 @@ export function MuscuSessionCard({ playerId, date }: { playerId: string; date: s
   const sessionEffort = computed?.rpe ?? rpe
 
   return (
-    <Card title="Ma séance de musculation"
+    <Card title={catchUp ? 'Ma séance d\'hier (relance du staff)' : 'Ma séance de musculation'}
       help="1. Pour chaque exercice : fait, partiel ou non fait, et ton RPE. 2. Terminer la séance : le RPE de séance est la moyenne de tes exercices ; indique la durée, puis Valider.">
       {strip}
       <div className="flex items-center gap-3" aria-label={`${c.done} exercices faits sur ${c.total}`}>

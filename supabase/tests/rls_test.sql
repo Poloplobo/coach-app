@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(127);
+select plan(136);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -47,6 +47,12 @@ insert into public.planned_exercises (id, planned_session_id, exercise_id, posit
 insert into public.session_logs (player_id, planned_session_id, session_date, activity_type_id, duration_min, rpe, validated_at) values
   ('00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-0000000000a2', public.paris_today(),
    (select id from public.activity_types where name = 'Musculation'), 60, 6, now());
+
+-- Séance de muscu d'hier pour B (rattrapage après relance, 0025)
+insert into public.planned_sessions (id, session_date, title, player_id, activity_type_id) values
+  ('00000000-0000-0000-0000-0000000000b9', public.paris_today() - 1, 'Muscu B hier', '00000000-0000-0000-0000-00000000000b', (select id from public.activity_types where name = 'Musculation'));
+insert into public.planned_exercises (id, planned_session_id, exercise_id, position) values
+  ('00000000-0000-0000-0000-0000000000f9', '00000000-0000-0000-0000-0000000000b9', '00000000-0000-0000-0000-0000000000e1', 1);
 
 
 -- Duplication (étape 8) : semaine source du lundi 2030-01-07, cibles S90 (normale) et S91 (OFF)
@@ -437,6 +443,39 @@ select isnt_empty($$select 1 from public.rating_guidelines where color = 'bleu'$
 select throws_ok($$insert into public.rating_guidelines (color, guideline) values ('rouge', 'x')$$, '42501', null, 'un joueur ne peut pas écrire de consigne');
 
 select throws_ok($$select public.delete_muscu_session('00000000-0000-0000-0000-0000000000a1')$$, '42501', null, 'un joueur ne peut pas supprimer de séance');
+
+-- Relance (0025) : sans relance, B ne rattrape pas hier ; il ne se relance pas lui-même
+select throws_ok($$insert into public.session_logs (player_id, session_date, activity_type_id, duration_min, rpe)
+                   values ('00000000-0000-0000-0000-00000000000b', public.paris_today() - 1, (select id from public.activity_types where name = 'Vidéo'), 25, null)$$,
+                 '42501', null, 'sans relance, B ne déclare pas hier');
+select throws_ok($$insert into public.exercise_feedback (player_id, planned_exercise_id, status)
+                   values ('00000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-0000000000f9', 'fait')$$,
+                 '42501', null, 'sans relance, B ne remplit pas la muscu d''hier');
+select throws_ok($$insert into public.rpe_reminders (player_id, missing_date) values ('00000000-0000-0000-0000-00000000000b', public.paris_today() - 1)$$,
+                 '42501', null, 'B ne peut pas se relancer lui-même');
+
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000c","role":"authenticated"}', true);
+set local role authenticated;
+select lives_ok($$insert into public.rpe_reminders (player_id, missing_date) values
+                  ('00000000-0000-0000-0000-00000000000b', public.paris_today() - 1),
+                  ('00000000-0000-0000-0000-00000000000b', public.paris_today() - 2),
+                  ('00000000-0000-0000-0000-00000000000a', public.paris_today() - 1)$$, 'le coach relance des joueurs');
+
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}', true);
+set local role authenticated;
+select lives_ok($$insert into public.session_logs (player_id, session_date, activity_type_id, duration_min, rpe)
+                  values ('00000000-0000-0000-0000-00000000000b', public.paris_today() - 1, (select id from public.activity_types where name = 'Vidéo'), 25, null)$$,
+                'relancé, B déclare une activité d''hier');
+select lives_ok($$insert into public.exercise_feedback (player_id, planned_exercise_id, status)
+                  values ('00000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-0000000000f9', 'fait')$$,
+                'relancé, B remplit la muscu d''hier');
+select throws_ok($$insert into public.session_logs (player_id, session_date, activity_type_id, duration_min, rpe)
+                   values ('00000000-0000-0000-0000-00000000000b', public.paris_today() - 2, (select id from public.activity_types where name = 'Vidéo'), 25, null)$$,
+                 '42501', null, 'même relancé, B ne déclare pas avant-hier');
+select is((select count(*)::int from public.rpe_reminders), 2, 'B voit ses relances, pas celle de A');
+select is_empty($$delete from public.rpe_reminders returning 1$$, 'B ne supprime pas ses relances');
 
 -- ---------- Visiteur non connecté ----------
 reset role;

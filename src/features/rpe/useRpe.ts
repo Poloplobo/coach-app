@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabaseClient'
+import { addDays } from '../../lib/week'
 import type { PlannedRow } from './activities'
 
 export function useAvailability(playerId: string) {
@@ -49,6 +50,19 @@ export function useLogsRange(playerId: string, from: string, to: string) {
         .eq('player_id', playerId).gte('session_date', from).lte('session_date', to)
       if (error) throw error
       return data
+    },
+  })
+}
+
+// Relance du staff pour hier : le joueur peut alors déclarer sa veille (RLS can_log_day) ; null sans relance
+export function useCatchUpDay(playerId: string, today: string) {
+  const yesterday = addDays(today, -1)
+  return useQuery({
+    queryKey: ['reminder', playerId, yesterday],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('rpe_reminders').select('missing_date').eq('player_id', playerId).eq('missing_date', yesterday).maybeSingle()
+      if (error) throw error
+      return data ? yesterday : null
     },
   })
 }

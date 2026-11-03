@@ -802,6 +802,27 @@ export type Database = {
         }
         Relationships: []
       }
+      rpe_reminders: {
+        Row: {
+          missing_date: string
+          player_id: string
+          sent_at: string
+          sent_by: string | null
+        }
+        Insert: {
+          missing_date: string
+          player_id: string
+          sent_at?: string
+          sent_by?: string | null
+        }
+        Update: {
+          missing_date?: string
+          player_id?: string
+          sent_at?: string
+          sent_by?: string | null
+        }
+        Relationships: []
+      }
       rating_guidelines: {
         Row: {
           color: string
@@ -1244,6 +1265,7 @@ export type Database = {
         Args: { p_planned_exercise_id: string }
         Returns: boolean
       }
+      can_log_day: { Args: { p_date: string }; Returns: boolean }
       can_rate_match: { Args: { p_match: string }; Returns: boolean }
       delete_muscu_session: { Args: { p_session: string }; Returns: undefined }
       duplicate_week: {

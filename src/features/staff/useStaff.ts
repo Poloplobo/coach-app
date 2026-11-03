@@ -85,6 +85,23 @@ export function useSetAvailability() {
   })
 }
 
+// Relances du jour donné (joueurs autorisés à rattraper ce jour-là, 0025)
+export function useReminders(date: string) {
+  return useQuery(query(['staff', 'reminders', date], async () => (check(await supabase.from('rpe_reminders')
+    .select('player_id').eq('missing_date', date)) as { player_id: string }[]).map(r => r.player_id)))
+}
+
+// « Relancer » : le joueur voit un bandeau et peut déclarer ce jour-là (hier) jusqu'à minuit
+export function useRemind() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (r: { playerId: string; date: string }) => {
+      check(await supabase.from('rpe_reminders').upsert({ player_id: r.playerId, missing_date: r.date }, { onConflict: 'player_id,missing_date' }).select('player_id'))
+    },
+    onSuccess: () => invalidateStaff(qc),
+  })
+}
+
 // Correction d'un oubli ou d'une erreur par le staff, marquée « saisi par le staff »
 export function useStaffSaveLog() {
   const qc = useQueryClient()

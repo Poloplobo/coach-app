@@ -5,7 +5,7 @@ import { MUSCULATION, dayActivities, type DayActivity } from './activities'
 import { useActivityTypes, useAvailability, useLogsRange, usePlanRange } from './useRpe'
 import { Loading } from '../../components/ui/Loading'
 
-export function TodayActivities({ playerId, date }: { playerId: string; date: string }) {
+export function TodayActivities({ playerId, date, title = 'Mes activités du jour' }: { playerId: string; date: string; title?: string }) {
   const availability = useAvailability(playerId)
   const plan = usePlanRange(playerId, date, date)
   const logs = useLogsRange(playerId, date, date)
@@ -13,10 +13,10 @@ export function TodayActivities({ playerId, date }: { playerId: string; date: st
   const [extraIds, setExtraIds] = useState<string[]>([])
 
   if (availability.isPending || plan.isPending || logs.isPending || types.isPending) {
-    return <Card title="Mes activités du jour"><Loading /></Card>
+    return <Card title={title}><Loading /></Card>
   }
   if (availability.isError || plan.isError || logs.isError || types.isError) {
-    return <Card title="Mes activités du jour"><p>Impossible de charger tes activités. Vérifie ta connexion.</p></Card>
+    return <Card title={title}><p>Impossible de charger tes activités. Vérifie ta connexion.</p></Card>
   }
 
   const planned = dayActivities(plan.data, { injured: availability.data === 'blessé' })
@@ -32,7 +32,7 @@ export function TodayActivities({ playerId, date }: { playerId: string; date: st
   const addable = types.data.filter(t => !shown.has(t.id) && t.name !== MUSCULATION)
 
   return (
-    <Card title="Mes activités du jour" help="Pour chaque activité : ton effort ressenti et la durée. Vidéo et soins : un simple « J'y étais ».">
+    <Card title={title} help="Pour chaque activité : ton effort ressenti et la durée. Vidéo et soins : un simple « J'y étais ».">
       {availability.data === 'blessé' && (
         <p className="rounded-lg border border-gold px-3 py-2 text-sm">Tu es noté blessé : seul ton programme individuel apparaît.</p>
       )}

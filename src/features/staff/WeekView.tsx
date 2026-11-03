@@ -167,7 +167,7 @@ function CoachSummary({ m, wt, code, pillars, alerts }: { m: ReturnType<typeof w
         </div>
 
         <div className="flex flex-col gap-4">
-          <Card title="Charge trop haute" help="Rythme : charge du joueur comparée au haut de la plage de la semaine, au prorata du planning déjà passé. Séances : au-dessus du seuil de leur activité (Programmation › Seuils de charge), orange puis rouge au-delà de 1,25 × le seuil.">
+          <Card title="Charge trop haute" help="Rythme : charge du joueur comparée à la charge visée de la semaine, au prorata du planning déjà passé. Séances : au-dessus du seuil de leur activité (Programmation › Seuils de charge), orange puis rouge au-delà de 1,25 × le seuil.">
             {m.inProgress && (ahead.length
               ? <Group title={`Au-dessus du rythme de la semaine (${ahead.length})`} rows={ahead} tone="bad"
                   detail={r => { const p = alerts.get(r.player.id)!.pace!; return `${r.total} UA pour ${p.limit} au rythme (${p.share} % du planning passé)` }} />
@@ -247,7 +247,7 @@ function Group({ title, rows, tone, detail }: { title: string; rows: MatrixRow[]
 
 function LoadTable({ m, alerts, weekStart }: { m: ReturnType<typeof weekMatrix>; alerts: Alerts; weekStart: string }) {
   return (
-    <Card title="Charge par joueur" help="Charge (sRPE = RPE × minutes) jour par jour et sur la semaine. Case orange ou rouge : une séance du jour dépasse le seuil de son activité (survol : le détail). % cible : total ÷ charge visée. Rythme (semaine en cours) : total ÷ charge au rythme du planning, au haut de la plage. vs groupe : écart à la moyenne des joueurs aptes.">
+    <Card title="Charge par joueur" help="Charge (sRPE = RPE × minutes) jour par jour et sur la semaine. Case orange ou rouge : une séance du jour dépasse le seuil de son activité (survol : le détail). % cible : total ÷ charge visée. Rythme (semaine en cours) : total ÷ charge visée au prorata du planning passé. vs groupe : écart à la moyenne des joueurs aptes.">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="text-left text-ink/60">
@@ -280,7 +280,7 @@ function LoadTable({ m, alerts, weekStart }: { m: ReturnType<typeof weekMatrix>;
                 <td className="pr-3 text-right">{pct(r.vsGroupPct, true)}</td>
                 {m.inProgress && (() => {
                   const p = alerts.get(r.player.id)?.pace
-                  return <td className="pr-3 text-right" title={p ? `${r.total} UA pour ${p.limit} au rythme (${p.share} % du planning passé)` : 'Pas de haut de plage ou pas de planning'}>
+                  return <td className="pr-3 text-right" title={p ? `${r.total} UA pour ${p.limit} au rythme (${p.share} % du planning passé)` : 'Pas de type de semaine ou pas de planning'}>
                     {!p ? '—' : p.over ? <Badge tone="bad">{pct(p.pct ?? 0)}</Badge> : pct(p.pct ?? 0)}
                   </td>
                 })()}

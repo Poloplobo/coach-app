@@ -128,7 +128,7 @@ export function TodayView() {
                   <th className="pr-3 font-normal">Score</th>
                   {WELLNESS_ITEMS.map(i => <th key={i.key} className="px-1 text-center font-normal">{SHORT[i.key] ?? i.label}</th>)}
                   <th className="pl-2 font-normal">Alerte</th>
-                  <th className="pl-2 font-normal" title="Charge de la semaine en cours ; rouge : au-dessus du rythme de la semaine (haut de la plage au prorata du planning passé). En dessous : séances d'hier ou d'aujourd'hui au-dessus du seuil de leur activité.">Charge sem.</th>
+                  <th className="pl-2 font-normal" title="Charge de la semaine en cours ; rouge : au-dessus du rythme de la semaine (charge visée au prorata du planning passé). En dessous : séances d'hier ou d'aujourd'hui au-dessus du seuil de leur activité.">Charge sem.</th>
                   <th className="pl-2 font-normal" title="Notification du matin activée sur son téléphone">Rappel activé</th>
                 </tr>
               </thead>

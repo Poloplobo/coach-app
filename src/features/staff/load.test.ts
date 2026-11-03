@@ -180,15 +180,15 @@ describe('weekPace : rythme de la semaine selon le planning', () => {
     { player_id: 'b', session_date: '2026-11-05', planned_duration_min: 500 }, // séance d'un autre joueur : ignorée
     { player_id: null, session_date: '2026-11-06', planned_duration_min: 70 },
   ]
-  const COMP = { srpe_max: 2500 }
-  it('part du planning passée × haut de la plage ; au-dessus : trop haut pour le moment de la semaine', () => {
-    // a : 190 min prévues jusqu'à mardi sur 350 → 54 % → limite 1357
-    expect(weekPace(player('a'), 1060, plan, '2026-11-03', COMP)).toEqual({ share: 54, limit: 1357, over: false, pct: 78 })
-    expect(weekPace(player('a'), 1400, plan, '2026-11-03', COMP)?.over).toBe(true)
+  const COMP = { target_srpe: 2000 }
+  it('part du planning passée × charge visée ; au-dessus : trop haut pour le moment de la semaine', () => {
+    // a : 190 min prévues jusqu'à mardi sur 350 → 54 % → limite 1086
+    expect(weekPace(player('a'), 1060, plan, '2026-11-03', COMP)).toEqual({ share: 54, limit: 1086, over: false, pct: 98 })
+    expect(weekPace(player('a'), 1100, plan, '2026-11-03', COMP)?.over).toBe(true)
   })
-  it('blessé : seulement ses séances individuelles ; semaine sans haut de plage (DEV) ou sans planning : rien', () => {
-    expect(weekPace(player('a', true), 600, plan, '2026-11-03', COMP)).toMatchObject({ share: 100, limit: 2500 })
-    expect(weekPace(player('a'), 1060, plan, '2026-11-03', { srpe_max: null })).toBeNull()
+  it('blessé : seulement ses séances individuelles ; sans type de semaine ou sans planning : rien', () => {
+    expect(weekPace(player('a', true), 600, plan, '2026-11-03', COMP)).toMatchObject({ share: 100, limit: 2000 })
+    expect(weekPace(player('a'), 1060, plan, '2026-11-03', null)).toBeNull()
     expect(weekPace(player('c'), 100, [], '2026-11-03', COMP)).toBeNull()
   })
 })

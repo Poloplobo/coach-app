@@ -113,17 +113,18 @@ export type PlanItem = {
 }
 
 // Rythme de la semaine en cours : la part du planning déjà passée (minutes prévues jusqu'à aujourd'hui inclus) fixe la
-// charge « au rythme » ; au-dessus du haut de la plage à ce rythme, le joueur est trop haut pour le moment de la semaine.
-// Séances du groupe (player_id nul) pour les aptes, plus ses séances individuelles. Pas de plan ou pas de haut de plage
-// (semaine DEV) : null.
-export function weekPace(player: Player, total: number, plan: PlanItem[], today: string, wt: Pick<WeekType, 'srpe_max'> | null) {
-  if (!wt?.srpe_max) return null
+// charge « au rythme » ; au-dessus de la charge visée à ce rythme (décision du 03/11/2026 : la cible, pas le haut de la
+// plage), le joueur est trop haut pour le moment de la semaine.
+// Séances du groupe (player_id nul) pour les aptes, plus ses séances individuelles. Pas de plan
+// ou pas de type de semaine : null.
+export function weekPace(player: Player, total: number, plan: PlanItem[], today: string, wt: Pick<WeekType, 'target_srpe'> | null) {
+  if (!wt?.target_srpe) return null
   const mine = plan.filter(s => (s.player_id === null ? !player.injured : s.player_id === player.id))
   const minutes = (s: PlanItem) => s.planned_duration_min ?? s.activity_types?.default_duration_min ?? 0
   const all = mine.reduce((n, s) => n + minutes(s), 0)
   if (!all) return null
   const share = mine.filter(s => s.session_date <= today).reduce((n, s) => n + minutes(s), 0) / all
-  const limit = Math.round(wt.srpe_max * share)
+  const limit = Math.round(wt.target_srpe * share)
   return { share: round(100 * share), limit, over: total > limit, pct: limit > 0 ? round((100 * total) / limit) : null }
 }
 

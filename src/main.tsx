@@ -28,6 +28,18 @@ supabase.auth.onAuthStateChange((event, session) => {
   queryClient.setQueryData(['session'], session)
 })
 
+// Après une mise à jour, une page restée ouverte réclame des morceaux de code qui n'existent plus (le serveur renvoie
+// la page HTML : « 'text/html' is not a valid JavaScript MIME type ») : on recharge une fois pour prendre la nouvelle version
+window.addEventListener('vite:preloadError', event => {
+  try {
+    const last = Number(sessionStorage.getItem('reloadedForUpdate') ?? 0)
+    if (Date.now() - last < 60_000) return // déjà rechargé il y a moins d'une minute : on laisse l'erreur s'afficher
+    sessionStorage.setItem('reloadedForUpdate', String(Date.now()))
+  } catch { /* stockage indisponible : on recharge quand même */ }
+  event.preventDefault()
+  window.location.reload()
+})
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>

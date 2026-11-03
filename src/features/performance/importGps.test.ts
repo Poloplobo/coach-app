@@ -35,6 +35,16 @@ describe('readGps : export brut du GPS d\'un match', () => {
     expect(p.rows.map(r => r.player.id)).toEqual(['a'])
     expect(p.errors.join()).toMatch(/DUPONT.*plusieurs joueurs/)
   })
+  it('nom seul dans « Joueurs » : nom de famille unique rattaché ; ligne sans donnée GPS : ignorée sans bloquer', () => {
+    const p = readGps(file([
+      ['PILIER', 'MARTIN', 4970, 12, 15, 26, 70, 3, 'MARTIN'],
+      ['CENTRE', 'DUPONT', '', '', '', '', '', '', 'Léo DUPONT'],
+    ]), ctx)
+    expect(p.errors).toEqual([])
+    expect(p.rows.map(r => r.player.id)).toEqual(['a'])
+    expect(p.warnings.join()).toMatch(/DUPONT.*aucune donnée GPS/)
+    expect(readGps(file([['CENTRE', 'DUPONT', 5000, 50, 20, 28, 70, 3, 'DUPONT']]), ctx).errors.join()).toMatch(/plusieurs joueurs/)
+  })
   it('vigilance poste : un poste sans attendu bloque, avec la liste des postes connus', () => {
     expect(readGps(file([['OUVREUR', 'MARTIN', 4970, 12, 15, 26, 70, 3, 'Paul MARTIN']]), ctx).errors.join()).toMatch(/poste « OUVREUR » sans attendu.*PILIER/)
   })

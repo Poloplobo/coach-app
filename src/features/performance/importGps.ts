@@ -66,10 +66,13 @@ export function readGps(data: ArrayBuffer, ctx: { players: Player[]; positions: 
     const last = String(r[c.name] ?? '').trim()
     if (!last) return
     const line = `Ligne ${h + i + 2} (${last})`
+    // Ligne préparée mais pas encore remplie (joueur sans GPS ce match) : écartée, sans bloquer les autres
+    if ([c.minutes, c.distance, c.hi, c.accel].every(k => String(r[k] ?? '').trim() === '')) return void warnings.push(`${line} : aucune donnée GPS, ligne ignorée.`)
     const fullName = full >= 0 ? String(r[full] ?? '').trim() : ''
     // Repli sur le nom de famille seulement si l'export n'a pas de colonne Joueurs : sinon un invité homonyme serait rattaché
     if (full >= 0 && !fullName) return void errors.push(`${line} : colonne « Joueurs » vide (Prénom NOM attendu).`)
-    const matches = full >= 0 ? byFull(fullName) : byLast(last)
+    // « GAURIAT » seul dans Prénom NOM : nom de famille, rattaché seulement s'il est unique dans l'effectif
+    const matches = full >= 0 && /\s/.test(fullName) ? byFull(fullName) : byLast(fullName || last)
     if (matches.length > 1) return void errors.push(`${line} : plusieurs joueurs de l'effectif portent ce nom.`)
     // Renfort hors effectif (ou nom mal orthographié) : ses lignes sont écartées, les autres joueurs passent
     if (!matches.length) return void warnings.push(`${line} : ${fullName || last} hors effectif, non importé (vérifie l'orthographe si c'est un joueur du groupe).`)

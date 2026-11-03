@@ -7,7 +7,7 @@ import { MUSCULATION } from '../rpe/activities'
 import { RpePicker } from '../rpe/RpePicker'
 import { useActivityTypes, useLogsRange } from '../rpe/useRpe'
 import { ExerciseRow } from './ExerciseRow'
-import { blockGroups, completion, sortedExercises } from './program'
+import { blockGroups, completion, sessionRpe, sortedExercises } from './program'
 import { useMarkNotDone, useValidateSession, useWeekProgram } from './useSeance'
 import { Loading } from '../../components/ui/Loading'
 
@@ -67,10 +67,12 @@ export function MuscuSessionCard({ playerId, date }: { playerId: string; date: s
   const plannedMinutes = session.planned_duration_min ?? muscuType.default_duration_min
   const minutes = duration ? Number(duration) : Number(plannedMinutes ?? 0)
   const validDuration = Number.isInteger(minutes) && minutes > 0 && minutes <= 300
+  const computed = sessionRpe(exercises)
+  const sessionEffort = computed?.rpe ?? rpe
 
   return (
     <Card title="Ma séance de musculation"
-      help="1. Pour chaque exercice : fait, partiel ou non fait. 2. Terminer la séance : ton effort global, puis Valider.">
+      help="1. Pour chaque exercice : fait, partiel ou non fait, et ton RPE. 2. Terminer la séance : le RPE de séance est la moyenne de tes exercices ; indique la durée, puis Valider.">
       {strip}
       <div className="flex items-center gap-3" aria-label={`${c.done} exercices faits sur ${c.total}`}>
         <div className="h-2 flex-1 rounded-full bg-field" aria-hidden="true">
@@ -91,7 +93,7 @@ export function MuscuSessionCard({ playerId, date }: { playerId: string; date: s
       </div>
 
       {log ? (
-        <p className="rounded-lg border border-ok px-3 py-2 text-sm">Séance validée · RPE {log.rpe} · {log.duration_min} min · {log.srpe} UA</p>
+        <p className="rounded-lg border border-ok px-3 py-2 text-sm">Séance validée · RPE {Number(log.rpe).toLocaleString('fr-FR')} · {log.duration_min} min · {Math.round(Number(log.srpe))} UA</p>
       ) : (
         !finishing ? (
           <div className="flex flex-col gap-2 border-t border-line pt-3">
@@ -105,7 +107,13 @@ export function MuscuSessionCard({ playerId, date }: { playerId: string; date: s
           </div>
         ) : (
         <div className="flex flex-col gap-3 border-t border-line pt-3">
-          <RpePicker label="RPE de la séance" value={rpe} onChange={setRpe} />
+          {computed ? (
+            <p className="rounded-lg bg-field px-3 py-2 text-sm">
+              RPE de la séance : <strong className="text-base">{computed.rpe.toLocaleString('fr-FR')}</strong>
+              <span className="text-ink/60"> · moyenne de tes {computed.count} exercice{computed.count > 1 ? 's' : ''} noté{computed.count > 1 ? 's' : ''}</span>
+              {validDuration && <span className="text-ink/60"> · {Math.round(computed.rpe * minutes)} UA</span>}
+            </p>
+          ) : <RpePicker label="RPE de la séance" value={rpe} onChange={setRpe} />}
           <label className="flex items-center gap-3 text-sm">
             Durée
             <input type="number" inputMode="numeric" min={1} max={300} value={duration} placeholder={String(plannedMinutes ?? '')} onChange={e => setDuration(e.target.value)}
@@ -116,9 +124,9 @@ export function MuscuSessionCard({ playerId, date }: { playerId: string; date: s
           {validate.isError && (
             <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">Enregistrement impossible, réessaie.</p>
           )}
-          <ConfirmButton confirmLabel="Confirmer : la séance sera verrouillée" disabled={rpe === null || !validDuration || validate.isPending}
+          <ConfirmButton confirmLabel="Confirmer : la séance sera verrouillée" disabled={sessionEffort === null || !validDuration || validate.isPending}
             onClick={() => validate.mutate({
-              date, plannedSessionId: session.id, activityTypeId: muscuType.id, durationMin: minutes, rpe: rpe!,
+              date, plannedSessionId: session.id, activityTypeId: muscuType.id, durationMin: minutes, rpe: sessionEffort!,
               unansweredExerciseIds: exercises.filter(e => !e.exercise_feedback[0]?.status).map(e => e.id),
             })}>
             {validate.isPending ? 'Validation…' : 'Valider la séance'}

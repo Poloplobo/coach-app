@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { blockGroups, completion, prescription, sortedExercises, type PlannedExercise } from './program'
+import { blockGroups, completion, prescription, sessionRpe, sortedExercises, type PlannedExercise } from './program'
 
 const ex = (position: number, over: Partial<PlannedExercise> = {}): PlannedExercise => ({
   id: `e${position}`, position, block_label: 'A1', sets: 5, reps: '5', load_value: 80, load_unit: 'pct_rm',
@@ -48,4 +48,19 @@ describe('completion', () => {
 it('blocs de la fiche : A1 + A2 ensemble, MOB à part, étiquette absente regroupée', () => {
   const g = blockGroups([ex(1, { block_label: 'MOB' }), ex(2, { block_label: 'A1' }), ex(3, { block_label: 'a2' }), ex(4, { block_label: 'B1' }), ex(5, { block_label: null })])
   expect(g.map(x => [x.label, x.items.map(i => i.position)])).toEqual([['Mobilité', [1]], ['Bloc A', [2, 3]], ['Bloc B', [4]], ['Exercices', [5]]])
+})
+
+describe('sessionRpe : RPE de séance = moyenne des RPE des exercices', () => {
+  const rated = (status: string, rpe: number | null) => [{ rpe, done_load: null, status, comment: null }]
+  it('moyenne des exercices faits ou partiels, à 0,1 près ; non faits et sans RPE ignorés', () => {
+    expect(sessionRpe([
+      ex(1, { exercise_feedback: rated('fait', 7) }), ex(2, { exercise_feedback: rated('partiel', 8) }), ex(3, { exercise_feedback: rated('fait', 6) }),
+      ex(4, { exercise_feedback: rated('fait', 5) }), ex(5, { exercise_feedback: rated('non fait', 2) }), ex(6, { exercise_feedback: rated('fait', null) }), ex(7),
+    ])).toEqual({ rpe: 6.5, count: 4 })
+    expect(sessionRpe([ex(1, { exercise_feedback: rated('fait', 7) }), ex(2, { exercise_feedback: rated('fait', 8) }), ex(3, { exercise_feedback: rated('fait', 8) })]))
+      .toEqual({ rpe: 7.7, count: 3 })
+  })
+  it('aucun RPE d\'exercice : null (le joueur donne un RPE global)', () => {
+    expect(sessionRpe([ex(1), ex(2, { exercise_feedback: rated('non fait', null) })])).toBeNull()
+  })
 })

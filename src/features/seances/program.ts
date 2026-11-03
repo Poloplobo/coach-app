@@ -43,6 +43,13 @@ export function completion(exercises: PlannedExercise[]) {
   return { done, total: exercises.length, pct: exercises.length ? Math.round((100 * done) / exercises.length) : 0 }
 }
 
+// RPE de la séance de muscu = moyenne des RPE donnés aux exercices faits ou partiels, à 0,1 près (décision du 03/11/2026) ;
+// null si aucun exercice n'a de RPE : le joueur donne alors un RPE global
+export function sessionRpe(exercises: PlannedExercise[]) {
+  const rpes = exercises.map(e => e.exercise_feedback[0]).filter(f => f && f.status !== 'non fait' && f.rpe !== null).map(f => Number(f.rpe))
+  return rpes.length ? { rpe: Math.round((10 * rpes.reduce((a, b) => a + b, 0)) / rpes.length) / 10, count: rpes.length } : null
+}
+
 // Blocs de la fiche : A1 + A2 = bloc A (enchaînés), MOB = mobilité ; exercices déjà triés, blocs consécutifs regroupés
 export function blockGroups(exercises: PlannedExercise[]) {
   const groups: { key: string; label: string; items: PlannedExercise[] }[] = []

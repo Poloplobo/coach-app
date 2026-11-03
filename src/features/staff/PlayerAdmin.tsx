@@ -95,7 +95,7 @@ export function CorrectionPanel({ player, types, today, logs, wellness }: {
           )}
           {existingLog ? (
             <p className="rounded-lg border border-gold px-3 py-2 text-sm">
-              Déjà déclaré par {BY[existingLog.source] ?? existingLog.source} : {existingLog.rpe !== null ? `RPE ${existingLog.rpe}, ` : ''}{existingLog.duration_min} min. Enregistrer le remplacera.
+              Déjà déclaré par {BY[existingLog.source] ?? existingLog.source} : {existingLog.rpe !== null ? `RPE ${Number(existingLog.rpe).toLocaleString('fr-FR')}, ` : ''}{existingLog.duration_min} min. Enregistrer le remplacera.
             </p>
           ) : activityId && <p className="text-xs text-ink/60">Rien de déclaré pour cette activité ce jour-là.</p>}
           <Button disabled={!logReady || saveLog.isPending} onClick={() => saveLog.mutate({

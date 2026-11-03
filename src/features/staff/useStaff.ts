@@ -85,6 +85,11 @@ export function useSetAvailability() {
   })
 }
 
+// Joueurs qui ont activé le rappel du matin sur au moins un téléphone (0026 : jamais les abonnements eux-mêmes)
+export function usePushEnabled() {
+  return useQuery(query(['staff', 'push'], async () => new Set(check(await supabase.rpc('push_enabled_players')) as string[])))
+}
+
 // Relances du jour donné (joueurs autorisés à rattraper ce jour-là, 0025)
 export function useReminders(date: string) {
   return useQuery(query(['staff', 'reminders', date], async () => (check(await supabase.from('rpe_reminders')

@@ -14,7 +14,7 @@ import { StatCard } from './StatCard'
 import { fatiguePercent, postureOf } from '../wellness/fatigue'
 import { WELLNESS_ITEMS } from '../wellness/items'
 import { fullName, itemValue, latecomers, reminderMessage, wellnessAlerts } from './load'
-import { useAllLogs, useAllPlan, useAllWellness, useRemind, useReminders, useRoster } from './useStaff'
+import { useAllLogs, useAllPlan, useAllWellness, usePushEnabled, useRemind, useReminders, useRoster } from './useStaff'
 
 // Seules les réponses moyennes ou mauvaises ressortent : l'œil va droit aux problèmes
 const itemLook = (v: number) => (v >= 4 ? 'text-ink/45' : v === 3 ? 'text-gold font-semibold' : 'text-rnr font-bold')
@@ -38,6 +38,7 @@ export function TodayView() {
   const logs = useAllLogs(yesterday, today)
   const plan = useAllPlan(yesterday, yesterday)
   const reminded = useReminders(yesterday)
+  const push = usePushEnabled()
   const [filter, setFilter] = useState<Filter>('tous')
 
   if (roster.isPending || wellness.isPending || logs.isPending || plan.isPending) return <Loading />
@@ -115,6 +116,7 @@ export function TodayView() {
                   <th className="pr-3 font-normal">Score</th>
                   {WELLNESS_ITEMS.map(i => <th key={i.key} className="px-1 text-center font-normal">{SHORT[i.key] ?? i.label}</th>)}
                   <th className="pl-2 font-normal">Alerte</th>
+                  <th className="pl-2 font-normal" title="Notification du matin activée sur son téléphone">Rappel activé</th>
                 </tr>
               </thead>
               <tbody>
@@ -143,6 +145,7 @@ export function TodayView() {
                         return <td key={i.key} className={`px-1 text-center tabular-nums ${v !== null ? itemLook(v) : 'text-ink/30'}`}>{v ?? '·'}</td>
                       })}
                       <td className="pl-2 text-xs font-semibold text-rnr" title={alerts.join(' · ')}><span className="block max-w-40 truncate">{alerts.length ? (alerts.length > 1 ? `${alerts.length} alertes` : alerts[0]) : ''}</span></td>
+                      <td className="pl-2 text-xs">{push.data?.has(player.id) ? <span className="text-ok">oui</span> : <span className="text-ink/45">non</span>}</td>
                     </tr>
                   )
                 })}

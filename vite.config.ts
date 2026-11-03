@@ -8,7 +8,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       // xlsx et pptxgenjs (imports / exports staff) se chargent à la demande : pas de préchargement sur les téléphones des joueurs
-      workbox: { globIgnores: ['**/xlsx-*.js', '**/pptxgen*.js', '**/exportPptx-*.js'] },
+      // push-sw.js : affichage du rappel du matin (notifications)
+      workbox: { globIgnores: ['**/xlsx-*.js', '**/pptxgen*.js', '**/exportPptx-*.js'], importScripts: ['push-sw.js'] },
       manifest: {
         name: 'Pôle Espoir - RNR App',
         short_name: 'Pôle Espoir', // nom sous l'icône du téléphone : le nom complet y serait tronqué

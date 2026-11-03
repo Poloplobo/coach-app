@@ -12,3 +12,5 @@ CLAUDE.md
 public/Photos joueurs/
 public/**/*_Photo.*
 public/*_Photo.*
+# Tests des fonctions serveur : Vercel ferait de chaque fichier de api/ une route
+api/*.test.ts

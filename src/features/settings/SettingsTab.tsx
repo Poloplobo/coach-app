@@ -5,6 +5,7 @@ import { Card } from '../../components/ui/Card'
 import { MIN_PASSWORD_LENGTH, isWrongCredentials, useChangePassword, useProfile, useSession, useSignOut } from '../auth/useAuth'
 import { PRIVACY_CONTACT, PRIVACY_SECTIONS } from './privacy'
 import { useTheme } from './theme'
+import { usePushState, useTogglePush } from './usePush'
 
 export function SettingsTab() {
   const session = useSession()
@@ -32,6 +33,7 @@ export function SettingsTab() {
             <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white border border-line shadow transition-all ${theme === 'dark' ? 'left-6' : 'left-0.5'}`} />
           </button>
         </label>
+        {profile.data?.role === 'player' && <MorningReminder className={row} />}
         <details className={fold}>
           <summary className="flex items-center justify-between">Changer mon mot de passe <Chevron /></summary>
           <div className="mt-3"><ChangePassword /></div>
@@ -54,6 +56,29 @@ export function SettingsTab() {
       </div>
       <Button variant="quiet" className="self-start" onClick={() => signOut.mutate()}>Se déconnecter</Button>
     </Card>
+  )
+}
+
+// Notification à 8h (et 10h si l'état de forme n'est pas rempli) sur ce téléphone
+function MorningReminder({ className }: { className: string }) {
+  const state = usePushState()
+  const toggle = useTogglePush()
+  if (!state.data || state.data === 'unavailable') return null
+  const on = state.data === 'on'
+  const hint = state.data === 'install' ? 'Sur iPhone : installe d\'abord l\'app (Partager → « Sur l\'écran d\'accueil »), puis ouvre-la depuis l\'icône.'
+    : state.data === 'denied' ? 'Notifications bloquées pour l\'app : autorise-les dans les réglages du téléphone.'
+      : on ? 'À 8h00, et à 10h00 si ton état de forme n\'est pas encore rempli.' : 'Une notification à 8h00 pour remplir ton état de forme.'
+  return (
+    <div className={className}>
+      <span>Rappel du matin<span className="block text-sm text-ink/60">{hint}</span>
+        {toggle.isError && <span role="alert" className="block text-sm text-rnr">Activation impossible, réessaie.</span>}</span>
+      {(state.data === 'on' || state.data === 'off') && (
+        <button type="button" role="switch" aria-checked={on} aria-label="Rappel du matin" disabled={toggle.isPending} onClick={() => toggle.mutate(!on)}
+          className={`relative h-7 w-12 shrink-0 rounded-full border border-line ${on ? 'bg-rnr' : 'bg-field'}`}>
+          <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white border border-line shadow transition-all ${on ? 'left-6' : 'left-0.5'}`} />
+        </button>
+      )}
+    </div>
   )
 }
 

@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(136);
+select plan(145);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -476,6 +476,28 @@ select throws_ok($$insert into public.session_logs (player_id, session_date, act
                  '42501', null, 'même relancé, B ne déclare pas avant-hier');
 select is((select count(*)::int from public.rpe_reminders), 2, 'B voit ses relances, pas celle de A');
 select is_empty($$delete from public.rpe_reminders returning 1$$, 'B ne supprime pas ses relances');
+
+-- Rappel du matin (0026) : chacun ses abonnements ; le staff ne voit que qui l'a activé ; l'envoi est réservé à la base
+select lives_ok($$insert into public.push_subscriptions (endpoint, p256dh, auth) values ('https://fcm.googleapis.com/fcm/send/test-b', repeat('k', 40), repeat('a', 16))$$,
+                'B active le rappel sur son téléphone');
+select throws_ok($$insert into public.push_subscriptions (endpoint, player_id, p256dh, auth) values ('https://fcm.googleapis.com/fcm/send/test-x', '00000000-0000-0000-0000-00000000000a', repeat('k', 40), repeat('a', 16))$$,
+                 '42501', null, 'B ne peut pas abonner A');
+select throws_ok($$insert into public.push_subscriptions (endpoint, p256dh, auth) values ('https://exemple.fr/espion', repeat('k', 40), repeat('a', 16))$$,
+                 '23514', null, 'adresse hors services de notification refusée');
+select throws_ok($$select public.push_enabled_players()$$, '42501', null, 'un joueur ne voit pas qui a activé le rappel');
+select throws_ok($$select public.send_wellness_reminders()$$, '42501', null, 'un joueur ne déclenche pas l''envoi');
+
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+set local role authenticated;
+select is_empty($$select 1 from public.push_subscriptions$$, 'A ne voit pas l''abonnement de B');
+select is_empty($$delete from public.push_subscriptions returning 1$$, 'A ne supprime pas l''abonnement de B');
+
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000c","role":"authenticated"}', true);
+set local role authenticated;
+select is_empty($$select 1 from public.push_subscriptions$$, 'le coach ne lit pas les adresses d''abonnement');
+select ok('00000000-0000-0000-0000-00000000000b' in (select public.push_enabled_players()), 'le coach voit que B a activé le rappel');
 
 -- ---------- Visiteur non connecté ----------
 reset role;

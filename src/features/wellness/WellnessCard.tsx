@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { ScalePicker } from '../../components/ui/ScalePicker'
+import { OfflineNote } from '../../components/ui/OfflineNote'
 import { SavedFlash } from '../../components/ui/SavedFlash'
 import { useSavedFlash } from '../../components/ui/useSavedFlash'
 import { FatigueBody } from './FatigueBody'
+import { FatigueTrend } from './FatigueTrend'
 import { WELLNESS_ITEMS, useSaveWellness, useWellnessDay, type WellnessItems, type WellnessKey } from './useWellness'
 import { Loading } from '../../components/ui/Loading'
 
@@ -39,6 +41,7 @@ export function WellnessCard({ playerId, date }: { playerId: string; date: strin
             Modifier
           </Button>
         </div>
+        <FatigueTrend playerId={playerId} date={date} />
       </Card>
     )
   }
@@ -59,6 +62,7 @@ export function WellnessCard({ playerId, date }: { playerId: string; date: strin
           />
         ))}
       </div>
+      <OfflineNote shown={save.isPaused} />
       {save.isError && <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">Enregistrement impossible, réessaie.</p>}
       <Button onClick={submit} disabled={!complete || save.isPending}>
         {save.isPending ? 'Enregistrement…' : complete ? 'Enregistrer' : `Réponds aux ${WELLNESS_ITEMS.length} questions (${answered}/${WELLNESS_ITEMS.length})`}

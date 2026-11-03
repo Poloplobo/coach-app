@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
+import { OfflineNote } from '../../components/ui/OfflineNote'
 import { ConfirmButton } from '../../components/ui/ConfirmButton'
 import { addDays, formatDay, isoWeekStart } from '../../lib/week'
 import { MUSCULATION } from '../rpe/activities'
 import { RpePicker } from '../rpe/RpePicker'
 import { useActivityTypes, useLogsRange } from '../rpe/useRpe'
 import { ExerciseRow } from './ExerciseRow'
-import { blockGroups, completion, sessionRpe, sortedExercises } from './program'
-import { useMarkNotDone, useValidateSession, useWeekProgram } from './useSeance'
+import { blockGroups, completion, lastLoads, sessionRpe, sortedExercises } from './program'
+import { useMarkNotDone, usePastLoads, useReferenceMaxes, useValidateSession, useWeekProgram } from './useSeance'
 import { Loading } from '../../components/ui/Loading'
 
 // catchUp : séance d'hier rouverte par une relance du staff ; rien à afficher si elle n'existe pas ou est déjà validée
@@ -20,6 +21,9 @@ export function MuscuSessionCard({ playerId, date, catchUp = false }: { playerId
   const types = useActivityTypes()
   const validate = useValidateSession(playerId)
   const markNotDone = useMarkNotDone(playerId)
+  // Repères (facultatifs : en cas d'échec, la séance s'affiche sans eux)
+  const maxes = useReferenceMaxes(playerId).data
+  const past = usePastLoads(playerId, date).data
   const [rpe, setRpe] = useState<number | null>(null)
   const [duration, setDuration] = useState('')
   const [finishing, setFinishing] = useState(false) // 2e étape : effort de la séance et validation
@@ -65,6 +69,7 @@ export function MuscuSessionCard({ playerId, date, catchUp = false }: { playerId
   }
 
   const exercises = sortedExercises(session.planned_exercises)
+  const last = lastLoads(past ?? [])
   const log = logs.data.find(l => l.planned_session_id === session.id && l.validated_at)
   const c = completion(exercises)
   const plannedMinutes = session.planned_duration_min ?? muscuType.default_duration_min
@@ -103,7 +108,8 @@ export function MuscuSessionCard({ playerId, date, catchUp = false }: { playerId
                 <span className="text-sm tabular-nums text-ink/60" aria-label={`${gc.done} faits sur ${gc.total}`}>{gc.done}/{gc.total}</span>
               </header>
               <ul className="divide-y divide-line/60 px-3">
-                {g.items.map(e => <ExerciseRow key={e.id} playerId={playerId} exercise={e} editable={!log} />)}
+                {g.items.map(e => <ExerciseRow key={e.id} playerId={playerId} exercise={e} editable={!log} maxes={maxes}
+                  last={e.exercise_id ? last.get(e.exercise_id) : undefined} />)}
               </ul>
             </section>
           )
@@ -121,6 +127,7 @@ export function MuscuSessionCard({ playerId, date, catchUp = false }: { playerId
               onClick={() => markNotDone.mutate(exercises.map(e => e.id))}>
               Séance non faite
             </ConfirmButton>
+            <OfflineNote shown={markNotDone.isPaused} />
             {markNotDone.isError && <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">Enregistrement impossible, réessaie.</p>}
           </div>
         ) : (
@@ -139,6 +146,7 @@ export function MuscuSessionCard({ playerId, date, catchUp = false }: { playerId
             min
           </label>
           <p className="text-xs text-ink/60">Une fois validée, la séance ne peut plus être modifiée. Les exercices sans réponse seront notés « non fait ».</p>
+          <OfflineNote shown={validate.isPaused} />
           {validate.isError && (
             <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">
               {(validate.error as { code?: string } | null)?.code === '42501' ? 'Délai dépassé : cette séance n\'est plus modifiable, demande au staff.' : 'Enregistrement impossible, réessaie.'}

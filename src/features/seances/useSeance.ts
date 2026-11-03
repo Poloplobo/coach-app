@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabaseClient'
 import { MUSCULATION } from '../rpe/activities'
-import type { FeedbackStatus, PlannedExercise } from './program'
+import { addDays } from '../../lib/week'
+import type { FeedbackStatus, PastLoad, PlannedExercise, ReferenceMax } from './program'
 
 export type MuscuSession = { id: string; session_date: string; planned_duration_min: number | null; planned_exercises: PlannedExercise[] }
 
@@ -12,12 +13,42 @@ export function useWeekProgram(playerId: string, from: string, to: string) {
     queryFn: async (): Promise<MuscuSession[]> => {
       const { data, error } = await supabase.from('planned_sessions')
         .select(`id, session_date, planned_duration_min, activity_types!inner(name),
-          planned_exercises(id, position, block_label, sets, reps, load_value, load_unit, tempo, rest, instructions,
+          planned_exercises(id, exercise_id, position, block_label, sets, reps, load_value, load_unit, tempo, rest, instructions,
             exercises(name), exercise_feedback(rpe, done_load, status, comment))`)
         .eq('player_id', playerId).eq('activity_types.name', MUSCULATION)
         .gte('session_date', from).lte('session_date', to).order('session_date')
       if (error) throw error
       return data
+    },
+  })
+}
+
+// Tests en kg liés à un exercice (lien posé par le staff) : base de la charge indicative des %RM
+export function useReferenceMaxes(playerId: string) {
+  return useQuery({
+    queryKey: ['referenceMaxes', playerId],
+    queryFn: async (): Promise<ReferenceMax[]> => {
+      const { data, error } = await supabase.from('test_results')
+        .select('test_date, value, test_definitions!inner(name, unit, exercise_id)')
+        .eq('player_id', playerId).eq('test_definitions.unit', 'kg').not('test_definitions.exercise_id', 'is', null)
+      if (error) throw error
+      return data.map(r => ({ exercise_id: r.test_definitions.exercise_id!, test: r.test_definitions.name, date: r.test_date, value: Number(r.value) }))
+    },
+  })
+}
+
+// Charges réalisées sur les séances des 4 derniers mois avant ce jour (hors « non fait ») : repère « la dernière fois »
+export function usePastLoads(playerId: string, before: string) {
+  return useQuery({
+    queryKey: ['pastLoads', playerId, before],
+    queryFn: async (): Promise<PastLoad[]> => {
+      const { data, error } = await supabase.from('exercise_feedback')
+        .select('done_load, planned_exercises!inner(exercise_id, planned_sessions!inner(session_date))')
+        .eq('player_id', playerId).neq('status', 'non fait').not('done_load', 'is', null)
+        .lt('planned_exercises.planned_sessions.session_date', before)
+        .gte('planned_exercises.planned_sessions.session_date', addDays(before, -120))
+      if (error) throw error
+      return data.map(r => ({ exercise_id: r.planned_exercises.exercise_id, date: r.planned_exercises.planned_sessions.session_date, done_load: r.done_load! }))
     },
   })
 }

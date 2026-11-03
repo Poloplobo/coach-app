@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button } from '../../components/ui/Button'
+import { OfflineNote } from '../../components/ui/OfflineNote'
 import { Card } from '../../components/ui/Card'
 import { Loading } from '../../components/ui/Loading'
 import { formatDay } from '../../lib/week'
@@ -82,6 +83,7 @@ export function PerformanceTab() {
                   onClick={() => choice && rate.mutate({ match_id: match.id, player_id: playerId, rater: 'player', color: choice.color })}>
                   {rate.isPending ? 'Enregistrement…' : 'Valider ma note'}
                 </Button>
+                <OfflineNote shown={rate.isPaused} />
                 {rate.isError && <p role="alert" className="text-sm text-rnr">Note non enregistrée, réessaie.</p>}
                 <p className="text-center text-sm text-ink/60">Note ton match pour découvrir l'évaluation du coach.</p>
               </>

@@ -85,3 +85,18 @@ export function useSaveLog(playerId: string) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['sessionLogs', playerId] }),
   })
 }
+
+// Type de la semaine (DEV / COMP / REG) et sa plage de charge ; null si la semaine n'est pas au calendrier
+// shortcut: un seul groupe (PER) : la semaine trouvée à cette date ; filtrer par groupe s'il y en a plusieurs
+export function useWeekTarget(monday: string) {
+  return useQuery({
+    queryKey: ['weekTarget', monday],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('season_weeks')
+        .select('code, week_types(code, name, srpe_min, srpe_max, target_srpe)').eq('start_date', monday).limit(1).maybeSingle()
+      if (error) throw error
+      return data?.week_types ? { week: data.code, ...data.week_types } : null
+    },
+    staleTime: Infinity,
+  })
+}

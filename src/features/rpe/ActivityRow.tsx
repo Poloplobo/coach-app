@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Check } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
+import { OfflineNote } from '../../components/ui/OfflineNote'
 import { SavedFlash } from '../../components/ui/SavedFlash'
 import { useSavedFlash } from '../../components/ui/useSavedFlash'
 import { type DayActivity } from './activities'
@@ -61,6 +62,7 @@ export function ActivityRow({ playerId, date, activity, log, onRemove }: {
           />
           min
         </label>
+        <OfflineNote shown={save.isPaused} />
         {save.isError && <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">{(save.error as { code?: string } | null)?.code === '42501' ? 'Délai dépassé : ce jour n\'est plus modifiable, demande au staff.' : 'Enregistrement impossible, réessaie.'}</p>}
         <div className="flex gap-2">
           <Button className="flex-1" onClick={submit} disabled={save.isPending || !validDuration || (activity.requiresRpe && rpe === null)}>

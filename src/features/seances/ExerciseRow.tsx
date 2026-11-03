@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import { Check, Minus, Timer, X } from 'lucide-react'
+import { Check, Minus, X } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
+import { OfflineNote } from '../../components/ui/OfflineNote'
 import { SavedFlash } from '../../components/ui/SavedFlash'
 import { useSavedFlash } from '../../components/ui/useSavedFlash'
 import { RpePicker } from '../rpe/RpePicker'
-import { STATUSES, prescriptionParts, type FeedbackStatus, type PlannedExercise } from './program'
+import { STATUSES, estimatedKg, prescriptionParts, type PastLoad, type ReferenceMax, type FeedbackStatus, type PlannedExercise } from './program'
+import { RestTimer } from './RestTimer'
 import { useSaveFeedback } from './useSeance'
 
 const STATUS_LABEL: Record<string, string> = { fait: 'Fait', partiel: 'Partiel', 'non fait': 'Non fait' }
@@ -22,7 +24,12 @@ function StatusMark({ status }: { status?: string | null }) {
   )
 }
 
-export function ExerciseRow({ playerId, exercise, editable }: { playerId: string; exercise: PlannedExercise; editable: boolean }) {
+const shortDate = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+
+// maxes / last : repères facultatifs (charge indicative d'un %RM, charge réalisée la dernière fois sur cet exercice)
+export function ExerciseRow({ playerId, exercise, editable, maxes = [], last }: {
+  playerId: string; exercise: PlannedExercise; editable: boolean; maxes?: ReferenceMax[]; last?: PastLoad
+}) {
   const saved = exercise.exercise_feedback[0]
   const save = useSaveFeedback(playerId)
   const [flash, showFlash] = useSavedFlash()
@@ -43,6 +50,7 @@ export function ExerciseRow({ playerId, exercise, editable }: { playerId: string
 
   // Fiche : code du bloc et nom, puis le volume en gros et la charge, le tempo, le repos en pastilles
   const p = prescriptionParts(exercise)
+  const est = estimatedKg(exercise, maxes)
   const header = (
     <div className="flex gap-3">
       <StatusMark status={saved?.status} />
@@ -53,11 +61,18 @@ export function ExerciseRow({ playerId, exercise, editable }: { playerId: string
         </p>
         <div className="flex flex-wrap items-center gap-1.5 text-sm">
           {p.volume && <span className="mr-1 font-display text-xl font-semibold leading-none tabular-nums">{p.volume}</span>}
-          {p.load && <span className="rounded-md bg-gold/15 px-2 py-0.5 font-semibold text-gold">{p.load}</span>}
+          {p.load && <span className="rounded-md bg-gold/15 px-2 py-0.5 font-semibold text-gold">{p.load}{est && ` ≈ ${est.kg.toLocaleString('fr-FR')} kg`}</span>}
           {p.tempo && <span className="rounded-md bg-field px-2 py-0.5 tabular-nums text-ink/80">tempo {p.tempo}</span>}
-          {p.rest && <span className="inline-flex items-center gap-1 rounded-md bg-field px-2 py-0.5 text-ink/80"><Timer size={13} aria-hidden="true" /><span className="sr-only">repos</span>{p.rest}</span>}
+          {p.rest && <RestTimer rest={p.rest} />}
         </div>
         {p.note && <p className="text-sm text-ink/60">{p.note}</p>}
+        {(est || last) && (
+          <p className="text-xs text-ink/60">
+            {est && <>d'après ton test {est.ref.test} ({est.ref.value.toLocaleString('fr-FR')} kg, {shortDate(est.ref.date)})</>}
+            {est && last && <br />}
+            {last && <>la dernière fois ({shortDate(last.date)}) : <span className="font-semibold text-ink/80">{last.done_load}</span></>}
+          </p>
+        )}
       </div>
     </div>
   )
@@ -121,7 +136,8 @@ export function ExerciseRow({ playerId, exercise, editable }: { playerId: string
               <input value={comment} onChange={e => setComment(e.target.value)} placeholder="ex. douleur, manque de temps"
                 className="rounded-lg bg-field border border-line px-3 py-2 text-base" />
             </label>
-            {save.isError && <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">{(save.error as { code?: string } | null)?.code === '42501' ? 'Délai dépassé : cette séance n\'est plus modifiable, demande au staff.' : 'Enregistrement impossible, réessaie.'}</p>}
+            <OfflineNote shown={save.isPaused} />
+          {save.isError && <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">{(save.error as { code?: string } | null)?.code === '42501' ? 'Délai dépassé : cette séance n\'est plus modifiable, demande au staff.' : 'Enregistrement impossible, réessaie.'}</p>}
             <div className="flex gap-2">
               <Button className="flex-1" onClick={submit} disabled={save.isPending}>{save.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>
               {saved?.status && <Button variant="quiet" onClick={() => setEditing(false)}>Annuler</Button>}

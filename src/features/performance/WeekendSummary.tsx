@@ -2,8 +2,8 @@ import { ChevronRight } from 'lucide-react'
 import { Card } from '../../components/ui/Card'
 import { TabLink } from '../../components/ui/TabLink'
 import { formatDay } from '../../lib/week'
-import { RATING_LABEL, gpsAnalysis, positionGroup } from './gps'
-import { ClubLogo, MatchColor } from './MatchColor'
+import { RATING_LABEL, gpsAnalysis, positionGroup, type RatingColor } from './gps'
+import { ClubLogo, Coq } from './MatchColor'
 import { useGpsRecords, useGpsReference, useMatches, useRatings } from './usePerformance'
 
 // Accueil : son dernier match (sa note, puis celle du coach et son temps de jeu une fois la sienne donnée, RLS) et son
@@ -27,21 +27,31 @@ export function WeekendSummary({ playerId }: { playerId: string }) {
       <p className="flex items-center gap-3 font-semibold"><ClubLogo match={match} className="h-8 w-8" />
         <span>{match.label ? `${match.label} · ` : ''}{match.opponent}<span className="block text-sm font-normal text-ink/60">{formatDay(match.match_date)}</span></span>
       </p>
-      <dl className="grid grid-cols-2 gap-2 text-sm">
-        <div className="rounded-lg bg-field px-3 py-2"><dt className="text-ink/60">Ma note</dt>
-          <dd>{own ? <MatchColor color={own.color} label={RATING_LABEL[own.color]} /> : 'à donner'}</dd></div>
-        <div className="rounded-lg bg-field px-3 py-2"><dt className="text-ink/60">Le coach</dt>
-          <dd>{!own ? 'après ta note' : staff ? <MatchColor color={staff.color} label={RATING_LABEL[staff.color]} /> : 'pas encore'}</dd></div>
-        {staff?.minutes != null && <div className="rounded-lg bg-field px-3 py-2"><dt className="text-ink/60">Temps de jeu</dt><dd className="font-semibold">{staff.minutes} min</dd></div>}
-        {record && (
-          <div className="rounded-lg bg-field px-3 py-2"><dt className="text-ink/60">GPS</dt>
-            <dd>{analysis ? <MatchColor color={analysis.color} label={`${analysis.filled}/3 attendus`} /> : `${record.distance_m.toLocaleString('fr-FR')} m`}</dd></div>
-        )}
+      {/* Même face-à-face que l'onglet Performance, en petit : ma note, le coach, le GPS */}
+      <dl className="grid grid-cols-3 gap-2 text-center text-sm">
+        <Cell label="Ma note" color={own?.color} text={own ? RATING_LABEL[own.color] : 'à donner'} />
+        <Cell label="Le coach" color={staff?.color} text={!own ? 'après ta note' : staff ? RATING_LABEL[staff.color] : 'pas encore'} />
+        {record
+          ? <Cell label="GPS" color={analysis?.color} text={analysis ? `${analysis.filled}/3 attendus` : `${record.distance_m.toLocaleString('fr-FR')} m`} />
+          : <Cell label="GPS" text="pas de GPS" />}
       </dl>
-      {staff?.comment && <p className="rounded-lg bg-field px-3 py-2 text-sm">« {staff.comment} »</p>}
+      {staff?.minutes != null && <p className="text-sm text-ink/70">Temps de jeu : <span className="font-semibold text-ink">{staff.minutes} min</span></p>}
+      {staff?.comment && <p className="border-l-2 border-gold pl-3 text-sm italic">« {staff.comment} »</p>}
       <TabLink to="/joueur/performance" className="flex items-center justify-between rounded-lg px-1 py-1 text-sm font-semibold text-gold">
         {own ? 'Voir le détail' : 'Noter mon match'}<ChevronRight size={18} aria-hidden="true" />
       </TabLink>
     </Card>
+  )
+}
+
+function Cell({ label, color, text }: { label: string; color?: RatingColor | null; text: string }) {
+  return (
+    <div className={`flex flex-col items-center gap-1 rounded-xl px-1 py-2.5 ${color ? 'bg-field' : 'border border-dashed border-line'}`}>
+      <dt className="text-xs text-ink/60">{label}</dt>
+      <dd className="flex flex-col items-center gap-1">
+        {color ? <Coq color={color} className="h-9 w-9" /> : <span aria-hidden="true" className="flex h-9 items-center text-ink/40">—</span>}
+        <span className={`text-xs ${color ? 'font-semibold' : 'text-ink/60'}`}>{text}</span>
+      </dd>
+    </div>
   )
 }

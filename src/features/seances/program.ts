@@ -3,7 +3,8 @@
 export type FeedbackStatus = 'fait' | 'partiel' | 'non fait'
 export type Feedback = { rpe: number | null; done_load: string | null; status: string | null; comment: string | null }
 export type PlannedExercise = {
-  id: string; position: number; block_label: string | null; sets: number | null; reps: string | null
+  // exercise_id : lu côté joueur seulement (repères de charge)
+  id: string; exercise_id?: string; position: number; block_label: string | null; sets: number | null; reps: string | null
   load_value: number | null; load_unit: string | null; tempo: string | null; rest: string | null; instructions: string | null
   exercises: { name: string }
   exercise_feedback: Feedback[]
@@ -68,4 +69,30 @@ export function blockGroups(exercises: PlannedExercise[]) {
     else groups.push({ key, label: key === 'MOB' ? 'Mobilité' : key === '—' ? 'Exercices' : `Bloc ${key}`, items: [e] })
   }
   return groups
+}
+
+// Repos de la fiche en secondes (« 2' », « 1'30 », « 90'' », « 90s », « 2 min ») ; null si le texte ne se lit pas (pas de minuteur)
+export function restSeconds(rest: string | null): number | null {
+  const t = (rest ?? '').trim().toLowerCase().replace(/[’′]/g, "'").replace(/[″”]/g, "''")
+  const m = t.match(/^(\d+)\s*(?:'(?!')|min)\s*(?:(\d{1,2})\s*(?:''|"|s)?)?$/)
+  if (m) return Number(m[1]) * 60 + Number(m[2] ?? 0) || null
+  const s = t.match(/^(\d+)\s*(?:''|"|s|sec)$/)
+  return s ? Number(s[1]) || null : null
+}
+
+// Charge indicative d'un %RM : % × dernier test du joueur sur un test en kg lié à cet exercice (lien posé par le staff),
+// arrondie à 2,5 kg. Rien sans lien ni résultat, ni quand la fiche vise une autre référence (« 5RM » en consigne).
+export type ReferenceMax = { exercise_id: string; test: string; date: string; value: number }
+export function estimatedKg(e: Pick<PlannedExercise, 'exercise_id' | 'load_value' | 'load_unit' | 'instructions'>, maxes: ReferenceMax[]) {
+  if (e.load_unit !== 'pct_rm' || e.load_value === null || /\b(?![3]RM)\d+\s*RM\b/i.test(e.instructions ?? '')) return null
+  const ref = maxes.filter(m => m.exercise_id === e.exercise_id).sort((a, b) => b.date.localeCompare(a.date))[0]
+  return ref ? { kg: Math.round((ref.value * e.load_value) / 100 / 2.5) * 2.5, ref } : null
+}
+
+// Dernière charge réalisée par exercice, sur les séances avant aujourd'hui (texte libre affiché tel quel)
+export type PastLoad = { exercise_id: string; date: string; done_load: string }
+export function lastLoads(rows: PastLoad[]) {
+  const out = new Map<string, PastLoad>()
+  for (const r of rows) if (!out.has(r.exercise_id) || out.get(r.exercise_id)!.date < r.date) out.set(r.exercise_id, r)
+  return out
 }

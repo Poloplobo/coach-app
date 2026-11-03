@@ -24,11 +24,12 @@ const wellness = [-6, -5, -4, -3, -2, -1, 0].map((n, i) => ({ ...base, entry_dat
 const logs = [0, 1, 2, 3, 4, 5, 6].map(i => addDays(monday, i)).filter(d => d < TODAY)
   .map((d, i) => ({ id: `l${i}`, session_date: d, activity_type_id: 't-ct', planned_session_id: null, duration_min: 90, rpe: 5 + (i % 3), srpe: 90 * (5 + (i % 3)), validated_at: null }))
 const ex = (id, position, block_label, name, sets, reps, load_value, load_unit, feedback = []) =>
-  ({ id, position, block_label, sets, reps, load_value, load_unit, tempo: null, rest: "2'", instructions: null, exercises: { name }, exercise_feedback: feedback })
+  ({ id, exercise_id: `x-${name}`, position, block_label, sets, reps, load_value, load_unit, tempo: null, rest: "2'", instructions: null, exercises: { name }, exercise_feedback: feedback })
 const muscu = { id: 'mock-muscu', session_date: TODAY, planned_duration_min: 60, activity_types: { name: 'Musculation' }, planned_exercises: [
   ex('e1', 1, 'A1', 'Squat arrière', 5, '5', 80, 'pct_rm', [{ rpe: 7, done_load: '2x125 1x120', status: 'fait', comment: null }]),
   ex('e2', 2, 'A2', 'Box jump', 5, '3', null, 'bw'),
   ex('e3', 3, 'B1', 'Développé couché', 4, '6', 85, 'kg'),
+  { ...ex('e4', 4, 'C1', 'Gainage latéral', 3, "30''", null, null), rest: 'récup complète' },
 ] }
 
 // Performance : 4 matchs passés, GPS sur 3, notes du joueur et du coach sur le dernier (sauf scénario « a-noter »)
@@ -59,6 +60,10 @@ function table(name, url) {
       { id: 'p2', session_date: TODAY, player_id: null, planned_duration_min: 25, activity_types: types[1] },
       { id: 'mock-muscu', session_date: TODAY, player_id: PLAYER, planned_duration_min: 60, activity_types: types[2] },
     ]
+    case 'test_results': return [{ test_id: 't1', test_date: addDays(TODAY, -22), value: 126, test_definitions: { name: 'Back Squat 3RM', unit: 'kg', higher_is_better: true, exercise_id: 'x-Squat arrière' } }]
+    case 'exercise_feedback': return [['Squat arrière', '2x120 1x115', -5], ['Développé couché', '4x80', -5], ['Développé couché', '4x77,5', -12]]
+      .map(([n, done_load, d]) => ({ done_load, planned_exercises: { exercise_id: `x-${n}`, planned_sessions: { session_date: addDays(TODAY, d) } } }))
+    case 'season_weeks': return [{ code: 'S9', week_types: { code: 'COMP', name: 'Compétition', srpe_min: 1500, srpe_max: 2500, target_srpe: 2000 } }]
     case 'matches': return matches
     case 'gps_records': return gps
     case 'gps_reference': return [{ position_group: 'AILIER', distance_m: 5600, hi_distance_m: 400, accelerations: 20, ref_minutes: 70 }]

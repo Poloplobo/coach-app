@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { blockGroups, completion, prescription, sessionRpe, sortedExercises, type PlannedExercise } from './program'
+import { blockGroups, completion, prescription, estimatedKg, lastLoads, restSeconds, sessionRpe, sortedExercises, type PlannedExercise } from './program'
 
 const ex = (position: number, over: Partial<PlannedExercise> = {}): PlannedExercise => ({
-  id: `e${position}`, position, block_label: 'A1', sets: 5, reps: '5', load_value: 80, load_unit: 'pct_rm',
+  id: `e${position}`, exercise_id: 'x-squat', position, block_label: 'A1', sets: 5, reps: '5', load_value: 80, load_unit: 'pct_rm',
   tempo: '4.0.1.0', rest: "2'", instructions: null, exercises: { name: `Exercice ${position}` }, exercise_feedback: [], ...over,
 })
 const fb = (status: string) => [{ rpe: 7, done_load: '60', status, comment: null }]
@@ -63,4 +63,52 @@ describe('sessionRpe : RPE de séance = moyenne des RPE des exercices', () => {
   it('aucun RPE d\'exercice : null (le joueur donne un RPE global)', () => {
     expect(sessionRpe([ex(1), ex(2, { exercise_feedback: rated('non fait', null) })])).toBeNull()
   })
+})
+
+describe('restSeconds', () => {
+  it('lit les écritures des fiches', () => {
+    expect(restSeconds("2'")).toBe(120)
+    expect(restSeconds("1'30")).toBe(90)
+    expect(restSeconds("1'30''")).toBe(90)
+    expect(restSeconds("90''")).toBe(90)
+    expect(restSeconds('90s')).toBe(90)
+    expect(restSeconds('2 min')).toBe(120)
+    expect(restSeconds('1min30')).toBe(90)
+    expect(restSeconds('2’')).toBe(120)
+  })
+  it('texte illisible ou vide : pas de minuteur', () => {
+    expect(restSeconds(null)).toBeNull()
+    expect(restSeconds('')).toBeNull()
+    expect(restSeconds('récup complète')).toBeNull()
+    expect(restSeconds("0'")).toBeNull()
+  })
+})
+
+describe('estimatedKg', () => {
+  const maxes = [
+    { exercise_id: 'x-squat', test: 'Back Squat 3RM', date: '2026-09-01', value: 110 },
+    { exercise_id: 'x-squat', test: 'Back Squat 3RM', date: '2026-10-12', value: 126 },
+    { exercise_id: 'x-dc', test: 'DC 3RM', date: '2026-10-12', value: 90 },
+  ]
+  it('% × dernier test lié à l\'exercice, arrondi à 2,5 kg', () => {
+    expect(estimatedKg(ex(1), maxes)).toEqual({ kg: 100, ref: maxes[1] }) // 80 % de 126 = 100,8
+    expect(estimatedKg(ex(1, { load_value: 85 }), maxes)?.kg).toBe(107.5) // 107,1
+  })
+  it('rien sans lien, sans %RM ou avec une autre référence en consigne', () => {
+    expect(estimatedKg(ex(1, { exercise_id: 'x-autre' }), maxes)).toBeNull()
+    expect(estimatedKg(ex(1, { load_unit: 'kg' }), maxes)).toBeNull()
+    expect(estimatedKg(ex(1, { load_value: null }), maxes)).toBeNull()
+    expect(estimatedKg(ex(1, { instructions: '5RM' }), maxes)).toBeNull()
+    expect(estimatedKg(ex(1, { instructions: '3 RER' }), maxes)?.kg).toBe(100)
+  })
+})
+
+it('lastLoads : la plus récente par exercice', () => {
+  const m = lastLoads([
+    { exercise_id: 'a', date: '2026-10-20', done_load: '2x120' },
+    { exercise_id: 'a', date: '2026-10-27', done_load: '2x125 1x120' },
+    { exercise_id: 'b', date: '2026-10-21', done_load: '60' },
+  ])
+  expect(m.get('a')?.done_load).toBe('2x125 1x120')
+  expect(m.get('b')?.date).toBe('2026-10-21')
 })

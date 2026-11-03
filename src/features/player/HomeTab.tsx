@@ -3,10 +3,9 @@ import { addDays, isoWeekStart } from '../../lib/week'
 import { Check, ChevronRight } from 'lucide-react'
 import { TabLink } from '../../components/ui/TabLink'
 import { MUSCULATION, dayActivities, upcomingByDay } from '../rpe/activities'
-import { useAvailability, useCatchUpDay, usePlanRange } from '../rpe/useRpe'
+import { useAvailability, useCatchUpDay, usePlanRange, useWeekTarget } from '../rpe/useRpe'
 import { completion } from '../seances/program'
 import { useWeekProgram } from '../seances/useSeance'
-import { MyGoals } from '../tests/MyGoals'
 import { SeasonProfileCard } from '../tests/SeasonProfileCard'
 import { WeekendSummary } from '../performance/WeekendSummary'
 import { FatigueBody } from '../wellness/FatigueBody'
@@ -19,7 +18,8 @@ import { Loading } from '../../components/ui/Loading'
 
 const shortDay = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', timeZone: 'UTC' })
 
-// Accueil : résumé de la semaine (fatigue, charge, musculation, à venir), dernier match, profil de saison et objectifs
+// Accueil : résumé de la semaine (fatigue, charge, musculation, à venir), dernier match et profil de saison ; les maxi et objectifs
+// sont dans l'onglet Performance
 export function HomeTab() {
   const { playerId, today } = usePlayerDay()
   // Les blocs apparaissent l'un après l'autre (une fois ; coupé si l'appareil demande moins d'animations)
@@ -33,7 +33,6 @@ export function HomeTab() {
       <div {...rise(3)}><Upcoming playerId={playerId} today={today} /></div>
       <div {...rise(4)}><WeekendSummary playerId={playerId} /></div>
       <div {...rise(5)}><SeasonProfileCard playerId={playerId} date={today} /></div>
-      <div {...rise(6)}><MyGoals playerId={playerId} date={today} /></div>
     </>
   )
 }
@@ -78,28 +77,57 @@ function TodoToday({ playerId, today, title }: { playerId: string; today: string
   )
 }
 
-// Le tableau d'affichage : fatigue du jour et charge de la semaine, lisibles d'un coup d'œil
+// Le tableau d'affichage : fatigue du jour et charge de la semaine, lisibles d'un coup d'œil, puis la charge dans sa plage
 function Scoreboard({ playerId, today }: { playerId: string; today: string }) {
   const wellness = useWellnessDay(playerId, today)
   const week = isoWeekStart(today)
   const logs = useLogsRange(playerId, [week, addDays(today, -6)].sort()[0], today) // même requête que « Ma semaine » : servie par le cache
+  const target = useWeekTarget(week).data
   const w = wellness.data
   const load = logs.data?.filter(l => l.session_date >= week).reduce((sum, l) => sum + Number(l.srpe ?? 0), 0)
 
   return (
-    <section aria-label="Mon tableau du jour" className="flex items-center gap-4 rounded-lg border border-line bg-surface px-4 py-3">
-      {w && w.score !== null && <FatigueBody wellness={w} score={w.score} figureOnly />}
-      <dl className="grid flex-1 grid-cols-2 divide-x divide-line">
-        <div className="pr-3 flex flex-col-reverse">
-          <dt className="mt-1 text-sm text-ink/60">Fatigue du jour</dt>
-          <dd className="font-display text-[clamp(2.4rem,12vw,3.75rem)] font-bold leading-none tabular-nums">{w?.score != null ? fatiguePercent(w.score) : '–'}<span className="text-2xl">%</span></dd>
-        </div>
-        <div className="pl-3 flex flex-col-reverse">
-          <dt className="mt-1 text-sm text-ink/60">UA cette semaine</dt>
-          <dd className="font-display text-[clamp(2.4rem,12vw,3.75rem)] font-bold leading-none tabular-nums">{load ?? '–'}</dd>
-        </div>
-      </dl>
+    <section aria-label="Mon tableau du jour" className="flex flex-col gap-3 rounded-lg border border-line bg-surface px-4 py-3">
+      <div className="flex items-center gap-4">
+        {w && w.score !== null && <FatigueBody wellness={w} score={w.score} figureOnly />}
+        <dl className="grid flex-1 grid-cols-2 divide-x divide-line">
+          <div className="pr-3 flex flex-col-reverse">
+            <dt className="mt-1 text-sm text-ink/60">Fatigue du jour</dt>
+            <dd className="font-display text-[clamp(2.4rem,12vw,3.75rem)] font-bold leading-none tabular-nums">{w?.score != null ? fatiguePercent(w.score) : '–'}<span className="text-2xl">%</span></dd>
+          </div>
+          <div className="pl-3 flex flex-col-reverse">
+            <dt className="mt-1 text-sm text-ink/60">UA cette semaine</dt>
+            <dd className="font-display text-[clamp(2.4rem,12vw,3.75rem)] font-bold leading-none tabular-nums">{load ?? '–'}</dd>
+          </div>
+        </dl>
+      </div>
+      {target && load !== undefined && <WeekGauge load={load} target={target} daysLeft={6 - Math.round((Date.parse(today) - Date.parse(week)) / 864e5)} />}
     </section>
+  )
+}
+
+// Charge de la semaine face à la plage de son type (REG 500-1500, COMP 1500-2500, DEV au-delà de 2500) : bande verte = plage
+function WeekGauge({ load, target, daysLeft }: {
+  load: number; daysLeft: number; target: { week: string; code: string; name: string; srpe_min: number | null; srpe_max: number | null }
+}) {
+  const min = target.srpe_min ?? 0
+  const top = Math.max(target.srpe_max ?? min * 1.4, load) * 1.15
+  const end = target.srpe_max ?? top
+  const where = load < min ? 'below' : target.srpe_max !== null && load > target.srpe_max ? 'above' : 'in'
+  const pos = (v: number) => `${(100 * v) / top}%`
+  return (
+    <div className="flex flex-col gap-1.5 border-t border-line pt-3">
+      <p className="flex items-baseline justify-between gap-3 text-sm">
+        <span><span className="font-semibold">{target.week} · {target.name}</span> <span className="text-ink/60">plage {min.toLocaleString('fr-FR')}{target.srpe_max !== null ? `–${target.srpe_max.toLocaleString('fr-FR')}` : ' et +'} UA</span></span>
+        <span className={`shrink-0 font-semibold ${where === 'in' ? 'text-ok' : where === 'above' ? 'text-rnr' : 'text-ink/60'}`}>
+          {where === 'in' ? 'dans la plage' : where === 'above' ? 'au-dessus' : daysLeft > 0 ? `encore ${daysLeft} j` : 'sous la plage'}
+        </span>
+      </p>
+      <div className="relative h-2.5 rounded-full bg-field" aria-hidden="true">
+        <span className="absolute inset-y-0 rounded-full bg-ok/25" style={{ left: pos(min), width: pos(end - min) }} />
+        <span className={`absolute inset-y-0 left-0 rounded-full ${where === 'in' ? 'bg-ok' : where === 'above' ? 'bg-rnr' : 'bg-ink/60'}`} style={{ width: pos(Math.max(load, top * 0.02)) }} />
+      </div>
+    </div>
   )
 }
 
@@ -120,12 +148,12 @@ function MuscuWeek({ playerId, today }: { playerId: string; today: string }) {
 }
 
 function Upcoming({ playerId, today }: { playerId: string; today: string }) {
-  const plan = usePlanRange(playerId, today, addDays(today, 6))
+  const plan = usePlanRange(playerId, addDays(today, 1), addDays(today, 7)) // aujourd'hui : « À faire » et « Ma semaine »
   const availability = useAvailability(playerId)
   if (plan.isPending || availability.isPending) return <Card title="À venir"><Loading /></Card>
   if (plan.isError || availability.isError) return <Card title="À venir"><p>Impossible de charger ton planning.</p></Card>
 
-  // les 3 prochains jours avec activité : la suite se voit le moment venu, l'accueil reste court
+  // les 3 prochains jours avec activité (à partir de demain) : la suite se voit le moment venu, l'accueil reste court
   const days = upcomingByDay(plan.data, { injured: availability.data === 'blessé' }).slice(0, 3)
   return (
     <Card title="À venir">
@@ -133,7 +161,7 @@ function Upcoming({ playerId, today }: { playerId: string; today: string }) {
       <ul className="flex flex-col gap-2 text-sm">
         {days.map(d => (
           <li key={d.date} className="grid grid-cols-[5.5rem_1fr] gap-2">
-            <span className="font-display font-semibold first-letter:uppercase">{d.date === today ? "Aujourd'hui" : shortDay(d.date)}</span>
+            <span className="font-display font-semibold first-letter:uppercase">{d.date === addDays(today, 1) ? 'Demain' : shortDay(d.date)}</span>
             <span className="text-ink/75">{d.activities.map(a => a.durationMin ? `${a.name} ${a.durationMin}'` : a.name).join(' · ')}</span>
           </li>
         ))}

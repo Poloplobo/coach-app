@@ -31,9 +31,10 @@ afterEach(cleanup)
 
 describe('PerformanceTab', () => {
   it('sans note du joueur : invitation à noter, et aucune couleur staff même si les données en contiennent une', () => {
-    h.ratings = [{ match_id: 'm1', player_id: 'p1', rater: 'staff', color: 'bleu' }]
+    h.ratings = [{ match_id: 'm1', player_id: 'p1', rater: 'staff', color: 'bleu', minutes: 65 } as typeof h.ratings[number]]
     render(<PerformanceTab />)
     expect(screen.getByText(NOTE)).toBeTruthy()
+    expect(screen.queryByText(/65 min jouées/)).toBeNull() // ni le temps de jeu saisi par le coach
     expect(occurrences(COLOR_LABEL.bleu)).toBe(1) // seulement le bouton de notation
   })
 

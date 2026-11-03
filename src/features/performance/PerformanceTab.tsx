@@ -27,7 +27,8 @@ export function PerformanceTab() {
   const failed = matches.isError || gps.isError || ratings.isError || reference.isError
   const match = matches.data?.[0] // match du week-end : le dernier joué (la note reste ouverte jusqu'au suivant)
   const own = ratings.data?.find(r => r.match_id === match?.id && r.rater === 'player')
-  const staff = ratings.data?.find(r => r.match_id === match?.id && r.rater === 'staff')
+  // La RLS ne rend l'avis du coach (coq, commentaire, temps de jeu) qu'après la note du joueur ; l'écran ne s'y fie pas seul
+  const staff = own ? ratings.data?.find(r => r.match_id === match?.id && r.rater === 'staff') : undefined
   const record = gps.data?.find(g => g.match_id === match?.id)
   const dateOf = new Map(matches.data?.map(m => [m.id, m.match_date]))
   const vmax = vmaxTimeline((gps.data ?? []).map(g => ({ date: dateOf.get(g.match_id) ?? '', vmax: g.vmax })))

@@ -11,7 +11,7 @@ import { completion } from '../seances/program'
 import { useWeekProgram } from '../seances/useSeance'
 import { MyGoals } from '../tests/MyGoals'
 import { fatiguePercent } from '../wellness/fatigue'
-import { DAY_NAMES, STATUS_TONE, WELLNESS_ALERT_SCORE, acwr, fullName, loadStatus, playerDays, rpeGap, rpeVsTarget, targetRpe, weekMatrix, weekOf, type Log, type WeekType } from './load'
+import { DAY_NAMES, STATUS_TONE, WELLNESS_ALERT_SCORE, acwr, fullName, loadStatus, playerDays, rpeGap, rpeVsTarget, sessionTarget, weekMatrix, weekOf, type Log, type WeekType } from './load'
 import { AvailabilityPanel, CorrectionPanel } from './PlayerAdmin'
 import { TestsPanel } from './programming/TestsPanel'
 import { useAllLogs, useAllPlan, useAllWellness, useIsAdmin, useReference, useRoster, useTargetRpes } from './useStaff'
@@ -129,7 +129,7 @@ export function PlayerView() {
               </table>
             </div>
           </Card>
-          <Card title="Journal des saisies" help="Chaque déclaration de la semaine, quand et par qui (joueur, staff ou formulaire), avec le RPE déclaré face au RPE visé de la séance : orange à ±2, rouge à ±3.">
+          <Card title="Journal des saisies" help="Chaque déclaration de la semaine, quand et par qui (joueur, staff ou formulaire), avec le RPE déclaré face à la fourchette visée de la séance : orange à ±2, rouge à ±3.">
             {!own.data.some(inWeek) && <p className="text-sm text-ink/70">Aucune déclaration cette semaine.</p>}
             <ul className="text-sm flex flex-col max-h-96 overflow-y-auto">
               {own.data.filter(inWeek).sort((a, b) => a.created_at.localeCompare(b.created_at)).map((l, i) => (
@@ -138,7 +138,7 @@ export function PlayerView() {
                   <span className="flex items-center gap-2 tabular-nums whitespace-nowrap">
                     {(() => {
                       // RPE déclaré face au RPE visé de la séance (orange à ±2, rouge à ±3)
-                      const t = targetRpe(l, weekPlan.data ?? [], week?.week_type_code, targets.data ?? []), g = rpeGap(l.rpe, t)
+                      const t = sessionTarget(l, weekPlan.data ?? [], week?.week_type_code, targets.data ?? []).range, g = rpeGap(l.rpe, t)
                       return l.rpe === null ? null : g?.heat ? <Badge tone={g.heat}>{rpeVsTarget(l.rpe, t)}</Badge> : <span>{rpeVsTarget(l.rpe, t)}</span>
                     })()}
                     <span className="text-ink/60">{Number(l.srpe ?? 0)} UA · {SOURCE[l.source] ?? l.source}</span>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  acwr, hotSessions, overLoad, plannedLoad, rpeGap, rpeMatrix, rpeVsTarget, targetRpe, dailySynthesis, latecomers, weekPace, loadStatus, pctOfTarget, pillarSplit, playerDays, reminderMessage, weekMatrix, wellnessAlerts,
+  acwr, hotSessions, overLoad, parseRpeRange, plannedLoad, rpeGap, rpeMatrix, rpeVsTarget, sessionTarget, dailySynthesis, latecomers, weekPace, loadStatus, pctOfTarget, pillarSplit, playerDays, reminderMessage, weekMatrix, wellnessAlerts,
   type ActivityType, type Log, type Player, type WeekType,
 } from './load'
 
@@ -160,14 +160,14 @@ it('rpeMatrix : RPE moyen par jour et sur la semaine, activités sans RPE ignor�
   expect(r.groupWeek).toBe(7.5)
 })
 
-describe('seuils de charge par activité', () => {
+describe('seuil de charge d\'une séance', () => {
   it('overLoad : rien sous le seuil ou sans seuil, orange au-dessus, rouge au-delà de 1,25 ×', () => {
     expect([overLoad(480, 480), overLoad(490, 480), overLoad(600, 480), overLoad(601, 480), overLoad(900, null)]).toEqual([null, 'warn', 'warn', 'bad', null])
   })
-  it('hotSessions : séances au-dessus du seuil de leur activité, la plus chaude d\'abord', () => {
-    const t = [{ ...types[0], max_srpe: 480 }, { ...types[1], max_srpe: 200 }, types[2]]
+  it('hotSessions : séances au-dessus de leur seuil (haut de la fourchette × durée prévue), la plus chaude d\'abord', () => {
     const logs = [log('a', '2026-11-02', 'muscu', 70, 7), log('a', '2026-11-02', 'poste', 60, 4), log('a', '2026-11-03', 'poste', 60, 5), log('a', '2026-11-03', 'video', 20, null)]
-    expect(hotSessions(logs, t).map(h => [h.name, h.srpe, h.heat])).toEqual([['Jeu au Poste', 300, 'bad'], ['Jeu au Poste', 240, 'warn'], ['Musculation', 490, 'warn']])
+    const seuil = (l: { activity_type_id: string | null }) => ({ maxLoad: l.activity_type_id === 'muscu' ? 480 : l.activity_type_id === 'poste' ? 200 : null })
+    expect(hotSessions(logs, types, seuil).map(h => [h.name, h.srpe, h.heat])).toEqual([['Jeu au Poste', 300, 'bad'], ['Jeu au Poste', 240, 'warn'], ['Musculation', 490, 'warn']])
   })
 })
 
@@ -193,26 +193,33 @@ describe('weekPace : rythme de la semaine selon le planning', () => {
   })
 })
 
-describe('RPE visé', () => {
-  const targets = [{ week_type_code: 'COMP', activity_type_id: 'poste', target_rpe: 4 }, { week_type_code: 'DEV', activity_type_id: 'poste', target_rpe: 5 }]
+describe('RPE visé en fourchette', () => {
+  const targets = [{ week_type_code: 'COMP', activity_type_id: 'poste', rpe_min: 3, rpe_max: 4 }, { week_type_code: 'DEV', activity_type_id: 'poste', rpe_min: 5, rpe_max: 5 }]
   const plan = [
-    { player_id: null, session_date: '2026-11-03', activity_type_id: 'poste', planned_rpe: 6 },
-    { player_id: null, session_date: '2026-11-02', activity_type_id: 'poste', planned_rpe: null },
+    { player_id: null, session_date: '2026-11-03', activity_type_id: 'poste', planned_rpe: 5, planned_rpe_max: 6, planned_duration_min: 45 },
+    { player_id: null, session_date: '2026-11-02', activity_type_id: 'poste', planned_rpe: null, planned_duration_min: 60 },
   ]
-  it('targetRpe : RPE de la séance s\'il est saisi, sinon celui du type de semaine, sinon rien', () => {
-    expect(targetRpe({ player_id: 'a', session_date: '2026-11-03', activity_type_id: 'poste' }, plan, 'COMP', targets)).toBe(6)
-    expect(targetRpe({ player_id: 'a', session_date: '2026-11-02', activity_type_id: 'poste' }, plan, 'COMP', targets)).toBe(4)
-    expect(targetRpe({ player_id: 'a', session_date: '2026-11-02', activity_type_id: 'poste' }, plan, 'DEV', targets)).toBe(5)
-    expect(targetRpe({ player_id: 'a', session_date: '2026-11-02', activity_type_id: 'muscu' }, plan, 'COMP', targets)).toBeNull()
+  it('parseRpeRange : « 5,6 », « 5-6 », « 5/6 », « 5 à 6 » = 5 ou 6 ; « 4 » = 4 ; décimales et inversions refusées', () => {
+    expect(['5,6', '5-6', '5 / 6', '5 à 6', '4', ''].map(parseRpeRange)).toEqual([{ min: 5, max: 6 }, { min: 5, max: 6 }, { min: 5, max: 6 }, { min: 5, max: 6 }, { min: 4, max: 4 }, null])
+    expect(['5.6', '6-5', '11', 'x'].map(parseRpeRange)).toEqual(['invalide', 'invalide', 'invalide', 'invalide'])
   })
-  it('rpeGap : orange à ±2, rouge à ±3 ; texte « RPE · visé (écart) »', () => {
-    expect([rpeGap(5, 4), rpeGap(6, 4), rpeGap(2, 4), rpeGap(7.5, 4), rpeGap(5, null)]).toEqual([
-      { gap: 1, heat: null }, { gap: 2, heat: 'warn' }, { gap: -2, heat: 'warn' }, { gap: 3.5, heat: 'bad' }, null])
-    expect(rpeVsTarget(6, 4)).toBe('RPE 6 · visé 4 (+2)')
-    expect(rpeVsTarget(3.5, 4)).toBe('RPE 3,5 · visé 4 (-0,5)')
+  it('sessionTarget : fourchette de la séance, sinon du type de semaine ; seuil = haut × durée prévue', () => {
+    expect(sessionTarget({ player_id: 'a', session_date: '2026-11-03', activity_type_id: 'poste' }, plan, 'COMP', targets)).toEqual({ range: { min: 5, max: 6 }, maxLoad: 270 })
+    expect(sessionTarget({ player_id: 'a', session_date: '2026-11-02', activity_type_id: 'poste' }, plan, 'COMP', targets)).toEqual({ range: { min: 3, max: 4 }, maxLoad: 240 })
+    // activité hors planning : fourchette du type, pas de seuil de charge
+    expect(sessionTarget({ player_id: 'a', session_date: '2026-11-04', activity_type_id: 'poste' }, plan, 'DEV', targets)).toEqual({ range: { min: 5, max: 5 }, maxLoad: null })
+    expect(sessionTarget({ player_id: 'a', session_date: '2026-11-02', activity_type_id: 'muscu' }, plan, 'COMP', targets).range).toBeNull()
+  })
+  it('rpeGap compté depuis la fourchette : 0 dedans, orange à ±2, rouge à ±3 ; texte « RPE · visé (écart) »', () => {
+    const r = { min: 3, max: 4 }
+    expect([rpeGap(4, r), rpeGap(5, r), rpeGap(6, r), rpeGap(1, r), rpeGap(7.5, r), rpeGap(5, null)]).toEqual([
+      { gap: 0, heat: null }, { gap: 1, heat: null }, { gap: 2, heat: 'warn' }, { gap: -2, heat: 'warn' }, { gap: 3.5, heat: 'bad' }, null])
+    expect(rpeVsTarget(6, r)).toBe('RPE 6 · visé 3-4 (+2)')
+    expect(rpeVsTarget(4, r)).toBe('RPE 4 · visé 3-4')
+    expect(rpeVsTarget(4, { min: 4, max: 4 })).toBe('RPE 4 · visé 4')
     expect(rpeVsTarget(6, null)).toBe('RPE 6')
   })
-  it('plannedLoad : Σ RPE visé × minutes', () => {
-    expect(plannedLoad([{ minutes: 60, rpe: 4 }, { minutes: 30, rpe: 2.5 }, { minutes: 20, rpe: null }])).toBe(315)
+  it('plannedLoad : milieu de la fourchette × minutes', () => {
+    expect(plannedLoad([{ minutes: 60, range: { min: 3, max: 4 } }, { minutes: 30, range: { min: 4, max: 4 } }, { minutes: 20, range: null }])).toBe(330)
   })
 })

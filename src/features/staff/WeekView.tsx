@@ -11,8 +11,8 @@ import { addDays, parisDate } from '../../lib/week'
 import { pct } from '../../lib/format'
 import { PILLAR_LABEL, downloadWeek, weekEnd } from './exportWeek'
 import {
-  DAY_NAMES, STATUS_TONE, dailySynthesis, fullName, hotSessions, pillarSplit, rangeLabel, rpeGap, rpeMatrix, rpeVsTarget, targetRpe, weekMatrix, weekOf, weekPace,
-  type ActivityType, type Heat, type Log, type MatrixRow, type Pillar, type WeekType,
+  DAY_NAMES, STATUS_TONE, dailySynthesis, fullName, hotSessions, pillarSplit, rangeLabel, rpeGap, rpeMatrix, rpeVsTarget, sessionTarget, weekMatrix, weekOf, weekPace,
+  type ActivityType, type Heat, type Log, type MatrixRow, type Pillar, type RpeRange, type WeekType,
 } from './load'
 import { useAllLogs, useAllPlan, useReference, useRoster, useTargetRpes } from './useStaff'
 import { Loading } from '../../components/ui/Loading'
@@ -53,7 +53,7 @@ export function WeekView() {
   const types = ref.data.types
   // Seuils de charge (0030) : séances au-dessus du seuil de leur activité, et rythme de la semaine en cours selon le planning
   const alerts: Alerts = new Map(m.rows.map(r => [r.player.id, {
-    hot: hotSessions(weekLogs.filter(l => l.player_id === r.player.id), types),
+    hot: hotSessions(weekLogs.filter(l => l.player_id === r.player.id), types, l => sessionTarget(l, plan.data ?? [], week.week_type_code, targets.data ?? [])),
     pace: m.inProgress ? weekPace(r.player, r.total, plan.data ?? [], parisDate(), wt) : null,
   }]))
   // Export au clic ; module absent (hors ligne, ou onglet resté ouvert après une mise à jour) : message plutôt qu'un bouton muet
@@ -94,7 +94,7 @@ export function WeekView() {
       {tab === 'resume' && <CoachSummary m={m} wt={wt} code={week.code} pillars={pillarSplit(weekLogs, types, wt)} alerts={alerts} />}
       {tab === 'charge' && <LoadTable m={m} alerts={alerts} weekStart={week.start_date} />}
       {tab === 'rpe' && <RpeTable data={rpeMatrix(roster.data, weekLogs, week.start_date)} logs={weekLogs} types={types} weekStart={week.start_date}
-        target={l => targetRpe(l, plan.data ?? [], week.week_type_code, targets.data ?? [])} />}
+        target={l => sessionTarget(l, plan.data ?? [], week.week_type_code, targets.data ?? []).range} />}
       {tab === 'jours' && (
         <Card title="Synthèse collective jour par jour" help="Pour chaque jour : combien de joueurs ont déclaré, durée et charge moyennes. UA/min : intensité moyenne de la journée.">
           <SimpleTable header={['Jour', 'Déclarants', 'Durée moy. (min)', 'Rugby', 'Physique', 'sRPE moyen', 'sRPE cumulé', 'UA/min']}
@@ -169,7 +169,7 @@ function CoachSummary({ m, wt, code, pillars, alerts }: { m: ReturnType<typeof w
         </div>
 
         <div className="flex flex-col gap-4">
-          <Card title="Charge trop haute" help="Rythme : charge du joueur comparée à la charge visée de la semaine, au prorata du planning déjà passé. Séances : au-dessus du seuil de leur activité (Programmation › Seuils de charge), orange puis rouge au-delà de 1,25 × le seuil.">
+          <Card title="Charge trop haute" help="Rythme : charge du joueur comparée à la charge visée de la semaine, au prorata du planning déjà passé. Séances : charge au-dessus du seuil de la séance (haut de la fourchette de RPE visé × durée prévue, Programmation › RPE visés et seuils), orange puis rouge au-delà de 1,25 × le seuil.">
             {m.inProgress && (ahead.length
               ? <Group title={`Au-dessus du rythme de la semaine (${ahead.length})`} rows={ahead} tone="bad"
                   detail={r => { const p = alerts.get(r.player.id)!.pace!; return `${r.total} UA pour ${p.limit} au rythme (${p.share} % du planning passé)` }} />
@@ -249,7 +249,7 @@ function Group({ title, rows, tone, detail }: { title: string; rows: MatrixRow[]
 
 function LoadTable({ m, alerts, weekStart }: { m: ReturnType<typeof weekMatrix>; alerts: Alerts; weekStart: string }) {
   return (
-    <Card title="Charge par joueur" help="Charge (sRPE = RPE × minutes) jour par jour et sur la semaine. Case orange ou rouge : une séance du jour dépasse le seuil de son activité (survol : le détail). % cible : total ÷ charge visée. Rythme (semaine en cours) : total ÷ charge visée au prorata du planning passé. vs groupe : écart à la moyenne des joueurs aptes.">
+    <Card title="Charge par joueur" help="Charge (sRPE = RPE × minutes) jour par jour et sur la semaine. Case orange ou rouge : une séance du jour dépasse son seuil, haut de la fourchette de RPE visé × durée prévue (survol : le détail). % cible : total ÷ charge visée. Rythme (semaine en cours) : total ÷ charge visée au prorata du planning passé. vs groupe : écart à la moyenne des joueurs aptes.">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="text-left text-ink/60">
@@ -304,7 +304,7 @@ function LoadTable({ m, alerts, weekStart }: { m: ReturnType<typeof weekMatrix>;
 const rpeTone = (v: number | null) => (v === null ? null : v >= 8 ? 'bad' : v >= 6 ? 'warn' : 'ok')
 
 // Détail au clic : chaque activité du jour (ou de la semaine) avec le RPE déclaré, le RPE visé et l'écart (±2 orange, ±3 rouge)
-function RpeDetail({ logs, types, target }: { logs: Log[]; types: ActivityType[]; target: (l: Log) => number | null }) {
+function RpeDetail({ logs, types, target }: { logs: Log[]; types: ActivityType[]; target: (l: Log) => RpeRange | null }) {
   const rated = logs.filter(l => l.rpe !== null).sort((a, b) => a.session_date.localeCompare(b.session_date))
   if (!rated.length) return <p className="text-sm text-ink/60">Aucune activité avec RPE.</p>
   return (
@@ -324,7 +324,7 @@ function RpeDetail({ logs, types, target }: { logs: Log[]; types: ActivityType[]
 }
 
 function RpeTable({ data, logs, types, weekStart, target }: {
-  data: ReturnType<typeof rpeMatrix>; logs: Log[]; types: ActivityType[]; weekStart: string; target: (l: Log) => number | null
+  data: ReturnType<typeof rpeMatrix>; logs: Log[]; types: ActivityType[]; weekStart: string; target: (l: Log) => RpeRange | null
 }) {
   const [open, setOpen] = useState<{ player: string; day: number | 'semaine' } | null>(null)
   const cell = (v: number | null): ReactNode => { const t = rpeTone(v); return t ? <Badge tone={t}>{v}</Badge> : '—' }

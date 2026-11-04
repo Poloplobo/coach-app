@@ -4,7 +4,7 @@ import { Loading } from '../../../components/ui/Loading'
 import { ViewSelect } from '../../../components/ui/ViewSelect'
 import { addDays, parisDate } from '../../../lib/week'
 import { MUSCULATION } from '../../rpe/activities'
-import { plannedLoad, weekOf } from '../load'
+import { formatRange, parseRpeRange, plannedLoad, rangeMid, weekOf, type RpeRange } from '../load'
 import { useAllPlan, useReference, useTargetRpes } from '../useStaff'
 import { planByDay } from './programming'
 import { useAddGroupActivity, useGroup, useGroupPlan, useRemovePlanned, useSetDuration, useSetPlannedRpe, useWeeksFull } from './useProgramming'
@@ -30,15 +30,19 @@ export function GroupPlanPanel() {
   if (group.isError || weeks.isError || ref.isError || plan.isError || targets.isError) return <p>Impossible de charger le planning.</p>
   if (!week) return <p>Crée d'abord une semaine dans l'onglet « Semaines ».</p>
   const wt = ref.data.weekTypes.find(t => t.code === week.week_type_code)
-  const typeRpe = (activityTypeId: string | null) => targets.data.find(t => t.week_type_code === week.week_type_code && t.activity_type_id === activityTypeId)?.target_rpe ?? null
-  const rpeOf = (i: { planned_rpe: number | null; activity_type_id: string | null }) => (i.planned_rpe != null ? Number(i.planned_rpe) : typeRpe(i.activity_type_id))
+  const typeRange = (activityTypeId: string | null): RpeRange | null => {
+    const t = targets.data.find(x => x.week_type_code === week.week_type_code && x.activity_type_id === activityTypeId)
+    return t ? { min: t.rpe_min, max: t.rpe_max } : null
+  }
+  const ownRange = (i: { planned_rpe: number | null; planned_rpe_max: number | null }): RpeRange | null =>
+    i.planned_rpe != null ? { min: Number(i.planned_rpe), max: Number(i.planned_rpe_max ?? i.planned_rpe) } : null
   // Charge prévue d'un joueur si les RPE visés sont respectés : activités du groupe + sa musculation (moyenne des joueurs programmés)
-  const groupLoad = plannedLoad((plan.data ?? []).map(i => ({ minutes: i.planned_duration_min ?? 0, rpe: rpeOf(i) })))
+  const groupLoad = plannedLoad((plan.data ?? []).map(i => ({ minutes: i.planned_duration_min ?? 0, range: ownRange(i) ?? typeRange(i.activity_type_id) })))
   const muscuType = ref.data.types.find(t => t.name === MUSCULATION)
   const muscu = (allPlan.data ?? []).filter(s => s.player_id && s.activity_type_id === muscuType?.id)
   const muscuPlayers = new Set(muscu.map(s => s.player_id)).size
   const muscuMinutes = muscuPlayers ? Math.round(muscu.reduce((n, s) => n + (s.planned_duration_min ?? muscuType?.default_duration_min ?? 60), 0) / muscuPlayers) : 0
-  const muscuLoad = plannedLoad([{ minutes: muscuMinutes, rpe: typeRpe(muscuType?.id ?? null) }])
+  const muscuLoad = plannedLoad([{ minutes: muscuMinutes, range: typeRange(muscuType?.id ?? null) }])
   const total = groupLoad + muscuLoad
 
   // La musculation est individuelle : elle se programme joueur par joueur
@@ -65,8 +69,8 @@ export function GroupPlanPanel() {
         {days.map(d => (
           <Card boxed key={d.date} title={shortDay(d.date)}>
             <ul className="flex flex-col gap-2">
-              {d.items.map(item => <PlannedItem key={`${item.id}-${item.planned_rpe ?? ''}`} id={item.id} name={item.activity_types?.name ?? '—'} minutes={item.planned_duration_min}
-                rpe={item.planned_rpe == null ? null : Number(item.planned_rpe)} typeRpe={typeRpe(item.activity_type_id)} past={d.date < today} />)}
+              {d.items.map(item => <PlannedItem key={`${item.id}-${item.planned_rpe ?? ''}-${item.planned_rpe_max ?? ''}`} id={item.id} name={item.activity_types?.name ?? '—'} minutes={item.planned_duration_min}
+                range={ownRange(item)} typeRange={typeRange(item.activity_type_id)} past={d.date < today} />)}
             </ul>
             {!week.is_off && d.date >= today && <AddActivity groupId={group.data.id} date={d.date} types={types} taken={new Set(d.items.map(i => i.activity_type_id ?? ''))} />}
           </Card>
@@ -76,18 +80,18 @@ export function GroupPlanPanel() {
   )
 }
 
-function PlannedItem({ id, name, minutes, rpe, typeRpe, past }: { id: string; name: string; minutes: number | null; rpe: number | null; typeRpe: number | null; past: boolean }) {
+function PlannedItem({ id, name, minutes, range, typeRange, past }: { id: string; name: string; minutes: number | null; range: RpeRange | null; typeRange: RpeRange | null; past: boolean }) {
   const setDuration = useSetDuration()
   const setRpe = useSetPlannedRpe()
   const remove = useRemovePlanned()
   const [value, setValue] = useState(String(minutes ?? ''))
-  const [rpeText, setRpeText] = useState(rpe?.toString() ?? '')
+  const [rpeText, setRpeText] = useState(range ? formatRange(range) : '')
   const n = Number(value)
   const save = () => { if (Number.isInteger(n) && n > 0 && n <= 300 && n !== minutes) setDuration.mutate({ id, minutes: n }) }
-  const r = rpeText.trim() === '' ? null : Number(rpeText.replace(',', '.'))
-  const rpeValid = r === null || (Number.isFinite(r) && r >= 0 && r <= 10)
-  const saveRpe = () => { if (rpeValid && r !== rpe) setRpe.mutate({ id, rpe: r === null ? null : Math.round(r * 10) / 10 }) }
-  const effective = r ?? typeRpe
+  const r = parseRpeRange(rpeText)
+  const rpeValid = r !== 'invalide'
+  const saveRpe = () => { if (rpeValid && (r?.min !== range?.min || r?.max !== range?.max)) setRpe.mutate({ id, range: r }) }
+  const effective = (rpeValid ? r : null) ?? typeRange
   return (
     <li className="flex flex-col gap-1 border-t border-line pt-2 first:border-0 first:pt-0">
       <span className="text-sm font-semibold">{name}</span>
@@ -97,9 +101,11 @@ function PlannedItem({ id, name, minutes, rpe, typeRpe, past }: { id: string; na
       </span>
       <span className="flex items-center gap-2 text-sm">
         RPE <input type="text" inputMode="decimal" value={rpeText} onChange={e => setRpeText(e.target.value)} onBlur={saveRpe}
-          placeholder={typeRpe?.toLocaleString('fr-FR') ?? '—'} aria-label={`RPE visé de ${name}${typeRpe != null ? ` (par défaut ${typeRpe})` : ''}`}
-          aria-invalid={!rpeValid} className={`${field} w-12 ${rpeValid ? '' : 'border-rnr'}`} disabled={past} />
-        <span className="text-xs text-ink/60">{effective != null && minutes ? `≈ ${Math.round(effective * minutes)} UA` : ''}{r === null && typeRpe != null ? ' (type)' : ''}</span>
+          placeholder={typeRange ? formatRange(typeRange) : '—'} aria-label={`RPE visé de ${name}, ex. 3-4${typeRange ? ` (par défaut ${formatRange(typeRange)})` : ''}`}
+          aria-invalid={!rpeValid} className={`${field} w-14 ${rpeValid ? '' : 'border-rnr'}`} disabled={past} />
+        <span className="text-xs text-ink/60" title="Charge prévue (milieu de la fourchette × durée) et seuil de la séance (haut de la fourchette × durée)">
+          {effective && minutes ? `≈ ${Math.round(rangeMid(effective) * minutes)} UA · seuil ${effective.max * minutes}` : ''}{rpeValid && !r && typeRange ? ' (type)' : ''}
+        </span>
         {!past && <button type="button" onClick={() => remove.mutate(id)} disabled={remove.isPending}
           className="ml-auto rounded border border-line px-2 py-0.5 text-xs" aria-label={`Retirer ${name}`}>Retirer</button>}
       </span>

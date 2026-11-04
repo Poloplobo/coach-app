@@ -28,7 +28,7 @@ export function useRoster() {
 
 export function useReference() {
   return useQuery(query(['staff', 'reference'], async () => ({
-    types: check(await supabase.from('activity_types').select('id, name, pillar, requires_rpe, default_duration_min, max_srpe').order('name')) as ActivityType[],
+    types: check(await supabase.from('activity_types').select('id, name, pillar, requires_rpe, default_duration_min').order('name')) as ActivityType[],
     weekTypes: check(await supabase.from('week_types')
       .select('code, name, target_srpe, srpe_min, srpe_max, volume_min, physique_min, rugby_min, accompagnement_min, ppid_min')) as WeekType[],
     weeks: check(await supabase.from('season_weeks').select('code, label, start_date, week_type_code, cycle, phase_note').order('start_date')),
@@ -61,7 +61,7 @@ export function useAllWellness(from: string, to: string, playerId?: string) {
 export function useAllPlan(from: string, to: string) {
   return useQuery({
     ...query(['staff', 'plan', from, to], async () => check(await supabase.from('planned_sessions')
-      .select('player_id, session_date, activity_type_id, planned_duration_min, planned_rpe, activity_types(name, default_duration_min)').gte('session_date', from).lte('session_date', to))),
+      .select('player_id, session_date, activity_type_id, planned_duration_min, planned_rpe, planned_rpe_max, activity_types(name, default_duration_min)').gte('session_date', from).lte('session_date', to))),
     enabled: !!from && !!to, // pas de semaine choisie : rien à charger
   })
 }
@@ -95,19 +95,7 @@ export function usePushEnabled() {
 
 // RPE visés par type de semaine et activité (0031), lisibles par tout connecté
 export function useTargetRpes() {
-  return useQuery(query(['staff', 'target-rpe'], async () => (check(await supabase.from('week_type_rpe').select('week_type_code, activity_type_id, target_rpe')) as TargetRpe[])
-    .map(t => ({ ...t, target_rpe: Number(t.target_rpe) }))))
-}
-
-// Seuil de charge d'une activité (0030) ; vide : plus d'alerte pour cette activité
-export function useSaveThreshold() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async (t: { id: string; max: number | null }) => {
-      check(await supabase.from('activity_types').update({ max_srpe: t.max }).eq('id', t.id).select('id'))
-    },
-    onSuccess: () => invalidateStaff(qc),
-  })
+  return useQuery(query(['staff', 'target-rpe'], async () => check(await supabase.from('week_type_rpe').select('week_type_code, activity_type_id, rpe_min, rpe_max')) as TargetRpe[]))
 }
 
 // Relances du jour donné (joueurs autorisés à rattraper ce jour-là, 0025)

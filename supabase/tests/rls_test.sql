@@ -455,8 +455,8 @@ select throws_ok($$select public.delete_muscu_session('00000000-0000-0000-0000-0
 
 -- RPE visés (0031) : lisibles par tous les connectés, modifiables par le staff seulement
 select lives_ok($$select 1 from public.week_type_rpe limit 1$$, 'B lit les RPE visés');
-select throws_ok($$insert into public.week_type_rpe (week_type_code, activity_type_id, target_rpe)
-                   values ('COMP', (select id from public.activity_types where name = 'Vidéo'), 9)$$, '42501', null, 'B ne peut pas fixer un RPE visé');
+select throws_ok($$insert into public.week_type_rpe (week_type_code, activity_type_id, rpe_min, rpe_max)
+                   values ('COMP', (select id from public.activity_types where name = 'Vidéo'), 8, 9)$$, '42501', null, 'B ne peut pas fixer un RPE visé');
 
 -- Relance (0025) : sans relance, B ne rattrape pas hier ; il ne se relance pas lui-même
 select throws_ok($$insert into public.session_logs (player_id, session_date, activity_type_id, duration_min, rpe)

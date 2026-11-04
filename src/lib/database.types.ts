@@ -43,7 +43,6 @@ export type Database = {
         Row: {
           default_duration_min: number | null
           id: string
-          max_srpe: number | null
           name: string
           pillar: Database["public"]["Enums"]["per_pillar"]
           requires_rpe: boolean
@@ -51,7 +50,6 @@ export type Database = {
         Insert: {
           default_duration_min?: number | null
           id?: string
-          max_srpe?: number | null
           name: string
           pillar: Database["public"]["Enums"]["per_pillar"]
           requires_rpe?: boolean
@@ -59,7 +57,6 @@ export type Database = {
         Update: {
           default_duration_min?: number | null
           id?: string
-          max_srpe?: number | null
           name?: string
           pillar?: Database["public"]["Enums"]["per_pillar"]
           requires_rpe?: boolean
@@ -535,6 +532,7 @@ export type Database = {
           id: string
           planned_duration_min: number | null
           planned_rpe: number | null
+          planned_rpe_max: number | null
           player_id: string | null
           session_date: string
           title: string
@@ -548,6 +546,7 @@ export type Database = {
           id?: string
           planned_duration_min?: number | null
           planned_rpe?: number | null
+          planned_rpe_max?: number | null
           player_id?: string | null
           session_date: string
           title: string
@@ -561,6 +560,7 @@ export type Database = {
           id?: string
           planned_duration_min?: number | null
           planned_rpe?: number | null
+          planned_rpe_max?: number | null
           player_id?: string | null
           session_date?: string
           title?: string
@@ -1077,9 +1077,9 @@ export type Database = {
         ]
       }
       week_type_rpe: {
-        Row: { activity_type_id: string; target_rpe: number; week_type_code: string }
-        Insert: { activity_type_id: string; target_rpe: number; week_type_code: string }
-        Update: { activity_type_id?: string; target_rpe?: number; week_type_code?: string }
+        Row: { activity_type_id: string; rpe_max: number; rpe_min: number; week_type_code: string }
+        Insert: { activity_type_id: string; rpe_max: number; rpe_min: number; week_type_code: string }
+        Update: { activity_type_id?: string; rpe_max?: number; rpe_min?: number; week_type_code?: string }
         Relationships: []
       }
       week_types: {

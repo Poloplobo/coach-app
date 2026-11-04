@@ -5,7 +5,7 @@ import { MUSCULATION } from '../rpe/activities'
 import { WELLNESS_ITEMS, type WellnessKey } from '../wellness/items'
 
 export type Pillar = 'rugby' | 'physique' | 'accompagnement' | 'ppid'
-export type ActivityType = { id: string; name: string; pillar: Pillar; requires_rpe: boolean; default_duration_min?: number | null; max_srpe?: number | null }
+export type ActivityType = { id: string; name: string; pillar: Pillar; requires_rpe: boolean; default_duration_min?: number | null }
 export type Log = {
   player_id: string; session_date: string; activity_type_id: string | null
   duration_min: number; rpe: number | null; srpe: number | null; source: string; created_at: string; validated_at?: string | null
@@ -87,31 +87,81 @@ export function weekMatrix(players: Player[], weekLogs: Log[], weekStart: string
   }
 }
 
-// ---------- Seuils de charge (0030) ----------
+// ---------- RPE visé et seuil de charge (0031, 0032) ----------
 
 export type Heat = 'warn' | 'bad'
-export const OVER_FACTOR = 1.25 // rouge au-delà de 1,25 × le seuil de l'activité
+export type RpeRange = { min: number; max: number }
+export type TargetRpe = { week_type_code: string; activity_type_id: string; rpe_min: number; rpe_max: number }
+export const OVER_FACTOR = 1.25 // charge : rouge au-delà de 1,25 × le seuil de la séance
 
-// Une séance au-dessus du seuil de son activité : orange, puis rouge au-delà de 1,25 × le seuil ; pas de seuil : rien
+export type PlanItem = {
+  player_id: string | null; session_date: string; planned_duration_min?: number | null
+  activity_type_id?: string | null; planned_rpe?: number | null; planned_rpe_max?: number | null
+  activity_types?: { default_duration_min?: number | null } | null
+}
+
+// « 5,6 », « 5-6 », « 5/6 », « 5 à 6 » : 5 ou 6 (RPE entiers, échelle de Borg) ; « 4 » : 4 ; vide : null ; sinon 'invalide'
+export function parseRpeRange(text: string): RpeRange | null | 'invalide' {
+  const t = text.trim()
+  if (!t) return null
+  const m = t.match(/^(\d{1,2})(?:\s*(?:[-,/]|à|a|\s)\s*(\d{1,2}))?$/i)
+  if (!m) return 'invalide'
+  const min = Number(m[1]), max = Number(m[2] ?? m[1])
+  return min <= max && max <= 10 ? { min, max } : 'invalide'
+}
+export const formatRange = (r: RpeRange) => (r.min === r.max ? String(r.min) : `${r.min}-${r.max}`)
+export const rangeMid = (r: RpeRange) => (r.min + r.max) / 2
+
+// Séance du planning correspondant à une déclaration (même jour, même activité, du groupe ou du joueur)
+const plannedFor = (log: Pick<Log, 'player_id' | 'session_date' | 'activity_type_id'>, plan: PlanItem[]) =>
+  plan.find(s => s.session_date === log.session_date && s.activity_type_id === log.activity_type_id && (s.player_id === null || s.player_id === log.player_id))
+
+// RPE visé d'une déclaration : la fourchette de la séance du planning si elle en a une, sinon celle du type de semaine.
+// Seuil de charge : haut de la fourchette × durée prévue de la séance (activité hors planning : pas de seuil de charge).
+export function sessionTarget(log: Pick<Log, 'player_id' | 'session_date' | 'activity_type_id'>, plan: PlanItem[], weekType: string | null | undefined, targets: TargetRpe[]) {
+  const planned = plannedFor(log, plan)
+  const t = targets.find(x => x.week_type_code === weekType && x.activity_type_id === log.activity_type_id)
+  const range: RpeRange | null = planned?.planned_rpe != null ? { min: Number(planned.planned_rpe), max: Number(planned.planned_rpe_max ?? planned.planned_rpe) }
+    : t ? { min: t.rpe_min, max: t.rpe_max } : null
+  const minutes = planned ? planned.planned_duration_min ?? planned.activity_types?.default_duration_min ?? null : null
+  return { range, maxLoad: range && minutes ? range.max * minutes : null }
+}
+
+// Charge d'une séance au-dessus de son seuil : orange, puis rouge au-delà de 1,25 × le seuil ; pas de seuil : rien
 export function overLoad(srpe: number, max: number | null | undefined): Heat | null {
   if (!max || srpe <= max) return null
   return srpe > max * OVER_FACTOR ? 'bad' : 'warn'
 }
 
-// Séances d'un joueur au-dessus du seuil de leur activité, la plus chaude d'abord
-export function hotSessions(playerLogs: Log[], types: ActivityType[]) {
+// Écart au RPE visé, compté depuis la fourchette (0 dedans) : orange à ±2, rouge à ±3 et plus (décision du 04/11/2026)
+export function rpeGap(rpe: number | null, range: RpeRange | null): { gap: number; heat: Heat | null } | null {
+  if (rpe === null || range === null) return null
+  const r = Number(rpe)
+  const gap = r > range.max ? round(r - range.max, 1) : r < range.min ? round(r - range.min, 1) : 0
+  return { gap, heat: Math.abs(gap) >= 3 ? 'bad' : Math.abs(gap) >= 2 ? 'warn' : null }
+}
+
+// « RPE 6 · visé 3-4 (+2) »
+export function rpeVsTarget(rpe: number | null, range: RpeRange | null) {
+  if (rpe === null) return ''
+  const n = (v: number) => v.toLocaleString('fr-FR')
+  if (!range) return `RPE ${n(Number(rpe))}`
+  const g = rpeGap(rpe, range)!.gap
+  return `RPE ${n(Number(rpe))} · visé ${formatRange(range)}${g ? ` (${g > 0 ? '+' : ''}${n(g)})` : ''}`
+}
+
+// Séances d'un joueur au-dessus de leur seuil de charge, la plus chaude d'abord
+export function hotSessions(playerLogs: Log[], types: ActivityType[], target: (l: Log) => { maxLoad: number | null }) {
   return playerLogs.flatMap(l => {
-    const type = types.find(t => t.id === l.activity_type_id)
-    const heat = overLoad(srpeOf(l), type?.max_srpe)
-    return heat && type ? [{ date: l.session_date, name: type.name, srpe: srpeOf(l), max: type.max_srpe!, heat }] : []
+    const max = target(l).maxLoad
+    const heat = overLoad(srpeOf(l), max)
+    const name = types.find(t => t.id === l.activity_type_id)?.name ?? '—'
+    return heat && max ? [{ date: l.session_date, name, srpe: srpeOf(l), max, heat }] : []
   }).sort((a, b) => b.srpe / b.max - a.srpe / a.max)
 }
 
-export type PlanItem = {
-  player_id: string | null; session_date: string; planned_duration_min?: number | null
-  activity_type_id?: string | null; planned_rpe?: number | null
-  activity_types?: { default_duration_min?: number | null } | null
-}
+// Charge prévue si les RPE visés sont respectés : milieu de la fourchette × minutes (sans RPE visé : non comptée)
+export const plannedLoad = (items: { minutes: number; range: RpeRange | null }[]) => Math.round(items.reduce((n, i) => n + (i.range ? rangeMid(i.range) : 0) * i.minutes, 0))
 
 // Rythme de la semaine en cours : la part du planning déjà passée (minutes prévues jusqu'à aujourd'hui inclus) fixe la
 // charge « au rythme » ; au-dessus de la charge visée à ce rythme (décision du 03/11/2026 : la cible, pas le haut de la
@@ -128,36 +178,6 @@ export function weekPace(player: Player, total: number, plan: PlanItem[], today:
   const limit = Math.round(wt.target_srpe * share)
   return { share: round(100 * share), limit, over: total > limit, pct: limit > 0 ? round((100 * total) / limit) : null }
 }
-
-// ---------- RPE visé (0031) ----------
-
-export type TargetRpe = { week_type_code: string; activity_type_id: string; target_rpe: number }
-
-// RPE visé d'une déclaration : celui de la séance du planning s'il est saisi, sinon celui du type de semaine pour l'activité
-export function targetRpe(log: Pick<Log, 'player_id' | 'session_date' | 'activity_type_id'>, plan: PlanItem[], weekType: string | null | undefined, targets: TargetRpe[]) {
-  const planned = plan.find(s => s.session_date === log.session_date && s.activity_type_id === log.activity_type_id
-    && (s.player_id === null || s.player_id === log.player_id) && s.planned_rpe != null)
-  if (planned) return Number(planned.planned_rpe)
-  const t = targets.find(t => t.week_type_code === weekType && t.activity_type_id === log.activity_type_id)
-  return t ? Number(t.target_rpe) : null
-}
-
-// Écart au RPE visé : orange à ±2, rouge à ±3 et plus (décision du 04/11/2026)
-export function rpeGap(rpe: number | null, target: number | null): { gap: number; heat: Heat | null } | null {
-  if (rpe === null || target === null) return null
-  const gap = round(Number(rpe) - target, 1)
-  return { gap, heat: Math.abs(gap) >= 3 ? 'bad' : Math.abs(gap) >= 2 ? 'warn' : null }
-}
-
-// « RPE 6 · visé 4 (+2) »
-export const rpeVsTarget = (rpe: number | null, target: number | null) => {
-  const g = rpeGap(rpe, target)
-  const n = (v: number) => v.toLocaleString('fr-FR')
-  return rpe === null ? '' : target === null ? `RPE ${n(Number(rpe))}` : `RPE ${n(Number(rpe))} · visé ${n(target)} (${g!.gap > 0 ? '+' : ''}${n(g!.gap)})`
-}
-
-// Charge prévue d'une liste d'activités si les RPE visés sont respectés (sans RPE visé : non comptée)
-export const plannedLoad = (items: { minutes: number; rpe: number | null }[]) => Math.round(items.reduce((n, i) => n + (i.rpe ?? 0) * i.minutes, 0))
 
 // ---------- RPE moyen de la semaine (activités avec RPE seulement : vidéo, kiné, récup exclues) ----------
 

@@ -13,7 +13,7 @@ import { useProfile, useUserId } from '../auth/useAuth'
 import { StatCard } from './StatCard'
 import { fatiguePercent, postureOf } from '../wellness/fatigue'
 import { WELLNESS_ITEMS } from '../wellness/items'
-import { fullName, itemValue, latecomers, overLoad, reminderMessage, rpeGap, rpeVsTarget, targetRpe, weekOf, weekPace, wellnessAlerts, type Heat } from './load'
+import { fullName, itemValue, latecomers, overLoad, reminderMessage, rpeGap, rpeVsTarget, sessionTarget, weekOf, weekPace, wellnessAlerts, type Heat } from './load'
 import { useAllLogs, useAllPlan, useAllWellness, usePushEnabled, useReference, useRemind, useReminders, useRoster, useTargetRpes } from './useStaff'
 
 // Seules les réponses moyennes ou mauvaises ressortent : l'œil va droit aux problèmes
@@ -59,11 +59,11 @@ export function TodayView() {
     // Séances d'hier et d'aujourd'hui à signaler : UA au-dessus du seuil de l'activité, ou RPE à ±2 du RPE visé
     const flagged = own.filter(l => l.session_date >= yesterday).flatMap(l => {
       const type = types.find(t => t.id === l.activity_type_id)
-      const ua = overLoad(Number(l.srpe ?? 0), type?.max_srpe)
-      const target = targetRpe(l, weekPlan.data ?? [], weekType, targets.data ?? [])
-      const gap = rpeGap(l.rpe, target)?.heat ?? null
+      const { range, maxLoad } = sessionTarget(l, weekPlan.data ?? [], weekType, targets.data ?? [])
+      const ua = overLoad(Number(l.srpe ?? 0), maxLoad)
+      const gap = rpeGap(l.rpe, range)?.heat ?? null
       const heat: Heat | null = ua === 'bad' || gap === 'bad' ? 'bad' : ua || gap
-      return heat ? [{ name: type?.name ?? '—', srpe: Math.round(Number(l.srpe ?? 0)), rpe: rpeVsTarget(l.rpe, target), heat, max: type?.max_srpe ?? null }] : []
+      return heat ? [{ name: type?.name ?? '—', srpe: Math.round(Number(l.srpe ?? 0)), rpe: rpeVsTarget(l.rpe, range), heat, max: maxLoad }] : []
     })
     return { total, pace: weekPace(p, total, weekPlan.data ?? [], today, wt), flagged }
   }
@@ -140,7 +140,7 @@ export function TodayView() {
                   <th className="pr-3 font-normal">Score</th>
                   {WELLNESS_ITEMS.map(i => <th key={i.key} className="px-1 text-center font-normal">{SHORT[i.key] ?? i.label}</th>)}
                   <th className="pl-2 font-normal">Alerte</th>
-                  <th className="pl-2 font-normal" title="Charge de la semaine en cours ; rouge : au-dessus du rythme de la semaine (charge visée au prorata du planning passé). En dessous : séances d'hier ou d'aujourd'hui au-dessus du seuil de leur activité, ou dont le RPE est à ±2 du RPE visé (rouge à ±3), avec le RPE déclaré et le RPE visé.">Charge sem.</th>
+                  <th className="pl-2 font-normal" title="Charge de la semaine en cours ; rouge : au-dessus du rythme de la semaine (charge visée au prorata du planning passé). En dessous : séances d'hier ou d'aujourd'hui au-dessus de leur seuil (haut de la fourchette de RPE visé × durée prévue), ou dont le RPE est à ±2 de la fourchette (rouge à ±3), avec le RPE déclaré et la fourchette visée.">Charge sem.</th>
                   <th className="pl-2 font-normal" title="Notification du matin activée sur son téléphone">Rappel activé</th>
                 </tr>
               </thead>

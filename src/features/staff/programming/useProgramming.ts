@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../../lib/supabaseClient'
 import type { Json } from '../../../lib/database.types'
 import { MUSCULATION } from '../../rpe/activities'
+import type { RpeRange } from '../load'
 import type { StaffMuscuSession } from '../muscu'
 import type { ImportExercise } from './importProgram'
 
@@ -60,7 +61,7 @@ export function useGroupPlan(groupId: string | undefined, from: string, to: stri
     enabled: !!groupId && !!from,
     queryKey: ['staff', 'group-plan', groupId, from, to],
     queryFn: async () => rows(await supabase.from('planned_sessions')
-      .select('id, session_date, planned_duration_min, planned_rpe, activity_type_id, activity_types(name)')
+      .select('id, session_date, planned_duration_min, planned_rpe, planned_rpe_max, activity_type_id, activity_types(name)')
       .eq('group_id', groupId!).gte('session_date', from).lte('session_date', to).order('session_date')),
   })
 }
@@ -79,19 +80,19 @@ export function useSetDuration() {
   })
 }
 
-// RPE visé d'une séance du planning ; vide : celui du type de semaine s'applique
+// Fourchette de RPE visé d'une séance du planning ; vide : celle du type de semaine s'applique
 export function useSetPlannedRpe() {
-  return useStaffMutation(async ({ id, rpe }: { id: string; rpe: number | null }) => {
-    check(await supabase.from('planned_sessions').update({ planned_rpe: rpe }).eq('id', id).select())
+  return useStaffMutation(async ({ id, range }: { id: string; range: RpeRange | null }) => {
+    check(await supabase.from('planned_sessions').update({ planned_rpe: range?.min ?? null, planned_rpe_max: range?.max ?? null }).eq('id', id).select())
   })
 }
 
 // RPE visé par type de semaine et activité (0031) ; vide : plus de RPE visé pour cette activité dans ce type de semaine
 export function useSaveTargetRpe() {
-  return useStaffMutation(async ({ weekType, activityTypeId, rpe }: { weekType: string; activityTypeId: string; rpe: number | null }) => {
+  return useStaffMutation(async ({ weekType, activityTypeId, range }: { weekType: string; activityTypeId: string; range: RpeRange | null }) => {
     const key = { week_type_code: weekType, activity_type_id: activityTypeId }
-    if (rpe === null) check(await supabase.from('week_type_rpe').delete().match(key).select())
-    else check(await supabase.from('week_type_rpe').upsert({ ...key, target_rpe: rpe }).select())
+    if (range === null) check(await supabase.from('week_type_rpe').delete().match(key).select())
+    else check(await supabase.from('week_type_rpe').upsert({ ...key, rpe_min: range.min, rpe_max: range.max }).select())
   })
 }
 

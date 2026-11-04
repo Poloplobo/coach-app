@@ -3,7 +3,7 @@ import { fetchAll } from '../../lib/fetchAll'
 import { supabase } from '../../lib/supabaseClient'
 import { useProfile, useUserId } from '../auth/useAuth'
 import type { WellnessItems } from '../wellness/items'
-import type { ActivityType, Log, Player, WeekType } from './load'
+import type { ActivityType, Log, Player, TargetRpe, WeekType } from './load'
 import type { StaffMuscuSession } from './muscu'
 import { MUSCULATION } from '../rpe/activities'
 
@@ -61,7 +61,7 @@ export function useAllWellness(from: string, to: string, playerId?: string) {
 export function useAllPlan(from: string, to: string) {
   return useQuery({
     ...query(['staff', 'plan', from, to], async () => check(await supabase.from('planned_sessions')
-      .select('player_id, session_date, activity_type_id, planned_duration_min, activity_types(name, default_duration_min)').gte('session_date', from).lte('session_date', to))),
+      .select('player_id, session_date, activity_type_id, planned_duration_min, planned_rpe, activity_types(name, default_duration_min)').gte('session_date', from).lte('session_date', to))),
     enabled: !!from && !!to, // pas de semaine choisie : rien à charger
   })
 }
@@ -91,6 +91,12 @@ export function useSetAvailability() {
 // Joueurs qui ont activé le rappel du matin sur au moins un téléphone (0026 : jamais les abonnements eux-mêmes)
 export function usePushEnabled() {
   return useQuery(query(['staff', 'push'], async () => new Set(check(await supabase.rpc('push_enabled_players')) as string[])))
+}
+
+// RPE visés par type de semaine et activité (0031), lisibles par tout connecté
+export function useTargetRpes() {
+  return useQuery(query(['staff', 'target-rpe'], async () => (check(await supabase.from('week_type_rpe').select('week_type_code, activity_type_id, target_rpe')) as TargetRpe[])
+    .map(t => ({ ...t, target_rpe: Number(t.target_rpe) }))))
 }
 
 // Seuil de charge d'une activité (0030) ; vide : plus d'alerte pour cette activité

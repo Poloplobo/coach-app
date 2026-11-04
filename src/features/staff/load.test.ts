@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  acwr, hotSessions, overLoad, rpeMatrix, dailySynthesis, latecomers, weekPace, loadStatus, pctOfTarget, pillarSplit, playerDays, reminderMessage, weekMatrix, wellnessAlerts,
+  acwr, hotSessions, overLoad, plannedLoad, rpeGap, rpeMatrix, rpeVsTarget, targetRpe, dailySynthesis, latecomers, weekPace, loadStatus, pctOfTarget, pillarSplit, playerDays, reminderMessage, weekMatrix, wellnessAlerts,
   type ActivityType, type Log, type Player, type WeekType,
 } from './load'
 
@@ -190,5 +190,29 @@ describe('weekPace : rythme de la semaine selon le planning', () => {
     expect(weekPace(player('a', true), 600, plan, '2026-11-03', COMP)).toMatchObject({ share: 100, limit: 2000 })
     expect(weekPace(player('a'), 1060, plan, '2026-11-03', null)).toBeNull()
     expect(weekPace(player('c'), 100, [], '2026-11-03', COMP)).toBeNull()
+  })
+})
+
+describe('RPE visé', () => {
+  const targets = [{ week_type_code: 'COMP', activity_type_id: 'poste', target_rpe: 4 }, { week_type_code: 'DEV', activity_type_id: 'poste', target_rpe: 5 }]
+  const plan = [
+    { player_id: null, session_date: '2026-11-03', activity_type_id: 'poste', planned_rpe: 6 },
+    { player_id: null, session_date: '2026-11-02', activity_type_id: 'poste', planned_rpe: null },
+  ]
+  it('targetRpe : RPE de la séance s\'il est saisi, sinon celui du type de semaine, sinon rien', () => {
+    expect(targetRpe({ player_id: 'a', session_date: '2026-11-03', activity_type_id: 'poste' }, plan, 'COMP', targets)).toBe(6)
+    expect(targetRpe({ player_id: 'a', session_date: '2026-11-02', activity_type_id: 'poste' }, plan, 'COMP', targets)).toBe(4)
+    expect(targetRpe({ player_id: 'a', session_date: '2026-11-02', activity_type_id: 'poste' }, plan, 'DEV', targets)).toBe(5)
+    expect(targetRpe({ player_id: 'a', session_date: '2026-11-02', activity_type_id: 'muscu' }, plan, 'COMP', targets)).toBeNull()
+  })
+  it('rpeGap : orange à ±2, rouge à ±3 ; texte « RPE · visé (écart) »', () => {
+    expect([rpeGap(5, 4), rpeGap(6, 4), rpeGap(2, 4), rpeGap(7.5, 4), rpeGap(5, null)]).toEqual([
+      { gap: 1, heat: null }, { gap: 2, heat: 'warn' }, { gap: -2, heat: 'warn' }, { gap: 3.5, heat: 'bad' }, null])
+    expect(rpeVsTarget(6, 4)).toBe('RPE 6 · visé 4 (+2)')
+    expect(rpeVsTarget(3.5, 4)).toBe('RPE 3,5 · visé 4 (-0,5)')
+    expect(rpeVsTarget(6, null)).toBe('RPE 6')
+  })
+  it('plannedLoad : Σ RPE visé × minutes', () => {
+    expect(plannedLoad([{ minutes: 60, rpe: 4 }, { minutes: 30, rpe: 2.5 }, { minutes: 20, rpe: null }])).toBe(315)
   })
 })

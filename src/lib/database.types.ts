@@ -1076,6 +1076,12 @@ export type Database = {
           },
         ]
       }
+      week_type_rpe: {
+        Row: { activity_type_id: string; target_rpe: number; week_type_code: string }
+        Insert: { activity_type_id: string; target_rpe: number; week_type_code: string }
+        Update: { activity_type_id?: string; target_rpe?: number; week_type_code?: string }
+        Relationships: []
+      }
       week_types: {
         Row: {
           accompagnement_min: number

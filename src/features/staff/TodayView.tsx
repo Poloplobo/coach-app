@@ -13,8 +13,8 @@ import { useProfile, useUserId } from '../auth/useAuth'
 import { StatCard } from './StatCard'
 import { fatiguePercent, postureOf } from '../wellness/fatigue'
 import { WELLNESS_ITEMS } from '../wellness/items'
-import { fullName, hotSessions, itemValue, latecomers, reminderMessage, weekOf, weekPace, wellnessAlerts } from './load'
-import { useAllLogs, useAllPlan, useAllWellness, usePushEnabled, useReference, useRemind, useReminders, useRoster } from './useStaff'
+import { fullName, itemValue, latecomers, overLoad, reminderMessage, rpeGap, rpeVsTarget, targetRpe, weekOf, weekPace, wellnessAlerts, type Heat } from './load'
+import { useAllLogs, useAllPlan, useAllWellness, usePushEnabled, useReference, useRemind, useReminders, useRoster, useTargetRpes } from './useStaff'
 
 // Seules les réponses moyennes ou mauvaises ressortent : l'œil va droit aux problèmes
 const itemLook = (v: number) => (v >= 4 ? 'text-ink/45' : v === 3 ? 'text-gold font-semibold' : 'text-rnr font-bold')
@@ -44,16 +44,28 @@ export function TodayView() {
   const ref = useReference()
   const weekLogs = useAllLogs(monday, today)
   const weekPlan = useAllPlan(monday, addDays(monday, 6))
+  const targets = useTargetRpes()
   const [filter, setFilter] = useState<Filter>('tous')
 
   if (roster.isPending || wellness.isPending || logs.isPending || plan.isPending) return <Loading />
   if (roster.isError || wellness.isError || logs.isError || plan.isError) return <p>Impossible de charger les données du jour.</p>
-  const wt = ref.data ? ref.data.weekTypes.find(t => t.code === weekOf(ref.data.weeks, today)?.week_type_code) ?? null : null
+  const weekType = ref.data ? weekOf(ref.data.weeks, today)?.week_type_code : undefined
+  const wt = ref.data ? ref.data.weekTypes.find(t => t.code === weekType) ?? null : null
   const load = (p: (typeof roster.data)[number]) => {
     if (!weekLogs.data || !ref.data) return null
+    const types = ref.data.types
     const own = weekLogs.data.filter(l => l.player_id === p.id)
     const total = Math.round(own.reduce((n, l) => n + Number(l.srpe ?? 0), 0))
-    return { total, pace: weekPace(p, total, weekPlan.data ?? [], today, wt), hot: hotSessions(own.filter(l => l.session_date >= yesterday), ref.data.types) }
+    // Séances d'hier et d'aujourd'hui à signaler : UA au-dessus du seuil de l'activité, ou RPE à ±2 du RPE visé
+    const flagged = own.filter(l => l.session_date >= yesterday).flatMap(l => {
+      const type = types.find(t => t.id === l.activity_type_id)
+      const ua = overLoad(Number(l.srpe ?? 0), type?.max_srpe)
+      const target = targetRpe(l, weekPlan.data ?? [], weekType, targets.data ?? [])
+      const gap = rpeGap(l.rpe, target)?.heat ?? null
+      const heat: Heat | null = ua === 'bad' || gap === 'bad' ? 'bad' : ua || gap
+      return heat ? [{ name: type?.name ?? '—', srpe: Math.round(Number(l.srpe ?? 0)), rpe: rpeVsTarget(l.rpe, target), heat, max: type?.max_srpe ?? null }] : []
+    })
+    return { total, pace: weekPace(p, total, weekPlan.data ?? [], today, wt), flagged }
   }
 
   const todayW = wellness.data.filter(w => w.entry_date === today)
@@ -128,7 +140,7 @@ export function TodayView() {
                   <th className="pr-3 font-normal">Score</th>
                   {WELLNESS_ITEMS.map(i => <th key={i.key} className="px-1 text-center font-normal">{SHORT[i.key] ?? i.label}</th>)}
                   <th className="pl-2 font-normal">Alerte</th>
-                  <th className="pl-2 font-normal" title="Charge de la semaine en cours ; rouge : au-dessus du rythme de la semaine (charge visée au prorata du planning passé). En dessous : séances d'hier ou d'aujourd'hui au-dessus du seuil de leur activité.">Charge sem.</th>
+                  <th className="pl-2 font-normal" title="Charge de la semaine en cours ; rouge : au-dessus du rythme de la semaine (charge visée au prorata du planning passé). En dessous : séances d'hier ou d'aujourd'hui au-dessus du seuil de leur activité, ou dont le RPE est à ±2 du RPE visé (rouge à ±3), avec le RPE déclaré et le RPE visé.">Charge sem.</th>
                   <th className="pl-2 font-normal" title="Notification du matin activée sur son téléphone">Rappel activé</th>
                 </tr>
               </thead>
@@ -223,17 +235,17 @@ export function TodayView() {
 }
 
 // Charge de la semaine : total, rythme (rouge si au-dessus), séances d'hier / aujourd'hui au-dessus du seuil de leur activité
-function LoadCell({ load }: { load: { total: number; pace: ReturnType<typeof weekPace>; hot: ReturnType<typeof hotSessions> } | null }) {
+function LoadCell({ load }: { load: { total: number; pace: ReturnType<typeof weekPace>; flagged: { name: string; srpe: number; rpe: string; heat: Heat; max: number | null }[] } | null }) {
   if (!load) return <span className="text-ink/45">…</span>
-  const { total, pace, hot } = load
+  const { total, pace, flagged } = load
   return (
     <span className="flex flex-col gap-0.5 whitespace-nowrap">
       <span title={pace ? `${total} UA pour ${pace.limit} au rythme de la semaine (${pace.share} % du planning passé)` : undefined}>
         {pace?.over ? <Badge tone="bad">{total} UA · {pace.pct} % du rythme</Badge> : <span className="tabular-nums">{total} UA</span>}
       </span>
-      {hot.map((h, i) => (
-        <span key={i} className={h.heat === 'bad' ? 'font-semibold text-rnr' : 'font-semibold text-gold'} title={`Seuil ${h.name} : ${h.max} UA`}>
-          {h.name} {h.srpe} UA
+      {flagged.map((h, i) => (
+        <span key={i} className={h.heat === 'bad' ? 'font-semibold text-rnr' : 'font-semibold text-gold'} title={h.max ? `Seuil ${h.name} : ${h.max} UA` : undefined}>
+          {h.name} {h.srpe} UA{h.rpe && <span className="font-normal"> · {h.rpe}</span>}
         </span>
       ))}
     </span>

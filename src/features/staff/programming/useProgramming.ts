@@ -60,7 +60,7 @@ export function useGroupPlan(groupId: string | undefined, from: string, to: stri
     enabled: !!groupId && !!from,
     queryKey: ['staff', 'group-plan', groupId, from, to],
     queryFn: async () => rows(await supabase.from('planned_sessions')
-      .select('id, session_date, planned_duration_min, activity_type_id, activity_types(name)')
+      .select('id, session_date, planned_duration_min, planned_rpe, activity_type_id, activity_types(name)')
       .eq('group_id', groupId!).gte('session_date', from).lte('session_date', to).order('session_date')),
   })
 }
@@ -76,6 +76,22 @@ export function useAddGroupActivity() {
 export function useSetDuration() {
   return useStaffMutation(async ({ id, minutes }: { id: string; minutes: number }) => {
     check(await supabase.from('planned_sessions').update({ planned_duration_min: minutes }).eq('id', id).select())
+  })
+}
+
+// RPE visé d'une séance du planning ; vide : celui du type de semaine s'applique
+export function useSetPlannedRpe() {
+  return useStaffMutation(async ({ id, rpe }: { id: string; rpe: number | null }) => {
+    check(await supabase.from('planned_sessions').update({ planned_rpe: rpe }).eq('id', id).select())
+  })
+}
+
+// RPE visé par type de semaine et activité (0031) ; vide : plus de RPE visé pour cette activité dans ce type de semaine
+export function useSaveTargetRpe() {
+  return useStaffMutation(async ({ weekType, activityTypeId, rpe }: { weekType: string; activityTypeId: string; rpe: number | null }) => {
+    const key = { week_type_code: weekType, activity_type_id: activityTypeId }
+    if (rpe === null) check(await supabase.from('week_type_rpe').delete().match(key).select())
+    else check(await supabase.from('week_type_rpe').upsert({ ...key, target_rpe: rpe }).select())
   })
 }
 

@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(151);
+select plan(153);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -452,6 +452,11 @@ select isnt_empty($$select 1 from public.rating_guidelines where color = 'bleu'$
 select throws_ok($$insert into public.rating_guidelines (color, guideline) values ('rouge', 'x')$$, '42501', null, 'un joueur ne peut pas écrire de consigne');
 
 select throws_ok($$select public.delete_muscu_session('00000000-0000-0000-0000-0000000000a1')$$, '42501', null, 'un joueur ne peut pas supprimer de séance');
+
+-- RPE visés (0031) : lisibles par tous les connectés, modifiables par le staff seulement
+select lives_ok($$select 1 from public.week_type_rpe limit 1$$, 'B lit les RPE visés');
+select throws_ok($$insert into public.week_type_rpe (week_type_code, activity_type_id, target_rpe)
+                   values ('COMP', (select id from public.activity_types where name = 'Vidéo'), 9)$$, '42501', null, 'B ne peut pas fixer un RPE visé');
 
 -- Relance (0025) : sans relance, B ne rattrape pas hier ; il ne se relance pas lui-même
 select throws_ok($$insert into public.session_logs (player_id, session_date, activity_type_id, duration_min, rpe)

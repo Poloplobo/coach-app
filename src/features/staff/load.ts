@@ -109,6 +109,7 @@ export function hotSessions(playerLogs: Log[], types: ActivityType[]) {
 
 export type PlanItem = {
   player_id: string | null; session_date: string; planned_duration_min?: number | null
+  activity_type_id?: string | null; planned_rpe?: number | null
   activity_types?: { default_duration_min?: number | null } | null
 }
 
@@ -127,6 +128,36 @@ export function weekPace(player: Player, total: number, plan: PlanItem[], today:
   const limit = Math.round(wt.target_srpe * share)
   return { share: round(100 * share), limit, over: total > limit, pct: limit > 0 ? round((100 * total) / limit) : null }
 }
+
+// ---------- RPE visé (0031) ----------
+
+export type TargetRpe = { week_type_code: string; activity_type_id: string; target_rpe: number }
+
+// RPE visé d'une déclaration : celui de la séance du planning s'il est saisi, sinon celui du type de semaine pour l'activité
+export function targetRpe(log: Pick<Log, 'player_id' | 'session_date' | 'activity_type_id'>, plan: PlanItem[], weekType: string | null | undefined, targets: TargetRpe[]) {
+  const planned = plan.find(s => s.session_date === log.session_date && s.activity_type_id === log.activity_type_id
+    && (s.player_id === null || s.player_id === log.player_id) && s.planned_rpe != null)
+  if (planned) return Number(planned.planned_rpe)
+  const t = targets.find(t => t.week_type_code === weekType && t.activity_type_id === log.activity_type_id)
+  return t ? Number(t.target_rpe) : null
+}
+
+// Écart au RPE visé : orange à ±2, rouge à ±3 et plus (décision du 04/11/2026)
+export function rpeGap(rpe: number | null, target: number | null): { gap: number; heat: Heat | null } | null {
+  if (rpe === null || target === null) return null
+  const gap = round(Number(rpe) - target, 1)
+  return { gap, heat: Math.abs(gap) >= 3 ? 'bad' : Math.abs(gap) >= 2 ? 'warn' : null }
+}
+
+// « RPE 6 · visé 4 (+2) »
+export const rpeVsTarget = (rpe: number | null, target: number | null) => {
+  const g = rpeGap(rpe, target)
+  const n = (v: number) => v.toLocaleString('fr-FR')
+  return rpe === null ? '' : target === null ? `RPE ${n(Number(rpe))}` : `RPE ${n(Number(rpe))} · visé ${n(target)} (${g!.gap > 0 ? '+' : ''}${n(g!.gap)})`
+}
+
+// Charge prévue d'une liste d'activités si les RPE visés sont respectés (sans RPE visé : non comptée)
+export const plannedLoad = (items: { minutes: number; rpe: number | null }[]) => Math.round(items.reduce((n, i) => n + (i.rpe ?? 0) * i.minutes, 0))
 
 // ---------- RPE moyen de la semaine (activités avec RPE seulement : vidéo, kiné, récup exclues) ----------
 

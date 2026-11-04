@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { Fragment, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ReferenceArea, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Badge } from '../../components/ui/Badge'
@@ -11,10 +11,10 @@ import { addDays, parisDate } from '../../lib/week'
 import { pct } from '../../lib/format'
 import { PILLAR_LABEL, downloadWeek, weekEnd } from './exportWeek'
 import {
-  DAY_NAMES, STATUS_TONE, dailySynthesis, fullName, hotSessions, pillarSplit, rangeLabel, rpeMatrix, weekMatrix, weekOf, weekPace,
-  type Heat, type MatrixRow, type Pillar, type WeekType,
+  DAY_NAMES, STATUS_TONE, dailySynthesis, fullName, hotSessions, pillarSplit, rangeLabel, rpeGap, rpeMatrix, rpeVsTarget, targetRpe, weekMatrix, weekOf, weekPace,
+  type ActivityType, type Heat, type Log, type MatrixRow, type Pillar, type WeekType,
 } from './load'
-import { useAllLogs, useAllPlan, useReference, useRoster } from './useStaff'
+import { useAllLogs, useAllPlan, useReference, useRoster, useTargetRpes } from './useStaff'
 import { Loading } from '../../components/ui/Loading'
 
 // Un tableau à la fois : le résumé du coach d'abord, le détail sur demande
@@ -41,6 +41,7 @@ export function WeekView() {
   const week = weeks.find(w => w.code === code) ?? weekOf(weeks, parisDate())
   const logs = useAllLogs(week?.start_date ?? '', week ? weekEnd(week) : '')
   const plan = useAllPlan(week?.start_date ?? '', week ? weekEnd(week) : '')
+  const targets = useTargetRpes()
 
   if (ref.isPending || roster.isPending || (week && logs.isPending)) return <Loading />
   if (ref.isError || roster.isError || logs.isError) return <p>Impossible de charger la semaine.</p>
@@ -92,7 +93,8 @@ export function WeekView() {
       <div className="flex flex-col gap-8">
       {tab === 'resume' && <CoachSummary m={m} wt={wt} code={week.code} pillars={pillarSplit(weekLogs, types, wt)} alerts={alerts} />}
       {tab === 'charge' && <LoadTable m={m} alerts={alerts} weekStart={week.start_date} />}
-      {tab === 'rpe' && <RpeTable data={rpeMatrix(roster.data, weekLogs, week.start_date)} />}
+      {tab === 'rpe' && <RpeTable data={rpeMatrix(roster.data, weekLogs, week.start_date)} logs={weekLogs} types={types} weekStart={week.start_date}
+        target={l => targetRpe(l, plan.data ?? [], week.week_type_code, targets.data ?? [])} />}
       {tab === 'jours' && (
         <Card title="Synthèse collective jour par jour" help="Pour chaque jour : combien de joueurs ont déclaré, durée et charge moyennes. UA/min : intensité moyenne de la journée.">
           <SimpleTable header={['Jour', 'Déclarants', 'Durée moy. (min)', 'Rugby', 'Physique', 'sRPE moyen', 'sRPE cumulé', 'UA/min']}
@@ -301,23 +303,73 @@ function LoadTable({ m, alerts, weekStart }: { m: ReturnType<typeof weekMatrix>;
 
 const rpeTone = (v: number | null) => (v === null ? null : v >= 8 ? 'bad' : v >= 6 ? 'warn' : 'ok')
 
-function RpeTable({ data }: { data: ReturnType<typeof rpeMatrix> }) {
-  const cell = (v: number | null): ReactNode => { const t = rpeTone(v); return t ? <Badge tone={t}>{v}</Badge> : '—' }
+// Détail au clic : chaque activité du jour (ou de la semaine) avec le RPE déclaré, le RPE visé et l'écart (±2 orange, ±3 rouge)
+function RpeDetail({ logs, types, target }: { logs: Log[]; types: ActivityType[]; target: (l: Log) => number | null }) {
+  const rated = logs.filter(l => l.rpe !== null).sort((a, b) => a.session_date.localeCompare(b.session_date))
+  if (!rated.length) return <p className="text-sm text-ink/60">Aucune activité avec RPE.</p>
   return (
-    <Card title="RPE moyen" help="Effort ressenti moyen (échelle de Borg 1 à 10) des activités avec RPE. Vert sous 6, jaune de 6 à 7,9, rouge à partir de 8.">
+    <ul className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+      {rated.map((l, i) => {
+        const t = target(l), g = rpeGap(l.rpe, t)
+        return (
+          <li key={i} className="flex items-center gap-2">
+            <span className="text-ink/60">{shortDay(l.session_date)}</span>
+            <span className="font-semibold">{types.find(x => x.id === l.activity_type_id)?.name ?? '—'}</span>
+            {g?.heat ? <Badge tone={g.heat}>{rpeVsTarget(l.rpe, t)}</Badge> : <span className="tabular-nums">{rpeVsTarget(l.rpe, t)}</span>}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+function RpeTable({ data, logs, types, weekStart, target }: {
+  data: ReturnType<typeof rpeMatrix>; logs: Log[]; types: ActivityType[]; weekStart: string; target: (l: Log) => number | null
+}) {
+  const [open, setOpen] = useState<{ player: string; day: number | 'semaine' } | null>(null)
+  const cell = (v: number | null): ReactNode => { const t = rpeTone(v); return t ? <Badge tone={t}>{v}</Badge> : '—' }
+  const toggle = (player: string, day: number | 'semaine') => setOpen(o => (o?.player === player && o.day === day ? null : { player, day }))
+  // Une activité loin du RPE visé ce jour-là : la case est soulignée (orange à ±2, rouge à ±3)
+  const gapHeat = (player: string, date: string | null): Heat | null => {
+    const heats = logs.filter(l => l.player_id === player && (date === null || l.session_date === date)).map(l => rpeGap(l.rpe, target(l))?.heat)
+    return heats.includes('bad') ? 'bad' : heats.includes('warn') ? 'warn' : null
+  }
+  const RING: Record<Heat, string> = { warn: 'ring-2 ring-gold', bad: 'ring-2 ring-rnr' }
+  return (
+    <Card title="RPE moyen" help="Effort ressenti moyen (échelle de Borg 1 à 10) des activités avec RPE. Vert sous 6, jaune de 6 à 7,9, rouge à partir de 8. Clique sur un RPE pour voir chaque activité avec son RPE visé ; case entourée : au moins une activité à ±2 du RPE visé (orange) ou ±3 (rouge).">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="text-left text-ink/60">
             <tr><th className="py-2 pr-3 font-normal">Joueur</th>{DAY_NAMES.map(d => <th key={d} className="pr-3 font-normal">{d.slice(0, 3)}</th>)}<th className="font-normal">Semaine</th></tr>
           </thead>
           <tbody>
-            {[...data.rows].sort((a, b) => (b.week ?? -1) - (a.week ?? -1)).map(r => (
-              <tr key={r.player.id} className="border-t border-line">
-                <td className="py-2 pr-3"><Link to={`/staff/joueur/${r.player.id}`} className="font-semibold hover:underline">{fullName(r.player)}</Link></td>
-                {r.byDay.map((v, i) => <td key={i} className="pr-3">{cell(v)}</td>)}
-                <td className="font-semibold">{cell(r.week)}</td>
-              </tr>
-            ))}
+            {[...data.rows].sort((a, b) => (b.week ?? -1) - (a.week ?? -1)).map(r => {
+              const id = r.player.id
+              const button = (v: number | null, day: number | 'semaine') => {
+                if (v === null) return '—'
+                const heat = gapHeat(id, day === 'semaine' ? null : addDays(weekStart, day))
+                const selected = open?.player === id && open.day === day
+                return (
+                  <button type="button" onClick={() => toggle(id, day)} aria-expanded={selected}
+                    aria-label={`${fullName(r.player)}, ${day === 'semaine' ? 'semaine' : DAY_NAMES[day]} : RPE ${v}, voir le détail`}
+                    className={`rounded ${heat ? RING[heat] : ''} ${selected ? 'outline outline-1 outline-ink/40' : ''}`}>{cell(v)}</button>
+                )
+              }
+              return (
+                <Fragment key={id}>
+                  <tr className="border-t border-line">
+                    <td className="py-2 pr-3"><Link to={`/staff/joueur/${id}`} className="font-semibold hover:underline">{fullName(r.player)}</Link></td>
+                    {r.byDay.map((v, i) => <td key={i} className="pr-3">{button(v, i)}</td>)}
+                    <td className="font-semibold">{button(r.week, 'semaine')}</td>
+                  </tr>
+                  {open?.player === id && (
+                    <tr><td colSpan={9} className="bg-field/60 px-3 py-2">
+                      <RpeDetail logs={logs.filter(l => l.player_id === id && (open.day === 'semaine' || l.session_date === addDays(weekStart, open.day)))} types={types} target={target} />
+                    </td></tr>
+                  )}
+                </Fragment>
+              )
+            })}
             <tr className="border-t-2 border-line font-semibold">
               <td className="py-2 pr-3">Moyenne du groupe (aptes)</td>
               {data.groupByDay.map((v, i) => <td key={i} className="pr-3">{v ?? '—'}</td>)}<td>{data.groupWeek ?? '—'}</td>

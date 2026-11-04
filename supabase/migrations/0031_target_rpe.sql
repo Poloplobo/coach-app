@@ -15,14 +15,15 @@ create policy "week_type_rpe_staff" on public.week_type_rpe for all using (publi
 -- semaine type, avec les minutes réelles moyennes d'un joueur, atteigne la charge visée (DEV × 1,39 → 3000 UA ;
 -- COMP × 1,14 → 2000 UA) ; REG (pas encore de semaine jouée) : COMP × 0,86 (moitié de la charge, ~60 % du volume).
 -- Collectif Total, peu déclaré sous ce nom, reprend Collectif CRABOS. Arrondi au demi-point.
+-- COMP ajusté par le staff le 04/11/2026 : Jeu au Poste 3,4 · Collectif Réduit 4,5 · Collectif Total 5,6 · Dév. Indiv 4.
 insert into public.week_type_rpe (week_type_code, activity_type_id, target_rpe)
 select v.week_type, a.id, v.rpe
 from (values
   ('DEV', 'Musculation', 8.0), ('DEV', 'Collectif CRABOS', 7.0), ('DEV', 'Collectif Total', 7.0), ('DEV', 'Jeu au Poste', 5.0),
   ('DEV', 'Collectif Réduit', 8.0), ('DEV', 'Collectif Ligne', 6.0), ('DEV', 'Dév. Tactique', 4.5), ('DEV', 'Dév. Indiv', 5.5),
   ('DEV', 'Vitesse & Puissance', 5.5), ('DEV', 'Membres sains', 3.0),
-  ('COMP', 'Musculation', 6.5), ('COMP', 'Collectif CRABOS', 5.5), ('COMP', 'Collectif Total', 5.5), ('COMP', 'Jeu au Poste', 4.0),
-  ('COMP', 'Collectif Ligne', 5.0), ('COMP', 'Collectif Réduit', 4.0), ('COMP', 'Dév. Tactique', 3.0), ('COMP', 'Dév. Indiv', 2.5),
+  ('COMP', 'Musculation', 6.5), ('COMP', 'Collectif CRABOS', 5.5), ('COMP', 'Collectif Total', 5.6), ('COMP', 'Jeu au Poste', 3.4),
+  ('COMP', 'Collectif Ligne', 5.0), ('COMP', 'Collectif Réduit', 4.5), ('COMP', 'Dév. Tactique', 3.0), ('COMP', 'Dév. Indiv', 4.0),
   ('COMP', 'Vitesse & Puissance', 4.5), ('COMP', 'Membres sains', 2.5),
   ('REG', 'Musculation', 5.5), ('REG', 'Collectif CRABOS', 4.5), ('REG', 'Collectif Total', 4.5), ('REG', 'Jeu au Poste', 3.5),
   ('REG', 'Collectif Ligne', 4.5), ('REG', 'Collectif Réduit', 3.5), ('REG', 'Dév. Tactique', 2.5), ('REG', 'Dév. Indiv', 2.0),

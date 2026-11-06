@@ -324,13 +324,15 @@ export function latecomers(
 }
 
 // RPE non déclarés jour par jour (décision du 06/11/2026 : à remplir à chaque entraînement) : activités prévues avec
-// RPE sans déclaration, et séance de musculation non validée. Du plus oublieux au moins oublieux.
+// RPE sans déclaration, et séance de musculation non validée. Du plus oublieux au moins oublieux. Un jour où personne du
+// groupe n'a rien déclaré (entraînement annulé, app pas encore utilisée) n'est pas compté.
 export function missingRpe(players: Player[], plan: PlanItem[], logs: Pick<Log, 'player_id' | 'session_date' | 'activity_type_id' | 'validated_at'>[],
   types: ActivityType[], from: string, to: string) {
   return players.flatMap(p => {
     const days: { date: string; missing: string[] }[] = []
     let planned = 0
     for (let d = from; d <= to; d = addDays(d, 1)) {
+      if (!logs.some(l => l.session_date === d)) continue
       const mine = plan.filter(s => s.session_date === d && (s.player_id === null ? !p.injured : s.player_id === p.id))
         .map(s => types.find(t => t.id === s.activity_type_id)).filter((t): t is ActivityType => !!t?.requires_rpe)
       planned += mine.length

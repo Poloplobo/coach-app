@@ -238,4 +238,7 @@ describe('missingRpe : RPE non déclarés jour par jour', () => {
       ['a', 2, 2, [{ date: '2026-11-04', missing: ['Jeu au Poste', 'Musculation'] }]],
     ])
   })
+  it('jour où personne n\'a rien déclaré (entraînement annulé) : pas compté', () => {
+    expect(missingRpe([player('a')], plan, [], t, '2026-11-02', '2026-11-05')).toEqual([])
+  })
 })

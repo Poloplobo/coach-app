@@ -34,7 +34,7 @@ begin
   if not public.is_staff() then raise exception 'réservé au staff' using errcode = '42501'; end if;
   select player_id into v_player from public.injuries where id = p_injury;
   if v_player is null then raise exception 'blessure introuvable' using errcode = 'P0002'; end if;
-  if jsonb_array_length(p_steps) = 0 then raise exception 'plan vide' using errcode = 'P0001'; end if;
+  if p_steps is null or jsonb_typeof(p_steps) <> 'array' or jsonb_array_length(p_steps) = 0 then raise exception 'plan vide' using errcode = 'P0001'; end if;
   delete from public.injury_steps where injury_id = p_injury;
   insert into public.injury_steps (injury_id, player_id, position, title, criteria, planned_days, validated_on, phase, phase_days,
     objectives, kine_actions, prepa_actions, comment, is_test, in_progress)

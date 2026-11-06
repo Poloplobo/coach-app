@@ -6,6 +6,7 @@ import type { WellnessItems } from '../wellness/items'
 import type { ActivityType, Log, Player, TargetRpe, WeekType } from './load'
 import type { InjuryRecord } from './medical'
 import type { StaffMuscuSession } from './muscu'
+import type { ImportedStep } from './parseRehabPlan'
 import { EXERCISE_SESSIONS, MUSCULATION } from '../rpe/activities'
 
 // Le staff lit tout (RLS) ; un joueur qui appellerait ces requêtes ne recevrait que ses propres lignes.
@@ -171,6 +172,15 @@ export function useSaveStep() {
         ...(s.validated_on !== undefined ? { validated_on: s.validated_on } : {}) }).eq('id', s.id).select('id'))
       else check(await supabase.from('injury_steps').insert({ injury_id: s.injury_id, player_id: s.player_id, position: s.position, title: s.title, criteria: s.criteria, planned_days: s.planned_days }).select('id'))
     },
+    onSuccess: () => invalidateStaff(qc),
+  })
+}
+// Plan Excel importé : remplace toutes les étapes de la blessure (0040, réservé au staff)
+export function useImportPlan() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ injuryId, steps }: { injuryId: string; steps: ImportedStep[] }) =>
+      check(await supabase.rpc('import_injury_plan', { p_injury: injuryId, p_steps: steps })),
     onSuccess: () => invalidateStaff(qc),
   })
 }

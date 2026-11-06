@@ -7,7 +7,8 @@ import { Kpi } from '../../components/ui/Kpi'
 import { formatDay } from '../../lib/week'
 import { fullName, type Player } from './load'
 import { ACTIVITIES, LOCATIONS, MECHANISMS, ONSETS, TISSUES, byPhase, epidemiology, planProgress, type InjuryRecord, type Step } from './medical'
-import { useDeleteStep, useSaveInjury, useSaveStep } from './useStaff'
+import { readRehabPlan, type RehabPlan } from './parseRehabPlan'
+import { useDeleteStep, useImportPlan, useSaveInjury, useSaveStep } from './useStaff'
 
 // Blocs de l'onglet Médical (étape 13) : fiche blessure, plan de retour, rapport d'épidémiologie
 const field = 'rounded-lg bg-field border border-line px-2 py-1.5 text-sm'
@@ -96,7 +97,45 @@ export function ReturnPlan({ injury, steps, today }: { injury: Injury; steps: St
         </Button>
       </div>
       {(save.isError || remove.isError) && <p role="alert" className="text-xs text-rnr">Modification impossible, réessaie.</p>}
+      <ImportPlan injury={injury} current={steps.length} today={today} />
     </section>
+  )
+}
+
+// Import d'un plan Excel (même format que « Plan Rehabilitation.xlsx ») : aperçu, puis remplacement des étapes
+function ImportPlan({ injury, current, today }: { injury: Injury; current: number; today: string }) {
+  const save = useImportPlan()
+  const [plan, setPlan] = useState<RehabPlan | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const read = async (f: File | undefined) => {
+    setPlan(null); setError(null); save.reset()
+    if (!f) return
+    try { setPlan(readRehabPlan(await f.arrayBuffer(), today)) } catch (e) { setError(e instanceof Error ? e.message : 'Fichier illisible.') }
+  }
+  const phases = plan ? new Set(plan.steps.map(s => s.phase)).size : 0
+  return (
+    <div className="mt-2 flex flex-col gap-2 border-t border-line pt-2 text-sm">
+      <label className="flex flex-wrap items-center gap-2">
+        <span className="font-semibold">Importer un plan (Excel)</span>
+        <input type="file" accept=".xlsx" onChange={e => { void read(e.target.files?.[0]); e.target.value = '' }} className="text-xs" />
+      </label>
+      {error && <p role="alert" className="text-xs text-rnr">{error}</p>}
+      {plan && !save.isSuccess && (
+        <div className="flex flex-col gap-1 rounded-lg bg-field p-2">
+          {plan.heading && <p className="text-xs text-ink/60">Fichier : {plan.heading}. Vérifie qu'il s'agit bien de ce joueur.</p>}
+          <p>{plan.steps.length} étapes en {phases} phase{phases > 1 ? 's' : ''} · {plan.steps.filter(s => s.validated_on).length} déjà terminées
+            · {plan.steps.filter(s => s.is_test).length} tests / contrôles</p>
+          <p className="text-xs text-ink/60">Le joueur verra les phases, étapes, objectifs et actions prépa (pas de diagnostic dedans) ; les actions kiné et commentaires restent au staff.</p>
+          <span className="flex gap-2">
+            <ConfirmButton size="sm" disabled={save.isPending} confirmLabel={current ? `Remplacer les ${current} étapes actuelles ?` : 'Confirmer l\'import ?'}
+              onClick={() => save.mutate({ injuryId: injury.id, steps: plan.steps })}>Importer ce plan</ConfirmButton>
+            <Button size="sm" variant="ghost" onClick={() => setPlan(null)}>Annuler</Button>
+          </span>
+        </div>
+      )}
+      {save.isSuccess && <p className="text-xs text-ok">Plan importé.</p>}
+      {save.isError && <p role="alert" className="text-xs text-rnr">Import impossible, réessaie.</p>}
+    </div>
   )
 }
 

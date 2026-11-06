@@ -239,6 +239,41 @@ Un nouvel onglet joueur « Performance » et une vue staff, en sous-étapes vali
 
 ---
 
+## Étape 12 — Fiabilité des données et suivi quotidien (décidé le 06/11/2026)
+
+Déjà en ligne depuis l'étape 11 : rappel wellness du matin (8h, 10h), relance du RPE de la veille, RPE de muscu calculé
+et validation automatique à 23h30, seuils de charge par séance et RPE visés en fourchettes, onglet Médical, joueur blessé
+(réhab + membres sains, douleur EVA, cardio).
+
+12a. Faire remplir les RPE : rappel du soir (20h) aux joueurs qui ont un entraînement non déclaré ce jour-là ; taux de
+     déclaration par joueur sur la saison (fiche joueur, « À surveiller »).
+12b. Retour d'un blessé : voir l'étape 13 (le module médical remplace l'historique simple).
+12c. Manques connus : réhab et membres sains dans l'éditeur de séance ; semaines S10 à S13 au calendrier ; import des
+     profils PPID (« PPID - PER.xlsx », aperçu avant enregistrement) ; alerte staff sur un RPE de muscu ≤ 2 (échelle
+     mal comprise ?).
+12d. Planning : proposition d'ajustement quand la charge prévue dépasse la cible ; avertissement à la duplication.
+12e. Fiabilité : parcours complet avec des comptes de test avant chaque déploiement important ; ce plan à jour.
+
+## Étape 13 — Module médical (décisions du 06/11/2026)
+
+Données de santé de mineurs : staff seulement, sauf le plan de retour visible par le joueur concerné. Aucun document
+médical stocké dans l'app (hébergement non certifié HDS) : le staff saisit le plan à partir des documents, qui restent
+hors de l'app.
+
+13a. Suivi des joueurs : états au quotidien (blessure en cours, fatigue, douleurs EVA, alertes wellness, charge) dans
+     l'onglet Médical.
+13b. Recensement automatique des blessures (épidémiologie) : à chaque joueur déclaré blessé, une fiche blessure est
+     créée. Classement du consensus World Rugby / CIO : date de survenue, localisation, tissu, mécanisme (contact /
+     sans contact, plaquage, mêlée…), activité (match, entraînement rugby, musculation, hors rugby), récidive ; fin de
+     blessure au retour « apte », gravité = jours d'absence. Instantané des alertes des 28 jours précédents (wellness,
+     items à 1, ratio aigu/chronique, charge au-dessus du rythme ou des seuils). Rapport par cycle et par saison :
+     incidence pour 1000 h d'exposition (minutes déclarées, match et entraînement), poids (jours perdus), répartition
+     par zone, mécanisme, activité ; alertes avant blessure.
+13c. Préparer le retour : plan en phases à partir d'un modèle ajustable (soins → réathlé en salle → course individuelle
+     → collectif sans contact → contact → retour match), chaque phase avec durée théorique et critères ; le staff valide
+     les étapes. Le joueur et le staff voient l'étape en cours, les étapes restantes et le temps théorique restant ; le
+     diagnostic et les notes restent au staff.
+
 ## Décisions prises
 - **D1** Connexion par identifiant `prenom.nom` + mot de passe, comptes créés en amont ; réinitialisation par un admin.
 - **D2** Comptes créés par script sur le Mac de l'admin, à partir de la liste des joueurs du Drive.
@@ -255,5 +290,5 @@ Un nouvel onglet joueur « Performance » et une vue staff, en sous-étapes vali
 - **D10** Après la mise en ligne, la base de dev (Londres) est vidée des vraies données ; elle ne garde que du fictif.
 
 ## Plus tard
-Export CSV/PDF, imports SYNTHÈSE / MOBILITÉ / SUIVI VITESSE / Planification individuelle PER, PWA hors-ligne,
-notifications de rappel wellness, import GPS.
+Export CSV/PDF, imports SYNTHÈSE / MOBILITÉ / SUIVI VITESSE / Planification individuelle PER, PWA hors-ligne.
+Dépôt de documents médicaux : seulement avec un hébergeur certifié HDS et l'accord des parents.

@@ -176,10 +176,11 @@ export function useSaveInjury() {
 export function useSaveStep() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (s: { id?: string; injury_id: string; player_id: string; position: number; title: string; criteria: string | null; planned_days: number; validated_on?: string | null }) => {
-      if (s.id) check(await supabase.from('injury_steps').update({ title: s.title, criteria: s.criteria, planned_days: s.planned_days, position: s.position,
-        ...(s.validated_on !== undefined ? { validated_on: s.validated_on } : {}) }).eq('id', s.id).select('id'))
-      else check(await supabase.from('injury_steps').insert({ injury_id: s.injury_id, player_id: s.player_id, position: s.position, title: s.title, criteria: s.criteria, planned_days: s.planned_days }).select('id'))
+    mutationFn: async ({ id, injury_id, player_id, validated_on, ...s }: { id?: string; injury_id: string; player_id: string; position: number; title: string; criteria: string | null; planned_days: number; validated_on?: string | null } & StepDetails) => {
+      // Détails (créateur de plan) : seulement ceux fournis, les autres colonnes restent telles quelles
+      const details = Object.fromEntries(Object.entries(s).filter(([, v]) => v !== undefined))
+      if (id) check(await supabase.from('injury_steps').update({ ...details, ...(validated_on !== undefined ? { validated_on } : {}) }).eq('id', id).select('id'))
+      else check(await supabase.from('injury_steps').insert({ injury_id, player_id, ...s }).select('id'))
     },
     onSuccess: () => invalidateStaff(qc),
   })
@@ -193,6 +194,7 @@ export function useImportPlan() {
     onSuccess: () => invalidateStaff(qc),
   })
 }
+type StepDetails = { phase?: string | null; phase_days?: number | null; objectives?: string | null; kine_actions?: string | null; prepa_actions?: string | null; comment?: string | null; is_test?: boolean }
 export function useDeleteStep() {
   const qc = useQueryClient()
   return useMutation({

@@ -92,18 +92,18 @@ export function ReturnPlan({ injury, steps, today }: { injury: Injury; steps: St
       ))}
       <div>
         <Button size="sm" variant="ghost" disabled={save.isPending}
-          onClick={() => save.mutate({ ...base, position: (p.ordered.at(-1)?.position ?? 0) + 1, title: 'Nouvelle étape', criteria: null, planned_days: 7 })}>
+          onClick={() => save.mutate({ ...base, position: (p.ordered.at(-1)?.position ?? 0) + 1, title: 'Nouvelle étape', criteria: null, planned_days: 7,
+            phase: p.ordered.at(-1)?.phase ?? null, phase_days: p.ordered.at(-1)?.phase_days ?? null })}>
           Ajouter une étape
         </Button>
       </div>
       {(save.isError || remove.isError) && <p role="alert" className="text-xs text-rnr">Modification impossible, réessaie.</p>}
-      <ImportPlan injury={injury} current={steps.length} today={today} />
     </section>
   )
 }
 
 // Import d'un plan Excel (même format que « Plan Rehabilitation.xlsx ») : aperçu, puis remplacement des étapes
-function ImportPlan({ injury, current, today }: { injury: Injury; current: number; today: string }) {
+export function ImportPlan({ injury, current, today }: { injury: Injury; current: number; today: string }) {
   const save = useImportPlan()
   const [plan, setPlan] = useState<RehabPlan | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -114,7 +114,7 @@ function ImportPlan({ injury, current, today }: { injury: Injury; current: numbe
   }
   const phases = plan ? new Set(plan.steps.map(s => s.phase)).size : 0
   return (
-    <div className="mt-2 flex flex-col gap-2 border-t border-line pt-2 text-sm">
+    <div className="flex flex-col gap-2 text-sm">
       <label className="flex flex-wrap items-center gap-2">
         <span className="font-semibold">Importer un plan (Excel)</span>
         <input type="file" accept=".xlsx" onChange={e => { void read(e.target.files?.[0]); e.target.value = '' }} className="text-xs" />
@@ -165,12 +165,7 @@ function StepRow({ step, current, today, onSave, onDelete }: {
         <input type="number" min={0} max={365} value={daysText} aria-label="Durée théorique (jours)" onChange={e => setDaysText(e.target.value)}
           onBlur={() => Number.isInteger(d) && d >= 0 && d <= 365 && d !== step.planned_days && onSave({ planned_days: d })} className={`${field} w-16`} /> j
       </label>
-      {(step.objectives || step.kine_actions || step.prepa_actions || step.comment) && (
-        <dl className="order-last grid w-full gap-x-4 gap-y-1 pl-8 text-xs text-ink/75 sm:grid-cols-2">
-          {([['Objectifs', step.objectives], ['Actions kiné (staff)', step.kine_actions], ['Actions prépa', step.prepa_actions], ['Commentaire (staff)', step.comment]] as const)
-            .filter(([, v]) => v).map(([k, v]) => <div key={k}><dt className="font-semibold text-ink/60">{k}</dt><dd>{v}</dd></div>)}
-        </dl>
-      )}
+      <StepDetailsEditor step={step} onSave={onSave} />
       <span className="flex items-center gap-2 pt-1">
         {step.validated_on
           ? <><Badge tone="ok">validée le {formatDay(step.validated_on)}</Badge><button type="button" className="text-xs text-ink/60 underline" onClick={() => onSave({ validated_on: null })}>Annuler</button></>
@@ -178,6 +173,79 @@ function StepRow({ step, current, today, onSave, onDelete }: {
         {!step.validated_on && <ConfirmButton size="sm" variant="quiet" confirmLabel="Confirmer" onClick={onDelete} aria-label={`Retirer l'étape ${step.title}`}>Retirer</ConfirmButton>}
       </span>
     </li>
+  )
+}
+
+// Détails d'une étape (créateur de plan), repliés : phase, objectifs, actions, commentaire, test.
+// Le joueur voit phase, objectifs et actions prépa ; jamais les actions kiné ni le commentaire.
+const DETAILS = [['objectives', 'Objectifs (vu par le joueur)'], ['prepa_actions', 'Actions prépa (vu par le joueur)'],
+  ['kine_actions', 'Actions kiné (staff)'], ['comment', 'Commentaire (staff)']] as const
+function StepDetailsEditor({ step, onSave }: { step: Step; onSave: (v: Partial<Step>) => void }) {
+  const [phase, setPhase] = useState(step.phase ?? '')
+  const [phaseDays, setPhaseDays] = useState(step.phase_days != null ? String(step.phase_days) : '')
+  const [text, setText] = useState(() => Object.fromEntries(DETAILS.map(([k]) => [k, step[k] ?? ''])) as Record<(typeof DETAILS)[number][0], string>)
+  const pd = phaseDays.trim() === '' ? null : Number(phaseDays)
+  const filled = DETAILS.filter(([k]) => step[k]).length
+  return (
+    <details className="order-last w-full pl-8 text-xs">
+      <summary className="cursor-pointer text-ink/60">Détails de l'étape{filled ? ` · ${filled} rempli${filled > 1 ? 's' : ''}` : ''}{step.phase ? ` · ${step.phase}` : ''}</summary>
+      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+        <label className="flex flex-col gap-0.5">Phase
+          <input value={phase} onChange={e => setPhase(e.target.value)} placeholder="Phase 1 : Soins (S1-S2)" className={field}
+            onBlur={() => phase.trim() !== (step.phase ?? '') && onSave({ phase: phase.trim() || null })} />
+        </label>
+        <label className="flex flex-col gap-0.5">Durée de la phase (jours)
+          <input type="number" min={0} max={365} value={phaseDays} onChange={e => setPhaseDays(e.target.value)} className={`${field} w-24`}
+            onBlur={() => (pd === null || (Number.isInteger(pd) && pd >= 0 && pd <= 365)) && pd !== (step.phase_days ?? null) && onSave({ phase_days: pd })} />
+        </label>
+        {DETAILS.map(([k, label]) => (
+          <label key={k} className="flex flex-col gap-0.5">{label}
+            <textarea rows={2} value={text[k]} onChange={e => setText(t => ({ ...t, [k]: e.target.value }))} className={field}
+              onBlur={() => text[k].trim() !== (step[k] ?? '') && onSave({ [k]: text[k].trim() || null })} />
+          </label>
+        ))}
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={!!step.is_test} onChange={e => onSave({ is_test: e.target.checked })} /> Test / contrôle (radio, bilan…)
+        </label>
+      </div>
+    </details>
+  )
+}
+
+// Présentation du plan pour le staff (lecture seule) : avancement, phases, détail de chaque étape
+export function PlanOverview({ injury, steps, today }: { injury: Injury; steps: Step[]; today: string }) {
+  const p = planProgress(steps, injury.occurred_on, today)
+  if (!p.total) return <p className="text-sm text-ink/60">Pas encore de plan : importe-le ou crée-le dans « Préparer le plan et les séances ».</p>
+  return (
+    <section aria-label="Présentation du plan de retour" className="flex flex-col gap-2">
+      <p className="text-sm">
+        {p.current ? <>Étape <strong>{p.index + 1}/{p.total}</strong> : {p.current.title} · <strong>{p.remainingDays} jour{p.remainingDays > 1 ? 's' : ''}</strong> théoriques restants
+          {p.returnDate && <> · retour estimé le <strong>{formatDay(p.returnDate)}</strong></>}</> : <span className="text-ok">Toutes les étapes sont validées.</span>}
+      </p>
+      {byPhase(p.ordered).map((g, gi) => (
+        <div key={`${g.phase}-${gi}`} className="flex flex-col">
+          {g.phase && <p className="mt-2 rounded bg-field px-2 py-1 text-sm font-semibold">{g.steps.every(s => s.validated_on) ? '✓ ' : ''}{g.phase}{g.days != null && <span className="font-normal text-ink/60"> · {g.days} jours</span>}</p>}
+          <ol className="flex flex-col">
+            {g.steps.map(s => (
+              <li key={s.id} className={`border-t border-line py-2 text-sm first:border-0 ${p.current?.id === s.id ? 'rounded-lg bg-gold/10 px-2' : ''}`}>
+                <p className="flex flex-wrap items-center gap-2">
+                  <span className="font-semibold">{s.validated_on ? <span className="text-ok">✓ </span> : `${s.position}. `}{s.title}</span>
+                  {s.is_test && <Badge tone="neutral">test / contrôle</Badge>}
+                  {s.validated_on ? <span className="text-xs text-ink/60">validée le {formatDay(s.validated_on)}</span>
+                    : s.in_progress ? <Badge tone="warn">en cours</Badge> : <span className="text-xs text-ink/60">{s.planned_days} j</span>}
+                </p>
+                {(s.criteria || DETAILS.some(([k]) => s[k])) && (
+                  <dl className="mt-1 grid gap-x-4 gap-y-1 text-xs text-ink/75 sm:grid-cols-2">
+                    {([['Critères', s.criteria], ...DETAILS.map(([k, l]) => [l, s[k]] as const)] as const)
+                      .filter(([, v]) => v).map(([k, v]) => <div key={k}><dt className="font-semibold text-ink/60">{k}</dt><dd>{v}</dd></div>)}
+                  </dl>
+                )}
+              </li>
+            ))}
+          </ol>
+        </div>
+      ))}
+    </section>
   )
 }
 

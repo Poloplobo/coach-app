@@ -202,6 +202,12 @@ if (only === 'perf') {
     await page.getByLabel('Afficher').selectOption(v); await page.waitForTimeout(1200)
     heights[`prog-${v}`] = await page.evaluate(() => document.documentElement.scrollHeight); await shot(`prog-${v}`)
   }
+} else if (only === 'medical') {
+  await open('/staff/medical')
+  for (const v of ['suivi', 'plan', 'preparation', 'epidemio']) {
+    await page.getByLabel('Afficher').selectOption(v); await page.waitForTimeout(1200)
+    heights[`med-${v}`] = await page.evaluate(() => document.documentElement.scrollHeight); await shot(`med-${v}`)
+  }
 } else for (const [name, path] of [['today', '/staff'], ['semaine', '/staff/semaine'], ['muscu', '/staff/musculation'], ['medical', '/staff/medical'], ['joueur', '/staff/joueur/p3']]) {
   await open(path); heights[name] = await page.evaluate(() => document.documentElement.scrollHeight); await shot(name)
 }

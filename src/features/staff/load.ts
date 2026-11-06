@@ -303,10 +303,15 @@ export function wellnessAlerts(w: WellnessScores): string[] {
 }
 
 // Qui relancer : état de forme du jour non rempli ; RPE manquant la veille alors qu'une activité était prévue
+// Activité prévue que le joueur a déclarée non faite (0041) : réponse donnée, pas un oubli
+export type Skip = { player_id: string; session_date: string; activity_type_id: string }
+const skipped = (skips: Skip[], playerId: string, date: string, activityTypeId: string | null | undefined) =>
+  skips.some(k => k.player_id === playerId && k.session_date === date && k.activity_type_id === activityTypeId)
+
 export function latecomers(
   players: Player[], wellnessToday: { player_id: string }[],
   plan: { player_id: string | null; session_date: string; activity_type_id?: string | null; activity_types?: { name: string } | null }[],
-  logs: Pick<Log, 'player_id' | 'session_date' | 'activity_type_id' | 'validated_at'>[], today: string,
+  logs: Pick<Log, 'player_id' | 'session_date' | 'activity_type_id' | 'validated_at'>[], today: string, skips: Skip[] = [],
 ) {
   const yesterday = addDays(today, -1)
   const filled = new Set(wellnessToday.map(w => w.player_id))
@@ -316,6 +321,7 @@ export function latecomers(
     // Une activité prévue hier sans déclaration (ou une muscu non validée) suffit : la veille partiellement remplie se relance aussi
     const pendingYesterday = plan.some(s => {
       if (s.session_date !== yesterday || (s.player_id === null ? p.injured : s.player_id !== p.id)) return false
+      if (skipped(skips, p.id, yesterday, s.activity_type_id)) return false
       const l = logs.find(x => x.player_id === p.id && x.session_date === yesterday && x.activity_type_id === s.activity_type_id)
       return !l || (s.player_id !== null && EXERCISE_SESSIONS.includes(s.activity_types?.name ?? '') && !l.validated_at)
     })
@@ -328,22 +334,22 @@ export function latecomers(
 // RPE sans déclaration, et séance de musculation non validée. Du plus oublieux au moins oublieux. Un jour où personne du
 // groupe n'a rien déclaré (entraînement annulé, app pas encore utilisée) n'est pas compté.
 type DeclLog = Pick<Log, 'player_id' | 'session_date' | 'activity_type_id' | 'validated_at'>
-export function missingRpe(players: Player[], plan: PlanItem[], logs: DeclLog[], types: ActivityType[], from: string, to: string) {
+export function missingRpe(players: Player[], plan: PlanItem[], logs: DeclLog[], types: ActivityType[], from: string, to: string, skips: Skip[] = []) {
   const activeDays = new Set(logs.map(l => l.session_date))
-  return players.map(p => playerDeclarations(p, plan, logs, types, from, to, activeDays)).filter(x => x.missed)
+  return players.map(p => playerDeclarations(p, plan, logs, types, from, to, activeDays, undefined, skips)).filter(x => x.missed)
     .sort((a, b) => b.missed - a.missed || b.missed / b.planned - a.missed / a.planned)
 }
 
 // Taux de déclaration d'un joueur sur une période (fiche joueur) : activeDays = jours où le groupe a déclaré quelque chose
 // injuredOn : blessé ce jour-là (périodes des fiches blessure) ; sans elle, le statut d'aujourd'hui vaut pour toute la période
 export function declarationRate(p: Player, plan: PlanItem[], logs: DeclLog[], types: ActivityType[], from: string, to: string, activeDays: Set<string>,
-  injuredOn?: (date: string) => boolean) {
-  const r = playerDeclarations(p, plan, logs, types, from, to, activeDays, injuredOn)
+  injuredOn?: (date: string) => boolean, skips: Skip[] = []) {
+  const r = playerDeclarations(p, plan, logs, types, from, to, activeDays, injuredOn, skips)
   return { ...r, rate: r.planned ? Math.round((100 * (r.planned - r.missed)) / r.planned) : null }
 }
 
 function playerDeclarations(p: Player, plan: PlanItem[], logs: DeclLog[], types: ActivityType[], from: string, to: string, activeDays: Set<string>,
-  injuredOn: (date: string) => boolean = () => p.injured) {
+  injuredOn: (date: string) => boolean = () => p.injured, skips: Skip[] = []) {
   {
     const days: { date: string; missing: string[] }[] = []
     let planned = 0
@@ -354,6 +360,7 @@ function playerDeclarations(p: Player, plan: PlanItem[], logs: DeclLog[], types:
       planned += mine.length
       // Séance individuelle à exercices : comptée faite une fois validée ; le reste, dès qu'il est déclaré
       const missing = mine.filter(({ s, t }) => {
+        if (skipped(skips, p.id, d, t.id)) return false
         const l = logs.find(x => x.player_id === p.id && x.session_date === d && x.activity_type_id === t.id)
         return !l || (s.player_id !== null && EXERCISE_SESSIONS.includes(t.name) && !l.validated_at)
       }).map(({ t }) => t.name)

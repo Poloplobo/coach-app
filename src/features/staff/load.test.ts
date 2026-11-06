@@ -244,6 +244,15 @@ describe('missingRpe : RPE non déclarés jour par jour', () => {
       .toMatchObject({ planned: 2, missed: 1, rate: 50 })
     expect(declarationRate(player('a'), plan, [], t, '2026-11-02', '2026-11-05', new Set()).rate).toBeNull()
   })
+  it('« Je n\'ai pas fait » : réponse donnée, plus un oubli (taux compris)', () => {
+    const logs = [{ player_id: 'b', session_date: '2026-11-04', activity_type_id: 'poste', validated_at: null }]
+    const skips = [{ player_id: 'a', session_date: '2026-11-04', activity_type_id: 'poste' }]
+    expect(missingRpe([player('a')], plan, logs, t, '2026-11-02', '2026-11-05', skips).map(x => x.days))
+      .toEqual([[{ date: '2026-11-04', missing: ['Musculation'] }]])
+    expect(declarationRate(player('a'), plan, logs, t, '2026-11-02', '2026-11-05', new Set(['2026-11-04']), undefined, skips))
+      .toMatchObject({ planned: 2, missed: 1 })
+    expect(latecomers([player('a')], [{ player_id: 'a' }], [{ player_id: null, session_date: '2026-11-04', activity_type_id: 'poste' }], [], '2026-11-05', skips)).toEqual([])
+  })
   it('jour où personne n\'a rien déclaré (entraînement annulé) : pas compté', () => {
     expect(missingRpe([player('a')], plan, [], t, '2026-11-02', '2026-11-05')).toEqual([])
   })

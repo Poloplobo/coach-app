@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabaseClient'
 import { addDays } from '../../lib/week'
-import type { PlannedRow } from './activities'
+import type { PlannedRow, SkipReason } from './activities'
 
 export function useAvailability(playerId: string) {
   return useQuery({
@@ -83,6 +83,45 @@ export function useSaveLog(playerId: string) {
       if (error) throw error
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['sessionLogs', playerId] }),
+  })
+}
+
+// Activités prévues que le joueur dit ne pas avoir faites (0041) : ce n'est pas un oubli de RPE
+export function useSkipsRange(playerId: string, from: string, to: string) {
+  return useQuery({
+    queryKey: ['sessionSkips', playerId, from, to],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('session_skips').select('activity_type_id, session_date, reason, note')
+        .eq('player_id', playerId).gte('session_date', from).lte('session_date', to)
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+export function useSaveSkip(playerId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (k: { date: string; activityTypeId: string; reason: SkipReason; note: string | null }) => {
+      const { error } = await supabase.from('session_skips').insert({
+        player_id: playerId, session_date: k.date, activity_type_id: k.activityTypeId, reason: k.reason, note: k.note,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['sessionSkips', playerId] }),
+  })
+}
+
+export function useDeleteSkip(playerId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (k: { date: string; activityTypeId: string }) => {
+      const { data, error } = await supabase.from('session_skips').delete()
+        .eq('player_id', playerId).eq('session_date', k.date).eq('activity_type_id', k.activityTypeId).select('id')
+      if (error) throw error
+      if (!data.length) throw new Error('jour plus modifiable') // RLS : hors fenêtre de saisie, rien n'est supprimé
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['sessionSkips', playerId] }),
   })
 }
 

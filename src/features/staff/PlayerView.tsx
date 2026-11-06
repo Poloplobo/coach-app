@@ -14,7 +14,7 @@ import { fatiguePercent } from '../wellness/fatigue'
 import { DAY_NAMES, STATUS_TONE, WELLNESS_ALERT_SCORE, acwr, fullName, loadStatus, playerDays, declarationRate, rpeGap, rpeVsTarget, sessionTarget, weekMatrix, weekOf, type Log, type WeekType } from './load'
 import { AvailabilityPanel, CorrectionPanel } from './PlayerAdmin'
 import { TestsPanel } from './programming/TestsPanel'
-import { useAllLogs, useAllPlan, useAllWellness, useInjuryRecords, useInjurySessions, useIsAdmin, useReference, useRoster, useTargetRpes } from './useStaff'
+import { useAllLogs, useAllPlan, useAllSkips, useAllWellness, useInjuryRecords, useInjurySessions, useIsAdmin, useReference, useRoster, useTargetRpes } from './useStaff'
 import { injurySummary } from './injury'
 import { Loading } from '../../components/ui/Loading'
 import { ViewSelect } from '../../components/ui/ViewSelect'
@@ -50,6 +50,7 @@ export function PlayerView() {
   // Taux de déclaration de la saison : planning et déclarations du groupe (jours d'entraînement réellement suivis)
   const seasonPlan = useAllPlan(selectedId ? seasonStart : '', addDays(today, -1))
   const seasonLogs = useAllLogs(selectedId ? seasonStart : '', addDays(today, -1))
+  const seasonSkips = useAllSkips(selectedId ? seasonStart : '', addDays(today, -1))
   const records = useInjuryRecords() // périodes de blessure : les séances de groupe ne comptent pas ces jours-là
   const targets = useTargetRpes()
   const injury = useInjurySessions(roster.data?.find(p => p.id === selectedId)?.injured ? selectedId : undefined, addDays(today, -28), today)
@@ -106,7 +107,7 @@ export function PlayerView() {
             {player && seasonPlan.data && seasonLogs.data && (() => {
               const periods = (records.data ?? []).filter(i => i.player_id === player.id)
               const d = declarationRate(player, seasonPlan.data, seasonLogs.data, ref.data.types, seasonStart, addDays(today, -1), new Set(seasonLogs.data.map(l => l.session_date)),
-                date => periods.some(i => date >= i.occurred_on && date <= (i.ended_on ?? today)))
+                date => periods.some(i => date >= i.occurred_on && date <= (i.ended_on ?? today)), seasonSkips.data ?? [])
               return d.rate === null ? null : <Kpi label="RPE déclarés (saison)" value={`${d.rate} %`} tone={d.rate >= 90 ? 'ok' : d.rate >= 70 ? 'warn' : 'bad'}
                 hint={`${d.planned - d.missed} sur ${d.planned} activités prévues`} />
             })()}

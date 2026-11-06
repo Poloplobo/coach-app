@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(180);
+select plan(192);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -620,6 +620,43 @@ select throws_ok($$insert into public.session_logs (player_id, session_date, act
                  '42501', null, 'le compte de test ne déclare pas d''activité');
 select throws_ok($$insert into public.push_subscriptions (endpoint, p256dh, auth) values ('https://fcm.googleapis.com/fcm/send/test-t', repeat('k', 40), repeat('a', 16))$$,
                  '42501', null, 'le compte de test ne s''abonne pas aux rappels');
+
+select throws_ok($$insert into public.session_skips (player_id, session_date, activity_type_id, reason)
+                   values ('00000000-0000-0000-0000-0000000000ee', public.paris_today(), (select id from public.activity_types where name = 'Vidéo'), 'malade')$$,
+                 '42501', null, 'le compte de test ne déclare pas de séance non faite');
+
+-- ---------- « Je n'ai pas fait » (0041) ----------
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+set local role authenticated;
+select lives_ok($$insert into public.session_skips (player_id, session_date, activity_type_id, reason)
+                  values ('00000000-0000-0000-0000-00000000000a', public.paris_today(), (select id from public.activity_types where name = 'Jeu au Poste'), 'absent')$$, 'A déclare une activité non faite aujourd''hui');
+select throws_ok($$insert into public.session_skips (player_id, session_date, activity_type_id, reason)
+                   values ('00000000-0000-0000-0000-00000000000a', public.paris_today(), (select id from public.activity_types where name = 'Vidéo'), 'absent')$$, '42501', null, 'pas de « non fait » sur une activité déjà déclarée');
+select throws_ok($$insert into public.session_skips (player_id, session_date, activity_type_id, reason)
+                   values ('00000000-0000-0000-0000-00000000000a', public.paris_today() - 3, (select id from public.activity_types where name = 'Jeu au Poste'), 'absent')$$, '42501', null, 'A ne déclare pas un jour passé');
+select throws_ok($$insert into public.session_skips (player_id, session_date, activity_type_id, reason)
+                   values ('00000000-0000-0000-0000-00000000000b', public.paris_today(), (select id from public.activity_types where name = 'Jeu au Poste'), 'absent')$$, '42501', null, 'A ne déclare pas pour B');
+select throws_ok($$insert into public.session_skips (player_id, session_date, activity_type_id, reason)
+                   values ('00000000-0000-0000-0000-00000000000a', public.paris_today(), (select id from public.activity_types where name = 'Dév. Indiv'), 'autre')$$,
+                 '23514', null, 'raison « autre » sans précision refusée');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}', true);
+set local role authenticated;
+select is_empty($$select 1 from public.session_skips$$, 'B ne lit pas les séances non faites de A');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000c","role":"authenticated"}', true);
+set local role authenticated;
+select is((select count(*)::int from public.session_skips where player_id = '00000000-0000-0000-0000-00000000000a'), 1, 'le staff lit les séances non faites');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+set local role authenticated;
+select lives_ok($$insert into public.session_skips (player_id, session_date, activity_type_id, reason)
+                  values ('00000000-0000-0000-0000-00000000000a', public.paris_today(), (select id from public.activity_types where name = 'Collectif Total'), 'malade')$$, 'A déclare un autre « pas fait »');
+select lives_ok($$insert into public.session_logs (player_id, session_date, activity_type_id, duration_min, rpe)
+                  values ('00000000-0000-0000-0000-00000000000a', public.paris_today(), (select id from public.activity_types where name = 'Collectif Total'), 60, 5)$$, 'A saisit finalement son RPE');
+select is((select count(*)::int from public.session_skips where player_id = '00000000-0000-0000-0000-00000000000a'), 1, 'le RPE saisi efface le « pas fait » correspondant');
+select isnt_empty($$delete from public.session_skips where player_id = '00000000-0000-0000-0000-00000000000a' returning 1$$, 'A annule sa déclaration du jour');
 
 -- ---------- Visiteur non connecté ----------
 reset role;

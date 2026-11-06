@@ -7,6 +7,10 @@ export const EXERCISE_SESSIONS = [MUSCULATION, 'Réhabilitation', 'Membres sains
 // Ce qu'un joueur blessé ajoute lui-même (il n'a plus les séances du groupe)
 export const INJURED_EXTRAS = ['Cardio (porté / course)', 'Reprise terrain']
 
+// « Je n'ai pas fait » (0041) : raison obligatoire ; « autre » demande une précision
+export const SKIP_REASONS = { malade: 'Malade / douleur', absent: 'Absent (cours, rendez-vous)', annulee: 'Séance annulée ou modifiée', autre: 'Autre' } as const
+export type SkipReason = keyof typeof SKIP_REASONS
+
 export type PlannedRow = {
   id: string
   player_id: string | null

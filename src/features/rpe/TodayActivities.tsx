@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Card } from '../../components/ui/Card'
 import { ActivityRow } from './ActivityRow'
 import { EXERCISE_SESSIONS, INJURED_EXTRAS, dayActivities, type DayActivity } from './activities'
-import { useActivityTypes, useAvailability, useLogsRange, usePlanRange } from './useRpe'
+import { useActivityTypes, useAvailability, useLogsRange, usePlanRange, useSkipsRange } from './useRpe'
 import { Loading } from '../../components/ui/Loading'
 
 export function TodayActivities({ playerId, date, title = 'Mes activités du jour' }: { playerId: string; date: string; title?: string }) {
@@ -10,12 +10,13 @@ export function TodayActivities({ playerId, date, title = 'Mes activités du jou
   const plan = usePlanRange(playerId, date, date)
   const logs = useLogsRange(playerId, date, date)
   const types = useActivityTypes()
+  const skips = useSkipsRange(playerId, date, date)
   const [extraIds, setExtraIds] = useState<string[]>([])
 
-  if (availability.isPending || plan.isPending || logs.isPending || types.isPending) {
+  if (availability.isPending || plan.isPending || logs.isPending || types.isPending || skips.isPending) {
     return <Card title={title}><Loading /></Card>
   }
-  if (availability.isError || plan.isError || logs.isError || types.isError) {
+  if (availability.isError || plan.isError || logs.isError || types.isError || skips.isError) {
     return <Card title={title}><p>Impossible de charger tes activités. Vérifie ta connexion.</p></Card>
   }
 
@@ -43,7 +44,7 @@ export function TodayActivities({ playerId, date, title = 'Mes activités du jou
       <ul className="flex flex-col divide-y divide-line/60">
         {[...planned, ...extras].map(a => (
           <ActivityRow key={a.activityTypeId} playerId={playerId} date={date} activity={a}
-            log={logs.data.find(l => l.activity_type_id === a.activityTypeId)}
+            log={logs.data.find(l => l.activity_type_id === a.activityTypeId)} skip={skips.data.find(k => k.activity_type_id === a.activityTypeId)}
             onRemove={plannedIds.has(a.activityTypeId) ? undefined : () => setExtraIds(ids => ids.filter(id => id !== a.activityTypeId))} />
         ))}
       </ul>

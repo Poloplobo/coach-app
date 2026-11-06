@@ -944,6 +944,51 @@ export type Database = {
           },
         ]
       }
+      session_skips: {
+        Row: {
+          activity_type_id: string
+          created_at: string
+          id: string
+          note: string | null
+          player_id: string
+          reason: string
+          session_date: string
+        }
+        Insert: {
+          activity_type_id: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          player_id: string
+          reason: string
+          session_date: string
+        }
+        Update: {
+          activity_type_id?: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          player_id?: string
+          reason?: string
+          session_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_skips_activity_type_id_fkey"
+            columns: ["activity_type_id"]
+            isOneToOne: false
+            referencedRelation: "activity_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_skips_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       session_logs: {
         Row: {
           activity_type_id: string | null

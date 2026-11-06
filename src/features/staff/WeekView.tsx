@@ -15,7 +15,7 @@ import {
   DAY_NAMES, STATUS_TONE, dailySynthesis, fullName, hotSessions, missingRpe, pillarSplit, rangeLabel, rpeGap, rpeMatrix, rpeVsTarget, sessionTarget, weekMatrix, weekOf, weekPace,
   type ActivityType, type Heat, type Log, type MatrixRow, type Pillar, type RpeRange, type WeekType,
 } from './load'
-import { useAllLogs, useAllPlan, useReference, useRoster, useTargetRpes } from './useStaff'
+import { useAllLogs, useAllPlan, useAllSkips, useReference, useRoster, useTargetRpes } from './useStaff'
 import { EXERCISE_SESSIONS } from '../rpe/activities'
 import { Loading } from '../../components/ui/Loading'
 
@@ -43,6 +43,7 @@ export function WeekView() {
   const week = weeks.find(w => w.code === code) ?? weekOf(weeks, parisDate())
   const logs = useAllLogs(week?.start_date ?? '', week ? weekEnd(week) : '')
   const plan = useAllPlan(week?.start_date ?? '', week ? weekEnd(week) : '')
+  const skips = useAllSkips(week?.start_date ?? '', week ? weekEnd(week) : '')
   const targets = useTargetRpes()
 
   if (ref.isPending || roster.isPending || (week && logs.isPending)) return <Loading />
@@ -96,7 +97,7 @@ export function WeekView() {
 
       <div className="flex flex-col gap-8">
       {tab === 'resume' && <CoachSummary m={m} wt={wt} code={week.code} pillars={pillarSplit(weekLogs, types, wt)} alerts={alerts}
-        missing={plan.data ? missingRpe(players, plan.data, weekLogs, types, week.start_date, [weekEnd(week), addDays(parisDate(), -1)].sort()[0]) : null}
+        missing={plan.data && skips.data ? missingRpe(players, plan.data, weekLogs, types, week.start_date, [weekEnd(week), addDays(parisDate(), -1)].sort()[0], skips.data) : null}
         gaps={l => rpeGap(l.rpe, sessionTarget(l, plan.data ?? [], week.week_type_code, targets.data ?? []).range)}
         rpeText={l => rpeVsTarget(l.rpe, sessionTarget(l, plan.data ?? [], week.week_type_code, targets.data ?? []).range)}
         logs={weekLogs} types={types} />}

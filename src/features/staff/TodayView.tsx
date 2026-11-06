@@ -14,8 +14,9 @@ import { useProfile, useUserId } from '../auth/useAuth'
 import { StatCard } from './StatCard'
 import { fatiguePercent, postureOf } from '../wellness/fatigue'
 import { WELLNESS_ITEMS } from '../wellness/items'
-import { WELLNESS_ALERT_SCORE, fullName, itemValue, latecomers, missingRpe, overLoad, reminderMessage, rpeGap, rpeVsTarget, sessionTarget, weekOf, weekPace, wellnessAlerts, type Heat } from './load'
-import { useAllLogs, useAllPlan, useAllWellness, usePushEnabled, useReference, useRemind, useReminders, useRoster, useTargetRpes } from './useStaff'
+import { WELLNESS_ALERT_SCORE, fullName, itemValue, latecomers, missingRpe, overLoad, reminderMessage, rpeGap, rpeVsTarget, sessionTarget, weekOf, weekPace, wellnessAlerts, type Heat, type Player } from './load'
+import { SKIP_REASONS, type SkipReason } from '../rpe/activities'
+import { useAllLogs, useAllPlan, useAllSkips, useAllWellness, usePushEnabled, useReference, useRemind, useReminders, useRoster, useTargetRpes } from './useStaff'
 
 // Seules les réponses moyennes ou mauvaises ressortent ; le rouge est gardé pour le 1 (déclencheur d'alerte)
 const itemLook = (v: number) => (v >= 4 ? 'text-ink/45' : v === 3 ? 'text-ink/85' : v === 2 ? 'text-gold font-semibold' : 'text-rnr font-bold')
@@ -49,6 +50,7 @@ export function TodayView() {
   // RPE non déclarés sur les 7 derniers jours (aujourd'hui exclu : la journée n'est pas finie)
   const recentLogs = useAllLogs(addDays(today, -7), yesterday)
   const recentPlan = useAllPlan(addDays(today, -7), yesterday)
+  const recentSkips = useAllSkips(addDays(today, -7), yesterday)
   const [filter, setFilter] = useState<Filter>('tous')
   const [allLate, setAllLate] = useState(false)
 
@@ -84,7 +86,7 @@ export function TodayView() {
   rows.sort((a, b) => rank(a) - rank(b) || (a.w?.score ?? 99) - (b.w?.score ?? 99))
   const filled = rows.filter(r => r.w).length
   const alerted = rows.filter(r => r.alerts.length)
-  const late = latecomers(roster.data, todayW, plan.data, logs.data, today)
+  const late = latecomers(roster.data, todayW, plan.data, logs.data, today, recentSkips.data ?? [])
   const level = (r: (typeof rows)[number]) => (r.w?.score != null ? LEVELS[postureOf(fatiguePercent(r.w.score))].id : null)
   const shown = rows.filter(r => filter === 'tous' || (filter === 'alertes' ? r.alerts.length > 0 : filter === 'non-remplis' ? !r.w : level(r) === filter))
   const mean = groupFatigue(rows)
@@ -222,8 +224,10 @@ export function TodayView() {
           </div>
 
           <div className="rise" style={{ animationDelay: '440ms' }}>
-            <MissingRpeCard data={recentLogs.data && recentPlan.data && ref.data
-              ? missingRpe(roster.data, recentPlan.data, recentLogs.data, ref.data.types, addDays(today, -7), yesterday) : null} />
+            <MissingRpeCard data={recentLogs.data && recentPlan.data && recentSkips.data && ref.data
+              ? missingRpe(roster.data, recentPlan.data, recentLogs.data, ref.data.types, addDays(today, -7), yesterday, recentSkips.data) : null}
+              skips={recentSkips.data && ref.data ? recentSkips.data.map(k => ({ ...k, player: roster.data.find(p => p.id === k.player_id),
+                activity: ref.data.types.find(t => t.id === k.activity_type_id)?.name ?? '' })) : null} />
           </div>
 
           <div className="rise" style={{ animationDelay: '480ms' }}>
@@ -274,13 +278,31 @@ function LoadCell({ load }: { load: { total: number; pace: ReturnType<typeof wee
 }
 
 // Les joueurs qui ne déclarent pas leur RPE : nombre d'oublis sur les 7 derniers jours ; le jour par jour au clic, 5 joueurs d'abord
-export function MissingRpeCard({ data, title = 'RPE non déclarés (7 derniers jours)' }: { data: ReturnType<typeof missingRpe> | null; title?: string }) {
+type SkipRow = { player_id: string; session_date: string; activity: string; reason: string; note: string | null; player?: Player }
+
+export function MissingRpeCard({ data, skips, title = 'RPE non déclarés (7 derniers jours)' }: {
+  data: ReturnType<typeof missingRpe> | null; skips?: SkipRow[] | null; title?: string
+}) {
   const [open, setOpen] = useState<string | null>(null)
   const [all, setAll] = useState(false)
+  // « Je n'ai pas fait » : pas un oubli, listé à part avec la raison, pour vérifier
+  const skipList = skips?.filter(k => k.player)
+  const skipped = !!skipList?.length && (
+    <div className="mt-2 border-t border-line pt-2">
+      <p className="text-sm font-semibold">Déclarées non faites · {skipList.length}</p>
+      <ul className="flex flex-col text-xs text-ink/70">
+        {skipList.map(k => (
+          <li key={`${k.player_id}-${k.session_date}-${k.activity}`} className="py-0.5">
+            <span className="font-semibold text-ink">{fullName(k.player!)}</span> · {shortDay(k.session_date)} · {k.activity} : {SKIP_REASONS[k.reason as SkipReason] ?? k.reason}{k.note ? ` (${k.note})` : ''}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
   return (
     <Card boxed title={data ? `${title} · ${data.length}` : title}
-      help="Activités prévues avec RPE sans déclaration, et séances de musculation non validées. Le joueur ne peut rattraper que la veille, après une relance : au-delà, la saisie se fait par le staff dans sa fiche.">
-      {!data ? <p className="text-sm text-ink/45">…</p> : !data.length ? <p className="text-sm text-ok">Tous les RPE prévus ont été déclarés.</p> : (
+      help="Activités prévues avec RPE sans déclaration, et séances de musculation non validées. Une activité que le joueur a déclarée « pas faite » n'est pas un oubli : elle est listée à part, avec sa raison. Le joueur ne peut rattraper que la veille, après une relance : au-delà, la saisie se fait par le staff dans sa fiche.">
+      {!data ? <p className="text-sm text-ink/45">…</p> : !data.length ? <><p className="text-sm text-ok">Tous les RPE prévus ont été déclarés.</p>{skipped}</> : (
         <>
           <ul className="flex flex-col">
             {(all ? data : data.slice(0, 5)).map(({ player, missed, planned, days }) => (
@@ -300,6 +322,7 @@ export function MissingRpeCard({ data, title = 'RPE non déclarés (7 derniers j
             ))}
           </ul>
           <MoreButton hidden={data.length - 5} open={all} onToggle={() => setAll(!all)} />
+          {skipped}
         </>
       )}
     </Card>

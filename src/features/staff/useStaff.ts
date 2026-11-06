@@ -38,6 +38,15 @@ export function useReference() {
 }
 
 // playerId : une seule personne (fiche joueur sur la saison) ; sinon tout l'effectif (à garder sur une courte période)
+// Activités déclarées « pas faites » par les joueurs, avec la raison (0041) ; joueur de test exclu
+export function useAllSkips(from: string, to: string) {
+  return useQuery({
+    ...query(['staff', 'skips', from, to], async () => check(await supabase.from('session_skips')
+      .select('player_id, session_date, activity_type_id, reason, note, profiles!inner(is_test)').eq('profiles.is_test', false)
+      .gte('session_date', from).lte('session_date', to).order('session_date'))),
+    enabled: !!from && !!to,
+  })
+}
 export function useAllLogs(from: string, to: string, playerId?: string) {
   return useQuery({
     ...query(['staff', 'logs', from, to, playerId ?? 'all'], (): Promise<Log[]> => fetchAll((a, b) => {

@@ -15,7 +15,6 @@ import {
   type ActivityType, type Heat, type Log, type MatrixRow, type Pillar, type RpeRange, type WeekType,
 } from './load'
 import { useAllLogs, useAllPlan, useReference, useRoster, useTargetRpes } from './useStaff'
-import { MissingRpeCard } from './TodayView'
 import { Loading } from '../../components/ui/Loading'
 
 // Un tableau à la fois : le résumé du coach d'abord, le détail sur demande
@@ -93,7 +92,10 @@ export function WeekView() {
 
       <div className="flex flex-col gap-8">
       {tab === 'resume' && <CoachSummary m={m} wt={wt} code={week.code} pillars={pillarSplit(weekLogs, types, wt)} alerts={alerts}
-        missing={plan.data ? missingRpe(roster.data, plan.data, weekLogs, types, week.start_date, [weekEnd(week), addDays(parisDate(), -1)].sort()[0]) : null} />}
+        missing={plan.data ? missingRpe(roster.data, plan.data, weekLogs, types, week.start_date, [weekEnd(week), addDays(parisDate(), -1)].sort()[0]) : null}
+        gaps={l => rpeGap(l.rpe, sessionTarget(l, plan.data ?? [], week.week_type_code, targets.data ?? []).range)}
+        rpeText={l => rpeVsTarget(l.rpe, sessionTarget(l, plan.data ?? [], week.week_type_code, targets.data ?? []).range)}
+        logs={weekLogs} types={types} />}
       {tab === 'charge' && <LoadTable m={m} alerts={alerts} weekStart={week.start_date} />}
       {tab === 'rpe' && <RpeTable data={rpeMatrix(roster.data, weekLogs, week.start_date)} logs={weekLogs} types={types} weekStart={week.start_date}
         target={l => sessionTarget(l, plan.data ?? [], week.week_type_code, targets.data ?? []).range} />}
@@ -120,8 +122,9 @@ type Alerts = Map<string, { hot: ReturnType<typeof hotSessions>; pace: ReturnTyp
 const HEAT_CELL: Record<Heat, string> = { warn: 'bg-gold/20 font-semibold', bad: 'bg-rnr/25 font-semibold text-rnr' }
 const shortDay = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-FR', { weekday: 'short', timeZone: 'UTC' })
 
-function CoachSummary({ m, wt, code, pillars, alerts, missing }: {
-  m: ReturnType<typeof weekMatrix>; wt: WeekType | null; code: string; pillars: ReturnType<typeof pillarSplit>; alerts: Alerts; missing: ReturnType<typeof missingRpe> | null
+function CoachSummary({ m, wt, code, pillars, alerts, missing, gaps, rpeText, logs, types }: {
+  m: ReturnType<typeof weekMatrix>; wt: WeekType | null; code: string; pillars: ReturnType<typeof pillarSplit>; alerts: Alerts
+  missing: ReturnType<typeof missingRpe> | null; gaps: (l: Log) => ReturnType<typeof rpeGap>; rpeText: (l: Log) => string; logs: Log[]; types: ActivityType[]
 }) {
   const bars = [...m.rows].sort((a, b) => b.total - a.total).map(r => ({
     name: fullName(r.player), total: r.total,
@@ -129,10 +132,27 @@ function CoachSummary({ m, wt, code, pillars, alerts, missing }: {
   }))
   const under = m.anomalies.filter(r => r.status === 'sous-charge')
   const over = m.anomalies.filter(r => r.status === 'surcharge')
-  const injured = m.rows.filter(r => r.player.injured)
-  const ahead = m.rows.filter(r => alerts.get(r.player.id)?.pace?.over)
-  const hot = m.rows.flatMap(r => (alerts.get(r.player.id)?.hot ?? []).map(h => ({ ...h, player: r.player })))
-    .sort((a, b) => b.srpe / b.max - a.srpe / a.max)
+  const name = (l: Log) => types.find(t => t.id === l.activity_type_id)?.name ?? '—'
+  const worst = (heats: (Heat | null)[]): Heat => (heats.includes('bad') ? 'bad' : 'warn')
+  // Un joueur par ligne, ses points d'attention en étiquettes ; le détail se déplie au clic (onglet Semaine allégé)
+  const watch = m.rows.map(r => {
+    const id = r.player.id, issues: Issue[] = []
+    const miss = missing?.find(x => x.player.id === id)
+    if (miss) issues.push({ label: `${miss.missed} RPE non déclaré${miss.missed > 1 ? 's' : ''}`, tone: miss.missed / miss.planned >= 0.25 ? 'bad' : 'warn',
+      detail: miss.days.map(d => `${shortDay(d.date)} : ${d.missing.join(', ')}`) })
+    const pace = alerts.get(id)?.pace
+    if (pace?.over) issues.push({ label: `rythme ${pct(pace.pct ?? 0)}`, tone: 'bad', detail: [`${r.total} UA pour ${pace.limit} au rythme de la semaine (${pace.share} % du planning passé)`] })
+    const hot = alerts.get(id)?.hot ?? []
+    if (hot.length) issues.push({ label: `${hot.length} séance${hot.length > 1 ? 's' : ''} trop haute${hot.length > 1 ? 's' : ''}`, tone: worst(hot.map(h => h.heat)),
+      detail: hot.map(h => `${shortDay(h.date)} ${h.name} : ${h.srpe} UA pour un seuil de ${h.max}`) })
+    const off = logs.filter(l => l.player_id === id).map(l => ({ l, g: gaps(l) })).filter(x => x.g?.heat)
+    if (off.length) issues.push({ label: `${off.length} RPE hors fourchette`, tone: worst(off.map(x => x.g!.heat)),
+      detail: off.map(x => `${shortDay(x.l.session_date)} ${name(x.l)} : ${rpeText(x.l)}`) })
+    if (r.status && r.status !== 'conforme' && !r.player.injured) issues.push({ label: r.status, tone: STATUS_TONE[r.status], detail: [`${r.total} UA, ${pct(r.pct)} de la charge visée`] })
+    if (r.player.injured) issues.push({ label: 'blessé', tone: 'neutral', detail: ['Suivi de réhab (séances, douleur) dans sa fiche joueur'] })
+    return { player: r.player, issues }
+  }).filter(w => w.issues.some(i => i.tone !== 'neutral') || w.player.injured)
+    .sort((a, b) => b.issues.filter(i => i.tone === 'bad').length - a.issues.filter(i => i.tone === 'bad').length || b.issues.length - a.issues.length)
   const shownPillars = pillars.filter(p => p.pct > 0)
 
   const verdict = m.groupStatus ? { 'sous-charge': 'en sous-charge', conforme: 'dans la plage visée', surcharge: 'en surcharge' }[m.groupStatus] : null
@@ -173,36 +193,7 @@ function CoachSummary({ m, wt, code, pillars, alerts, missing }: {
         </div>
 
         <div className="flex flex-col gap-4">
-          <MissingRpeCard data={missing} title={`RPE non déclarés en ${code}`} />
-
-          <Card title="Charge trop haute" help="Rythme : charge du joueur comparée à la charge visée de la semaine, au prorata du planning déjà passé. Séances : charge au-dessus du seuil de la séance (haut de la fourchette de RPE visé × durée prévue, Programmation › RPE visés et seuils), orange puis rouge au-delà de 1,25 × le seuil.">
-            {m.inProgress && (ahead.length
-              ? <Group title={`Au-dessus du rythme de la semaine (${ahead.length})`} rows={ahead} tone="bad"
-                  detail={r => { const p = alerts.get(r.player.id)!.pace!; return `${r.total} UA pour ${p.limit} au rythme (${p.share} % du planning passé)` }} />
-              : <p className="text-sm text-ok">Aucun joueur au-dessus du rythme de la semaine.</p>)}
-            {hot.length > 0 ? (
-              <div>
-                <p className="text-sm font-semibold">Séances au-dessus du seuil ({hot.length})</p>
-                <ul className="mt-1 flex flex-col gap-1 text-sm">
-                  {hot.slice(0, 8).map((h, i) => (
-                    <li key={i} className="flex items-center gap-2">
-                      <Badge tone={h.heat}>{h.srpe} UA</Badge>
-                      <span><Link to={`/staff/joueur/${h.player.id}`} className="font-semibold hover:underline">{fullName(h.player)}</Link> · {shortDay(h.date)} · {h.name} <span className="text-ink/60">(seuil {h.max})</span></span>
-                    </li>
-                  ))}
-                  {hot.length > 8 && <li className="text-ink/60">… et {hot.length - 8} autre{hot.length - 8 > 1 ? 's' : ''} (onglet « Charge par joueur »)</li>}
-                </ul>
-              </div>
-            ) : <p className="text-sm text-ok">Aucune séance au-dessus du seuil de son activité.</p>}
-          </Card>
-
-          <Card title="Joueurs hors plage" help="Joueurs aptes dont la charge de la semaine sort de la plage visée. Un nom ouvre sa fiche.">
-            {m.inProgress && <p className="text-sm text-ink/70">Semaine en cours : la liste se remplit une fois la semaine terminée.</p>}
-            <Group title={`En sous-charge (${under.length})`} rows={under} tone="warn" />
-            <Group title={`En surcharge (${over.length})`} rows={over} tone="bad" />
-            {injured.length > 0 && <Group title={`Blessés, hors alertes (${injured.length})`} rows={injured} tone="neutral" />}
-            {!m.inProgress && !under.length && !over.length && <p className="text-sm text-ok">Tous les joueurs aptes sont dans la plage.</p>}
-          </Card>
+          <WatchCard rows={watch} code={code} inProgress={m.inProgress} counts={{ under: under.length, over: over.length }} />
 
           <Card title="Répartition de l'activité" help="Part du temps passé dans chaque pilier ; la cible du type de semaine entre parenthèses.">
             {shownPillars.length === 0 ? <p className="text-sm text-ink/70">Aucune activité déclarée.</p> : (
@@ -235,21 +226,47 @@ function CoachSummary({ m, wt, code, pillars, alerts, missing }: {
   )
 }
 
-function Group({ title, rows, tone, detail }: { title: string; rows: MatrixRow[]; tone: 'warn' | 'bad' | 'neutral'; detail?: (r: MatrixRow) => string }) {
-  if (!rows.length) return null
+type Issue = { label: string; tone: 'warn' | 'bad' | 'neutral'; detail: string[] }
+
+// « À surveiller » : un joueur par ligne avec ses étiquettes (RPE non déclarés, rythme, séances trop hautes, RPE hors
+// fourchette, sous / surcharge, blessé) ; un clic déplie le détail jour par jour
+function WatchCard({ rows, code, inProgress, counts }: {
+  rows: { player: MatrixRow['player']; issues: Issue[] }[]; code: string; inProgress: boolean; counts: { under: number; over: number }
+}) {
+  const [open, setOpen] = useState<string | null>(null)
   return (
-    <div>
-      <p className="text-sm font-semibold">{title}</p>
-      <ul className="mt-1 flex flex-wrap gap-2">
-        {rows.map(r => (
-          <li key={r.player.id}>
-            <Link to={`/staff/joueur/${r.player.id}`} className="hover:underline">
-              <Badge tone={tone}>{fullName(r.player)} · {detail ? detail(r) : `${r.total} UA · ${pct(r.pct)}`}</Badge>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <Card title={`À surveiller en ${code} · ${rows.length}`}
+      help="Clique sur un joueur pour le détail jour par jour.">
+      {!rows.length ? <p className="text-sm text-ok">Rien à signaler cette semaine.</p> : (
+        <ul className="flex flex-col">
+          {rows.map(({ player, issues }) => {
+            const expanded = open === player.id
+            return (
+              <li key={player.id} className="border-t border-line first:border-0">
+                <button type="button" onClick={() => setOpen(expanded ? null : player.id)} aria-expanded={expanded}
+                  className="flex w-full flex-wrap items-center gap-x-2 gap-y-1 py-2 text-left text-sm">
+                  <span className="font-semibold">{fullName(player)}</span>
+                  {issues.map(i => <Badge key={i.label} tone={i.tone}>{i.label}</Badge>)}
+                  <span aria-hidden="true" className="ml-auto text-ink/50">{expanded ? '▴' : '▾'}</span>
+                </button>
+                {expanded && (
+                  <div className="mb-2 flex flex-col gap-1.5 rounded-lg bg-field/60 px-3 py-2 text-sm">
+                    {issues.map(i => (
+                      <div key={i.label}>
+                        <p className="font-semibold">{i.label}</p>
+                        <ul className="text-ink/75">{i.detail.map((d, k) => <li key={k}>{d}</li>)}</ul>
+                      </div>
+                    ))}
+                    <Link to={`/staff/joueur/${player.id}`} className="self-start text-gold hover:underline">Ouvrir sa fiche</Link>
+                  </div>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      {!inProgress && !counts.under && !counts.over && <p className="text-xs text-ink/60">Tous les joueurs aptes sont dans la plage de la semaine.</p>}
+    </Card>
   )
 }
 

@@ -8,6 +8,7 @@ import { formatDay } from '../../lib/week'
 import { fullName, type Player } from './load'
 import { ACTIVITIES, LOCATIONS, MECHANISMS, ONSETS, TISSUES, byPhase, epidemiology, planProgress, type InjuryRecord, type Step } from './medical'
 import { readRehabPlan, type RehabPlan } from './parseRehabPlan'
+import { PlanTimeline } from './PlanTimeline'
 import { useDeleteStep, useImportPlan, useSaveInjury, useSaveStep } from './useStaff'
 
 // Blocs de l'onglet Médical (étape 13) : fiche blessure, plan de retour, rapport d'épidémiologie
@@ -228,42 +229,26 @@ function PlanStrip({ p }: { p: ReturnType<typeof planProgress> }) {
   )
 }
 
+// Présentation du plan (staff) : où en est le joueur en 4 chiffres, la frise des étapes, puis le plan détaillé étape par étape
 export function PlanOverview({ injury, steps, today }: { injury: Injury; steps: Step[]; today: string }) {
   const p = planProgress(steps, injury.occurred_on, today)
   if (!p.total) return <p className="text-sm text-ink/60">Pas encore de plan : importe-le ou crée-le dans « Préparer le plan et les séances ».</p>
+  const since = Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${injury.occurred_on}T00:00:00Z`)) / 86_400_000)
   return (
-    <section aria-label="Présentation du plan de retour" className="flex flex-col gap-2">
-      <p className="text-sm">
-        {p.current ? <>Étape <strong>{p.index + 1}/{p.total}</strong> : {p.current.title} · <strong>{p.remainingDays} jour{p.remainingDays > 1 ? 's' : ''}</strong> théoriques restants
-          {p.returnDate && <> · retour estimé le <strong>{formatDay(p.returnDate)}</strong></>}</> : <span className="text-ok">Toutes les étapes sont validées.</span>}
-      </p>
+    <section aria-label="Présentation du plan de retour" className="flex flex-col gap-5">
+      <div className="flex flex-wrap gap-3">
+        <Kpi label="Étape en cours" value={p.current ? `${p.index + 1} / ${p.total}` : 'terminé'} hint={p.current?.title ?? 'Toutes les étapes sont validées'} />
+        <Kpi label="Depuis la blessure" value={`J+${since}`} hint={`le ${formatDay(injury.occurred_on)}`} />
+        <Kpi label="Restant (théorique)" value={`${p.remainingDays} j`} hint={`${p.done} étape${p.done > 1 ? 's' : ''} validée${p.done > 1 ? 's' : ''}`} />
+        <Kpi label="Retour estimé" value={p.returnDate ? shortDay(p.returnDate) : '—'} tone={p.current ? 'neutral' : 'ok'} hint={p.returnDate ? formatDay(p.returnDate) : undefined} />
+      </div>
       <PlanStrip p={p} />
-      {byPhase(p.ordered).map((g, gi) => (
-        <div key={`${g.phase}-${gi}`} className="flex flex-col">
-          {g.phase && <p className="mt-2 rounded bg-field px-2 py-1 text-sm font-semibold">{g.steps.every(s => s.validated_on) ? '✓ ' : ''}{g.phase}{g.days != null && <span className="font-normal text-ink/60"> · {g.days} jours</span>}</p>}
-          <ol className="flex flex-col">
-            {g.steps.map(s => (
-              <li key={s.id} className={`border-t border-line/60 py-2 text-sm first:border-0 ${p.current?.id === s.id ? 'rounded-lg border-l-2 border-l-gold bg-gold/10 px-3' : ''}`}>
-                <p className="flex flex-wrap items-center gap-2">
-                  <span className="font-semibold">{s.validated_on ? <span className="text-ok">✓ </span> : `${s.position}. `}{s.title}</span>
-                  {s.is_test && <Badge tone="neutral">test / contrôle</Badge>}
-                  {s.validated_on ? <span className="text-xs text-ink/60">validée le {formatDay(s.validated_on)}</span>
-                    : s.in_progress ? <Badge tone="warn">en cours</Badge> : <span className="text-xs text-ink/60">{s.planned_days} j</span>}
-                </p>
-                {(s.criteria || DETAILS.some(([k]) => s[k])) && (
-                  <dl className="mt-1 grid gap-x-4 gap-y-1 text-xs text-ink/75 sm:grid-cols-2">
-                    {([['Critères', s.criteria], ...DETAILS.map(([k, l]) => [l, s[k]] as const)] as const)
-                      .filter(([, v]) => v).map(([k, v]) => <div key={k}><dt className="font-semibold text-ink/60">{k}</dt><dd>{v}</dd></div>)}
-                  </dl>
-                )}
-              </li>
-            ))}
-          </ol>
-        </div>
-      ))}
+      <div className="max-w-4xl"><PlanTimeline p={p} occurredOn={injury.occurred_on} today={today} audience="staff" /></div>
     </section>
   )
 }
+
+const shortDay = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' })
 
 // Rapport d'épidémiologie du groupe sur une période (saison ou cycle)
 export function EpidemiologyCard({ injuries, players, exposure, from, to, today, period }: {

@@ -1,7 +1,7 @@
 // Aperçu visuel des écrans JOUEUR (390 × 844) sans compte ni donnée réelle : joueur fictif, réponses Supabase simulées,
 // toute autre requête vers Supabase bloquée.
-// Usage : npx vite --port 5199   puis   node scripts/ui-preview/player.mjs <dossier> [dark|light] [vide|a-noter]
-// « a-noter » : dernier match pas encore noté par le joueur. « vide » : état de forme du jour pas encore rempli (onglets verrouillés).
+// Usage : npx vite --port 5199   puis   node scripts/ui-preview/player.mjs <dossier> [dark|light] [vide|a-noter|blesse]
+// « blesse » : joueur blessé avec un plan de retour (étape 3 sur 6). « a-noter » : dernier match pas encore noté par le joueur. « vide » : état de forme du jour pas encore rempli (onglets verrouillés).
 import { readdirSync } from 'node:fs'
 import { chromium } from 'playwright'
 
@@ -52,7 +52,7 @@ function table(name, url) {
   switch (name) {
     case 'profiles': return [{ id: PLAYER, role: 'player', first_name: 'Léo', last_name: 'FICTIF' }]
     case 'wellness_entries': return p.get('entry_date')?.startsWith('eq.') ? wellness.filter(w => `eq.${w.entry_date}` === p.get('entry_date')) : wellness
-    case 'player_availability': return [{ status: 'apte' }]
+    case 'player_availability': return [{ status: scenario === 'blesse' ? 'blessé' : 'apte' }]
     case 'activity_types': return types
     case 'session_logs': return logs
     case 'planned_sessions': return p.get('select').includes('planned_exercises') ? [muscu] : [
@@ -83,16 +83,29 @@ await ctx.addInitScript(([ref, t, id]) => {
     user: { id, aud: 'authenticated', role: 'authenticated', email: 'leo.fictif@joueurs.rnr', app_metadata: {}, user_metadata: {}, created_at: '2026-01-01T00:00:00Z' },
   }))
 }, [REF, theme, PLAYER])
+// Plan de retour fictif (rpc my_return_plan : jamais d'actions kiné ni de commentaire côté joueur)
+const occurred = addDays(TODAY, -17)
+const plan = [
+  ['Soins et protection', 3, -14, 'Phase 1 : protéger', 'Diminuer la douleur et l\'œdème', 'Gainage, haut du corps assis'],
+  ['Réathlétisation en salle', 7, -4, 'Phase 2 : reconstruire', 'Retrouver force et proprioception', 'Mollets, squats, équilibre unipodal'],
+  ['Course individuelle', 7, null, 'Phase 2 : reconstruire', 'Courir sans douleur, appuis et changements de direction', 'Course en ligne puis appuis, 20 min'],
+  ['Collectif sans contact', 7, null, 'Phase 3 : revenir', 'Réintégrer le groupe sans contact', 'Séances collectives sans contact'],
+  ['Entraînement avec contact', 5, null, 'Phase 3 : revenir', 'Contact progressif', null],
+  ['Retour match', 0, null, 'Phase 3 : revenir', null, null],
+].map(([title, planned_days, v, phase, objectives, prepa_actions], i) => ({ occurred_on: occurred, id: `st${i}`, step: i + 1, title, planned_days,
+  validated_on: v === null ? null : addDays(TODAY, v), criteria: i === 2 ? 'Course, appuis et changements de direction sans douleur' : null,
+  phase, phase_days: null, objectives, prepa_actions, is_test: i === 4, in_progress: false }))
 const blocked = []
 await ctx.route(/supabase\.co\//, async route => {
   const req = route.request(); const url = new URL(req.url())
   const m = url.pathname.match(/\/rest\/v1\/([a-z_]+)$/)
+  if (url.pathname.endsWith('/rpc/my_return_plan')) return route.fulfill({ json: scenario === 'blesse' ? plan : [] })
   if (req.method() !== 'GET' || !m) { blocked.push(`${req.method()} ${url.pathname}`); return route.abort() }
   const rows = table(m[1], url)
   return route.fulfill({ json: (req.headers()['accept'] ?? '').includes('vnd.pgrst.object') ? (rows[0] ?? null) : rows })
 })
 const page = await ctx.newPage()
-const pages = scenario === 'vide' ? ['forme'] : ['accueil', 'seance', 'rugby', 'performance', 'forme', 'reglages']
+const pages = scenario === 'vide' ? ['forme'] : scenario === 'blesse' ? ['accueil'] : ['accueil', 'seance', 'rugby', 'performance', 'forme', 'reglages']
 for (const p of pages) {
   await page.goto(`http://localhost:5199${p === 'accueil' ? '/joueur' : `/joueur/${p}`}`)
   await page.waitForLoadState('networkidle'); await page.waitForTimeout(1500)

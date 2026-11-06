@@ -1,4 +1,3 @@
-import { Card } from '../../components/ui/Card'
 import { addDays, isoWeekStart } from '../../lib/week'
 import { Check, ChevronRight } from 'lucide-react'
 import { TabLink } from '../../components/ui/TabLink'
@@ -19,8 +18,8 @@ import { Loading } from '../../components/ui/Loading'
 
 const shortDay = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', timeZone: 'UTC' })
 
-// Accueil : résumé de la semaine (fatigue, charge, musculation, à venir), dernier match et profil de saison ; les maxi et objectifs
-// sont dans l'onglet Performance
+// Accueil, du plus urgent au plus calme : ce qu'il reste à faire, le plan de retour (blessé), le tableau du jour (fatigue,
+// charge), la semaine (avec la muscu et les jours à venir), le dernier match, le profil de saison. Maxi et objectifs : onglet Perf.
 export function HomeTab() {
   const { playerId, today } = usePlayerDay()
   // Les blocs apparaissent l'un après l'autre (une fois ; coupé si l'appareil demande moins d'animations)
@@ -28,11 +27,10 @@ export function HomeTab() {
   return (
     <>
       <div {...rise(0)}><CatchUp playerId={playerId} today={today} /></div>
-      <div {...rise(0)}><ReturnPlanCard today={today} /></div>
-      <div {...rise(0)}><Scoreboard playerId={playerId} today={today} /></div>
-      <div {...rise(1)}><TodoToday playerId={playerId} today={today} /></div>
-      <div {...rise(2)}><MyWeek playerId={playerId} date={today} footer={<MuscuWeek playerId={playerId} today={today} />} /></div>
-      <div {...rise(3)}><Upcoming playerId={playerId} today={today} /></div>
+      <div {...rise(0)}><TodoToday playerId={playerId} today={today} /></div>
+      <div {...rise(1)}><ReturnPlanCard today={today} /></div>
+      <div {...rise(2)}><Scoreboard playerId={playerId} today={today} /></div>
+      <div {...rise(3)}><MyWeek playerId={playerId} date={today} footer={<><MuscuWeek playerId={playerId} today={today} /><Upcoming playerId={playerId} today={today} /></>} /></div>
       <div {...rise(4)}><WeekendSummary playerId={playerId} /></div>
       <div {...rise(5)}><SeasonProfileCard playerId={playerId} date={today} /></div>
     </>
@@ -149,25 +147,25 @@ function MuscuWeek({ playerId, today }: { playerId: string; today: string }) {
   )
 }
 
+// Les 3 prochains jours avec activité (à partir de demain), en pied de « Ma semaine » : la suite se voit le moment venu
 function Upcoming({ playerId, today }: { playerId: string; today: string }) {
   const plan = usePlanRange(playerId, addDays(today, 1), addDays(today, 7)) // aujourd'hui : « À faire » et « Ma semaine »
   const availability = useAvailability(playerId)
-  if (plan.isPending || availability.isPending) return <Card title="À venir"><Loading /></Card>
-  if (plan.isError || availability.isError) return <Card title="À venir"><p>Impossible de charger ton planning.</p></Card>
-
-  // les 3 prochains jours avec activité (à partir de demain) : la suite se voit le moment venu, l'accueil reste court
+  if (plan.isPending || availability.isPending) return <Loading />
+  if (plan.isError || availability.isError) return <p className="text-sm">Impossible de charger ton planning.</p>
   const days = upcomingByDay(plan.data, { injured: availability.data === 'blessé' }).slice(0, 3)
   return (
-    <Card title="À venir">
+    <div className="flex flex-col gap-1.5 border-t border-line/60 pt-3">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-ink/50">À venir</h3>
       {days.length === 0 && <p className="text-sm text-ink/70">Rien de prévu sur les 7 prochains jours.</p>}
-      <ul className="flex flex-col gap-2 text-sm">
+      <ul className="flex flex-col gap-1.5 text-sm">
         {days.map(d => (
-          <li key={d.date} className="grid grid-cols-[5.5rem_1fr] gap-2">
+          <li key={d.date} className="grid grid-cols-[4.5rem_1fr] gap-2">
             <span className="font-display font-semibold first-letter:uppercase">{d.date === addDays(today, 1) ? 'Demain' : shortDay(d.date)}</span>
             <span className="text-ink/75">{d.activities.map(a => a.durationMin ? `${a.name} ${a.durationMin}'` : a.name).join(' · ')}</span>
           </li>
         ))}
       </ul>
-    </Card>
+    </div>
   )
 }

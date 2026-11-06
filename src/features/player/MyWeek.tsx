@@ -45,7 +45,7 @@ export function MyWeek({ playerId, date, footer }: { playerId: string; date: str
 
   return (
     <Card title="Ma semaine"
-      help="Barre : ta charge du jour (effort × minutes). Point : ta fatigue — vert ça va, jaune moyen, rouge à surveiller.">
+      help="Barre : charge du jour (effort × minutes) · point : fatigue (vert ça va, jaune moyen, rouge à surveiller).">
       <p className="leading-snug">
         <strong>{declared} activité{s(declared)} déclarée{s(declared)}</strong>{planned > 0 && <> sur {planned} prévue{s(planned)}</>} depuis lundi
         {' · '}<strong>{load.toLocaleString('fr-FR')} UA</strong> en {minutes} min.

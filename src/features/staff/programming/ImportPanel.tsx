@@ -64,7 +64,7 @@ export function ImportPanel() {
         <p>Fiche « Prénom NOM_PER MUSCULATION.xlsx » :</p>
         <ul className="list-disc pl-5">
           <li>un onglet par semaine du cycle, nommé « CYCLE 2 S1 », « C2S4 »… (S1 = première semaine du cycle, choisie ci-dessous), mêmes colonnes et blocs « Lundi : » que d'habitude ;
-            la réhab s'écrit dans ces onglets (blocs R1, R2…) ;</li>
+            joueur blessé : deux séances le même jour avec « Lundi RÉHAB : » et « Lundi MEMBRES SAINS : » ;</li>
           <li>un onglet OBJECTIFS (facultatif) : Test | Objectif | Libellé (ex. Développé Couché | 100 | 1RM).</li>
         </ul>
         <p>Une séance déjà programmée est remplacée, sauf si le joueur y a répondu. Jours passés et retours du fichier ignorés.
@@ -104,7 +104,7 @@ function FilePreview({ file, preview: p, season }: { file: string; preview: Prog
           <>
             <ul className="flex flex-col gap-0.5">
               {p.sessions.map(s => (
-                <li key={s.date}>{s.week} · {formatDay(s.date)} : {s.exercises.map(e => `${e.block_label} ${e.name}`).join(', ')}</li>
+                <li key={`${s.date}-${s.activity ?? ''}`}>{s.week} · {formatDay(s.date)}{s.activity ? ` · ${s.activity}` : ''} : {s.exercises.map(e => `${e.block_label} ${e.name}`).join(', ')}</li>
               ))}
             </ul>
             <p className="text-ink/70">
@@ -125,7 +125,7 @@ function FilePreview({ file, preview: p, season }: { file: string; preview: Prog
               : (
                 <div>
                   <Button size="sm" aria-label={`Importer la fiche de ${p.player!.first_name} ${p.player!.last_name}`} disabled={save.isPending} onClick={() => save.mutate(
-                    { playerId: p.player!.id, season, sessions: p.sessions.map(({ date, exercises }) => ({ date, exercises })), targets: p.targets.map(({ test_id, value, label }) => ({ test_id, value, label })) },
+                    { playerId: p.player!.id, season, sessions: p.sessions.map(({ date, activity, exercises }) => ({ date, activity, exercises })), targets: p.targets.map(({ test_id, value, label }) => ({ test_id, value, label })) },
                     { onSuccess: setResult },
                   )}>{save.isPending ? 'Import…' : 'Importer'}</Button>
                 </div>

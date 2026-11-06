@@ -44,6 +44,19 @@ describe('readProgram (import d\'une fiche en début de cycle)', () => {
     expect(p.targets).toEqual([{ test: 'Développé Couché', test_id: 't1', value: 100, label: '1RM' }])
     expect(p.newExercises).toEqual(['Isométrie genou']) // « développé couché » existe déjà (casse ignorée)
   })
+  it('joueur blessé : « Lundi RÉHAB » et « Lundi MEMBRES SAINS » donnent deux séances le même jour ; « Lundi » seul reste Musculation', () => {
+    const sheet = XLSX.utils.aoa_to_sheet([
+      ['', '', 'Séance PER - Semaine 7'], ['', '', 'Paul MARTIN'],
+      ['', 'Exercice', '', 'Séries', 'Répétitions', 'Charge (%RM/kg)', 'TEMPO', 'Repos'],
+      ['', 'Lundi RÉHAB :'], ['', 'R1', 'Isométrie genou', 3, "30''"],
+      ['', 'Lundi MEMBRES SAINS :'], ['', 'A1', 'développé couché', 4, 6, '80%'],
+      ['', 'Mardi :'], ['', 'A1', 'Front Squat', 5, 5, '100kg'],
+    ])
+    const p = readProgram(file({ C2S7: sheet }), ctx)
+    expect(p.errors).toEqual([])
+    expect(p.sessions.map(s => [s.date, s.activity ?? 'Musculation', s.exercises.length])).toEqual([
+      ['2026-10-26', 'Réhabilitation', 1], ['2026-10-26', 'Membres sains', 1], ['2026-10-27', 'Musculation', 1]])
+  })
   it('bloque sur une semaine absente du calendrier, un joueur inconnu ou un test inconnu', () => {
     const objectives = XLSX.utils.aoa_to_sheet([['Test', 'Objectif'], ['Squat 1RM', 'beaucoup']])
     const p = readProgram(file({ C2S7: weekSheet('Jean INCONNU'), C2S8: weekSheet('Jean INCONNU'), OBJECTIFS: objectives }), ctx)

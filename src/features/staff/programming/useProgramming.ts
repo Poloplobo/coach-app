@@ -189,7 +189,7 @@ export type ImportResult = { created: number; replaced: number; kept: number; pa
 export function useImportProgram() {
   return useStaffMutation(async (v: {
     playerId: string; season: string
-    sessions: { date: string; exercises: ImportExercise[] }[]; targets: { test_id: string; value: number; label: string | null }[]
+    sessions: { date: string; activity?: string; exercises: ImportExercise[] }[]; targets: { test_id: string; value: number; label: string | null }[]
   }) =>
     check(await supabase.rpc('import_muscu_program', {
       p_player: v.playerId, p_season: v.season, p_sessions: v.sessions as unknown as Json, p_targets: v.targets as unknown as Json,

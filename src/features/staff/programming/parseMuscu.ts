@@ -22,7 +22,10 @@ export type MuscuExercise = {
   instructions: string | null // consigne : charge libre, référence (« 3RM », « RER »), détail MOB écrit dans Séries
   tempo: string | null; rest: string | null; feedback: Feedback | null
 }
-export type MuscuSession = { date: string; exercises: MuscuExercise[] }
+// activity : séance d'un joueur blessé, d'après l'en-tête du jour (« Lundi RÉHAB : », « Lundi MEMBRES SAINS : ») ; sinon Musculation
+export type MuscuSession = { date: string; activity?: 'Réhabilitation' | 'Membres sains'; exercises: MuscuExercise[] }
+export const sessionActivity = (header: string): MuscuSession['activity'] =>
+  /r[ée]hab/i.test(header) ? 'Réhabilitation' : /membres?\s*sains?/i.test(header) ? 'Membres sains' : undefined
 
 const DAYS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
 const BLOCK = /^(MOB|F|[A-Z]\d+)$/
@@ -105,7 +108,7 @@ export function parseMuscuSheet(
   const sessions: MuscuSession[] = []
   for (const r of rows) {
     const day = DAYS.findIndex(d => new RegExp(`^${d}\\b`, 'i').test(r[0]?.trim() ?? ''))
-    if (day >= 0) { sessions.push({ date: addDays(monday, day), exercises: [] }); continue }
+    if (day >= 0) { sessions.push({ date: addDays(monday, day), activity: sessionActivity(r[0]), exercises: [] }); continue }
     const block = r[0]?.trim() ?? ''
     const name = text(r[1])
     if (!BLOCK.test(block) || !name || !sessions.length) continue

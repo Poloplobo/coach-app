@@ -17,7 +17,7 @@ export type ImportExercise = {
 }
 export type ProgramPreview = {
   playerName: string | null; player: Player | null
-  sessions: { date: string; week: string; exercises: ImportExercise[] }[]
+  sessions: { date: string; activity?: string; week: string; exercises: ImportExercise[] }[]
   targets: { test: string; test_id: string; value: number; label: string | null }[]
   newExercises: string[]; errors: string[]
   warnings: string[] // à vérifier, non bloquant
@@ -61,11 +61,12 @@ export function readProgram(
           name: e.name, block_label: e.block, sets: e.sets, reps: e.reps, load_value: e.loadValue, load_unit: e.loadUnit,
           tempo: e.tempo, rest: e.rest, instructions: e.instructions,
         }))
-        // Deux blocs du même jour dans un onglet (« Lundi matin », « Lundi soir ») : une seule séance de musculation par jour,
-        // exercices mis bout à bout. Deux onglets de même semaine restent bloqués plus haut.
-        const sameDay = preview.sessions.find(x => x.date === s.date)
+        // Deux blocs du même jour et de la même activité (« Lundi matin », « Lundi soir ») : une seule séance, exercices mis
+        // bout à bout. Blessé : « Lundi RÉHAB » et « Lundi MEMBRES SAINS » restent deux séances. Deux onglets de même semaine
+        // restent bloqués plus haut.
+        const sameDay = preview.sessions.find(x => x.date === s.date && x.activity === s.activity)
         if (sameDay) sameDay.exercises.push(...exercises)
-        else preview.sessions.push({ date: s.date, week: `S${n} du cycle · ${code}`, exercises })
+        else preview.sessions.push({ date: s.date, activity: s.activity, week: `S${n} du cycle · ${code}`, exercises })
       }
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))

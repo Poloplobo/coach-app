@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(158);
+select plan(162);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -165,6 +165,10 @@ select throws_ok($$insert into public.exercise_feedback (player_id, planned_exer
 select throws_ok($$insert into public.exercise_feedback (player_id, planned_exercise_id, status)
                    values ('00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-0000000000f1', 'fait')$$,
                  '42501', null, 'A ne peut pas saisir sur un exercice de la séance de B');
+select lives_ok($$update public.exercise_feedback set pain = 4 where player_id = '00000000-0000-0000-0000-00000000000a' and planned_exercise_id = '00000000-0000-0000-0000-0000000000f2'$$,
+                'A note sa douleur (EVA) sur un exercice de sa séance du jour');
+select throws_ok($$update public.exercise_feedback set pain = 11 where player_id = '00000000-0000-0000-0000-00000000000a' and planned_exercise_id = '00000000-0000-0000-0000-0000000000f2'$$,
+                 '23514', null, 'douleur EVA entre 0 et 10');
 select is_empty($$select 1 from public.exercise_feedback where player_id = '00000000-0000-0000-0000-00000000000b'$$,
                 'A ne lit pas le retour d''exercice de B');
 select is_empty($$update public.exercise_feedback set status = 'non fait'
@@ -279,6 +283,15 @@ select is((public.import_muscu_program('00000000-0000-0000-0000-00000000000b',
 select throws_ok($$select public.import_muscu_program('00000000-0000-0000-0000-00000000000b',
                    '[{"date":"2030-02-05","exercises":[{"name":"Squat test","load_value":"NaN","load_unit":"kg"}]}]', '2026-2027')$$,
                  'P0001', null, 'une charge invalide est refusée à l''import');
+
+-- Joueur blessé (0034) : Réhabilitation et Membres sains le même jour = deux séances ; activité hors liste refusée
+select is((public.import_muscu_program('00000000-0000-0000-0000-00000000000b',
+  '[{"date":"2030-03-12","activity":"Réhabilitation","exercises":[{"name":"Squat test","block_label":"R1","sets":3,"reps":"10"}]},
+    {"date":"2030-03-12","activity":"Membres sains","exercises":[{"name":"Squat test","block_label":"A1","sets":4,"reps":"6"}]}]', '2030-2031') ->> 'created')::int,
+  2, 'blessé : réhab et membres sains le même jour, deux séances');
+select throws_ok($$select public.import_muscu_program('00000000-0000-0000-0000-00000000000b',
+  '[{"date":"2030-03-13","activity":"Jeu au Poste","exercises":[{"name":"Squat test","block_label":"A1"}]}]', '2030-2031')$$,
+  'P0001', null, 'séance à exercices : seulement Musculation, Réhabilitation ou Membres sains');
 
 select is(public.import_muscu_program('00000000-0000-0000-0000-00000000000b',
             '[{"date":"2030-02-11","exercises":[{"name":"Squat test","block_label":"A1","sets":3,"reps":"5"},

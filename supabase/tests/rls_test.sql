@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(162);
+select plan(164);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -292,6 +292,16 @@ select is((public.import_muscu_program('00000000-0000-0000-0000-00000000000b',
 select throws_ok($$select public.import_muscu_program('00000000-0000-0000-0000-00000000000b',
   '[{"date":"2030-03-13","activity":"Jeu au Poste","exercises":[{"name":"Squat test","block_label":"A1"}]}]', '2030-2031')$$,
   'P0001', null, 'séance à exercices : seulement Musculation, Réhabilitation ou Membres sains');
+-- Validation du soir d'une séance de réhab : enregistrée sous son activité (0034)
+reset role;
+insert into public.exercise_feedback (player_id, planned_exercise_id, status, rpe, pain)
+select '00000000-0000-0000-0000-00000000000b', pe.id, 'fait', 5, 3 from public.planned_exercises pe join public.planned_sessions ps on ps.id = pe.planned_session_id
+where ps.player_id = '00000000-0000-0000-0000-00000000000b' and ps.session_date = '2030-03-12' and ps.title = 'Réhabilitation';
+select is(public.auto_validate_muscu('2030-03-12'), 1, 'validation du soir : la réhab remplie est validée, les membres sains vides restent');
+select is((select a.name from public.session_logs l join public.activity_types a on a.id = l.activity_type_id
+           where l.player_id = '00000000-0000-0000-0000-00000000000b' and l.session_date = '2030-03-12'), 'Réhabilitation', 'log de la réhab sous son activité');
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000c","role":"authenticated"}', true);
+set local role authenticated;
 
 select is(public.import_muscu_program('00000000-0000-0000-0000-00000000000b',
             '[{"date":"2030-02-11","exercises":[{"name":"Squat test","block_label":"A1","sets":3,"reps":"5"},

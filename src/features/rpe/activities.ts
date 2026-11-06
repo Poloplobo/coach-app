@@ -28,8 +28,9 @@ export function dayActivities(plan: PlannedRow[], { injured, includeMuscu = fals
   const individualIds = new Set<string>()
   for (const s of plan) {
     const a = s.activity_types
-    if (EXERCISE_SESSIONS.includes(a.name) && !includeMuscu) continue
     const individual = s.player_id !== null
+    // Séance individuelle à exercices : onglet Séance ; programmée pour le groupe, elle se déclare comme une activité
+    if (EXERCISE_SESSIONS.includes(a.name) && individual && !includeMuscu) continue
     if (injured && !individual) continue // blessé : seulement son programme individuel
     // Une seule déclaration par activité et par jour : le programme individuel l'emporte sur celui du groupe
     if (individualIds.has(a.id) && !individual) continue

@@ -12,7 +12,10 @@ export function SeanceTab() {
   const catchUp = useCatchUpDay(playerId, today).data
   // Une carte par type de séance programmé cette semaine : la musculation, ou pour un blessé la réhab et les membres sains
   const monday = isoWeekStart(today)
-  const week = useWeekProgram(playerId, monday, addDays(monday, 6)).data ?? []
+  const program = useWeekProgram(playerId, monday, addDays(monday, 6))
+  const yesterdayWeek = useWeekProgram(playerId, isoWeekStart(catchUp ?? today), addDays(isoWeekStart(catchUp ?? today), 6)) // rattrapage d'un dimanche
+  if (program.isPending) return null // pas de carte « Musculation » furtive chez un blessé
+  const week = [...(program.data ?? []), ...(yesterdayWeek.data ?? [])]
   const found = EXERCISE_SESSIONS.filter(a => week.some(s => s.activity_types.name === a))
   const activities = found.length ? found : [MUSCULATION]
   return (

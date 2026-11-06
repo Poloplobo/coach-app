@@ -265,7 +265,8 @@ function WatchCard({ rows, code, inProgress, counts }: {
           })}
         </ul>
       )}
-      {!inProgress && !counts.under && !counts.over && <p className="text-xs text-ink/60">Tous les joueurs aptes sont dans la plage de la semaine.</p>}
+      {inProgress ? <p className="text-xs text-ink/60">Semaine en cours : sous-charge et surcharge s'affichent une fois la semaine terminée.</p>
+        : !counts.under && !counts.over && <p className="text-xs text-ink/60">Tous les joueurs aptes sont dans la plage de la semaine.</p>}
     </Card>
   )
 }

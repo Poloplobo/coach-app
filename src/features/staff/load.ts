@@ -317,7 +317,7 @@ export function latecomers(
     const pendingYesterday = plan.some(s => {
       if (s.session_date !== yesterday || (s.player_id === null ? p.injured : s.player_id !== p.id)) return false
       const l = logs.find(x => x.player_id === p.id && x.session_date === yesterday && x.activity_type_id === s.activity_type_id)
-      return !l || (EXERCISE_SESSIONS.includes(s.activity_types?.name ?? '') && !l.validated_at)
+      return !l || (s.player_id !== null && EXERCISE_SESSIONS.includes(s.activity_types?.name ?? '') && !l.validated_at)
     })
     if (pendingYesterday) missing.push('RPE d\'hier')
     return missing.length ? [{ player: p, missing }] : []
@@ -335,12 +335,13 @@ export function missingRpe(players: Player[], plan: PlanItem[], logs: Pick<Log, 
     for (let d = from; d <= to; d = addDays(d, 1)) {
       if (!logs.some(l => l.session_date === d)) continue
       const mine = plan.filter(s => s.session_date === d && (s.player_id === null ? !p.injured : s.player_id === p.id))
-        .map(s => types.find(t => t.id === s.activity_type_id)).filter((t): t is ActivityType => !!t?.requires_rpe)
+        .map(s => ({ s, t: types.find(t => t.id === s.activity_type_id) })).filter((x): x is { s: PlanItem; t: ActivityType } => !!x.t?.requires_rpe)
       planned += mine.length
-      const missing = mine.filter(t => {
+      // Séance individuelle à exercices : comptée faite une fois validée ; le reste, dès qu'il est déclaré
+      const missing = mine.filter(({ s, t }) => {
         const l = logs.find(x => x.player_id === p.id && x.session_date === d && x.activity_type_id === t.id)
-        return !l || (EXERCISE_SESSIONS.includes(t.name) && !l.validated_at)
-      }).map(t => t.name)
+        return !l || (s.player_id !== null && EXERCISE_SESSIONS.includes(t.name) && !l.validated_at)
+      }).map(({ t }) => t.name)
       if (missing.length) days.push({ date: d, missing })
     }
     const missed = days.reduce((n, d) => n + d.missing.length, 0)

@@ -31,12 +31,13 @@ export function TodayActivities({ playerId, date, title = 'Mes activités du jou
   const shown = new Set([...plannedIds, ...extras.map(a => a.activityTypeId)])
   // Blessé : plus les activités du groupe, il ajoute son cardio et sa reprise terrain ; séances à exercices dans l'onglet Séance
   const injured = availability.data === 'blessé'
-  const addable = types.data.filter(t => !shown.has(t.id) && !EXERCISE_SESSIONS.includes(t.name) && (!injured || INJURED_EXTRAS.includes(t.name)))
+  // Blessé : son cardio, sa reprise terrain, et les activités sans RPE (kiné, soins, récupération, vidéo)
+  const addable = types.data.filter(t => !shown.has(t.id) && !EXERCISE_SESSIONS.includes(t.name) && (!injured || INJURED_EXTRAS.includes(t.name) || !t.requires_rpe))
 
   return (
     <Card title={title} help="Pour chaque activité : ton effort ressenti et la durée. Vidéo et soins : un simple « J'y étais ».">
       {availability.data === 'blessé' && (
-        <p className="rounded-lg border border-gold px-3 py-2 text-sm">Tu es noté blessé : tes séances de réhab et membres sains sont dans l'onglet Séance. Ici, ajoute ton cardio ou ta reprise terrain quand tu en fais.</p>
+        <p className="rounded-lg border border-gold px-3 py-2 text-sm">Tu es noté blessé : tes séances de réhab et membres sains sont dans l'onglet Séance. Ici, ajoute ton cardio, ta reprise terrain ou tes soins quand tu en fais.</p>
       )}
       {planned.length === 0 && extras.length === 0 && <p className="text-sm text-ink/70">Aucune activité prévue aujourd'hui.</p>}
       <ul className="flex flex-col divide-y divide-line/60">

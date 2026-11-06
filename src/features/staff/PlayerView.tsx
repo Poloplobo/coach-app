@@ -240,14 +240,14 @@ function SeasonCharts({ own, wellness, weeks, weekTypes, today }: {
 function MuscuWeek({ playerId, from }: { playerId: string; from: string }) {
   const program = useWeekProgram(playerId, from, addDays(from, 6))
   return (
-    <Card title="Musculation de la semaine" help="Part des exercices notés « fait » par le joueur, séance par séance.">
+    <Card title="Séances à exercices de la semaine" help="Musculation (réhab et membres sains pour un blessé) : part des exercices notés « fait » par le joueur, séance par séance.">
       {!program.data?.length && <p className="text-sm text-ink/70">Pas de séance de musculation cette semaine.</p>}
       <ul className="text-sm flex flex-col gap-1">
         {program.data?.map(s => {
           const c = completion(s.planned_exercises)
           return (
             <li key={s.id} className="flex justify-between border-t border-line pt-1">
-              <span>{DAY_NAMES[(new Date(`${s.session_date}T00:00:00Z`).getUTCDay() + 6) % 7]}</span>
+              <span>{DAY_NAMES[(new Date(`${s.session_date}T00:00:00Z`).getUTCDay() + 6) % 7]}{s.activity_types.name !== 'Musculation' && <span className="text-ink/60"> · {s.activity_types.name}</span>}</span>
               <span>{c.done}/{c.total} exercices faits · <Badge tone={c.pct >= 80 ? 'ok' : c.pct >= 50 ? 'warn' : 'bad'}>{c.pct} %</Badge></span>
             </li>
           )

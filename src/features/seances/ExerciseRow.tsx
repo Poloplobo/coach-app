@@ -132,7 +132,7 @@ export function ExerciseRow({ playerId, exercise, editable, maxes = [], last, pa
             <RpePicker label="RPE de l'exercice" value={rpe} onChange={setRpe} />
           </>
         )}
-        {askPain && status && (
+        {askPain && status && status !== 'non fait' && (
           <ScalePicker label="Douleur pendant l'exercice (EVA)" min={0} max={10} value={pain} onChange={setPain}
             low="0 : aucune" high="10 : maximale" hint="Échelle visuelle analogique : ta douleur sur la zone blessée, de 0 à 10." />
         )}

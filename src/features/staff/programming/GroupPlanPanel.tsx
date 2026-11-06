@@ -3,7 +3,7 @@ import { Card } from '../../../components/ui/Card'
 import { Loading } from '../../../components/ui/Loading'
 import { ViewSelect } from '../../../components/ui/ViewSelect'
 import { addDays, parisDate } from '../../../lib/week'
-import { MUSCULATION } from '../../rpe/activities'
+import { EXERCISE_SESSIONS, MUSCULATION } from '../../rpe/activities'
 import { formatRange, parseRpeRange, plannedLoad, rangeMid, weekOf, type RpeRange } from '../load'
 import { useAllPlan, useReference, useTargetRpes } from '../useStaff'
 import { planByDay } from './programming'
@@ -46,7 +46,8 @@ export function GroupPlanPanel() {
   const total = groupLoad + muscuLoad
 
   // La musculation est individuelle : elle se programme joueur par joueur
-  const types = ref.data.types.filter(t => t.name !== MUSCULATION).sort((a, b) => a.name.localeCompare(b.name))
+  // Musculation, réhab, membres sains : individuelles (fiche du joueur), jamais au planning du groupe
+  const types = ref.data.types.filter(t => !EXERCISE_SESSIONS.includes(t.name)).sort((a, b) => a.name.localeCompare(b.name))
   const days = planByDay(plan.data ?? [], week.start_date)
 
   return (

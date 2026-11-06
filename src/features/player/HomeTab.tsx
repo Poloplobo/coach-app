@@ -140,7 +140,7 @@ function MuscuWeek({ playerId, today }: { playerId: string; today: string }) {
   const left = program.data.filter(s => s.session_date > today).length
   return (
     <p className="text-sm">
-      <span className="font-semibold">Musculation</span> <span className="text-ink/70">
+      <span className="font-semibold">{program.data.every(s => s.activity_types.name === 'Musculation') ? 'Musculation' : 'Réhab et membres sains'}</span> <span className="text-ink/70">
         {c.done}/{c.total} exercices faits ({c.pct} %){left > 0 && ` · ${left} séance${left > 1 ? 's' : ''} encore prévue${left > 1 ? 's' : ''}`}
       </span>
     </p>

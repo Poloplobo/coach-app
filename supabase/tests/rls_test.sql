@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(164);
+select plan(172);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -571,6 +571,31 @@ select case when extract(isodow from public.paris_today()) = 1
   else is((select session_date from public.planned_sessions where id = '00000000-0000-0000-0000-0000000000b8'), public.paris_today(), 'la séance reprise est déplacée à aujourd''hui') end;
 select is_empty($$update public.planned_sessions set session_date = public.paris_today() + 1 where id = '00000000-0000-0000-0000-0000000000b8' returning 1$$,
                 'B ne déplace pas lui-même une séance (planning réservé au staff)');
+
+-- Module médical (0036) : fiche blessure créée à la déclaration, plan visible du joueur, fiche réservée au staff
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000d","role":"authenticated"}', true);
+set local role authenticated;
+select lives_ok($$insert into public.player_availability (player_id, status, since) values ('00000000-0000-0000-0000-00000000000b', 'blessé', public.paris_today() - 2)
+                  on conflict (player_id) do update set status = 'blessé', since = excluded.since$$, 'l''admin déclare B blessé');
+select is((select count(*)::int from public.injuries where player_id = '00000000-0000-0000-0000-00000000000b' and ended_on is null), 1, 'fiche blessure créée automatiquement');
+select is((select count(*)::int from public.injury_steps where player_id = '00000000-0000-0000-0000-00000000000b'), 6, 'plan de retour par défaut en 6 étapes');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}', true);
+set local role authenticated;
+select is((select count(*)::int from public.injury_steps), 6, 'B lit les étapes de son plan');
+select is_empty($$select 1 from public.injuries$$, 'B ne lit pas sa fiche blessure (diagnostic, alertes)');
+select is_empty($$update public.injury_steps set validated_on = public.paris_today() returning 1$$, 'B ne valide pas lui-même une étape');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+set local role authenticated;
+select is_empty($$select 1 from public.injury_steps$$, 'A ne lit pas le plan de B');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000d","role":"authenticated"}', true);
+set local role authenticated;
+update public.player_availability set status = 'apte', since = public.paris_today() where player_id = '00000000-0000-0000-0000-00000000000b';
+select is((select ended_on from public.injuries where player_id = '00000000-0000-0000-0000-00000000000b' order by occurred_on desc limit 1), public.paris_today(),
+          'retour « apte » : la fiche est close (jours d''absence)');
 
 -- ---------- Visiteur non connecté ----------
 reset role;

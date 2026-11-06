@@ -421,6 +421,18 @@ export type Database = {
           },
         ]
       }
+      injuries: {
+        Row: { activity: string | null; alerts: Json; created_at: string; created_by: string | null; diagnosis: string | null; ended_on: string | null; id: string; location: string | null; mechanism: string | null; notes: string | null; occurred_on: string; onset: string | null; player_id: string; recurrence: boolean; tissue: string | null }
+        Insert: { activity?: string | null; alerts?: Json; created_at?: string; created_by?: string | null; diagnosis?: string | null; ended_on?: string | null; id?: string; location?: string | null; mechanism?: string | null; notes?: string | null; occurred_on: string; onset?: string | null; player_id: string; recurrence?: boolean; tissue?: string | null }
+        Update: { activity?: string | null; alerts?: Json; diagnosis?: string | null; ended_on?: string | null; location?: string | null; mechanism?: string | null; notes?: string | null; occurred_on?: string; onset?: string | null; recurrence?: boolean; tissue?: string | null }
+        Relationships: []
+      }
+      injury_steps: {
+        Row: { criteria: string | null; id: string; injury_id: string; planned_days: number; player_id: string; position: number; title: string; validated_by: string | null; validated_on: string | null }
+        Insert: { criteria?: string | null; id?: string; injury_id: string; planned_days?: number; player_id: string; position: number; title: string; validated_by?: string | null; validated_on?: string | null }
+        Update: { criteria?: string | null; planned_days?: number; position?: number; title?: string; validated_by?: string | null; validated_on?: string | null }
+        Relationships: []
+      }
       matches: {
         Row: {
           created_at: string
@@ -1286,6 +1298,7 @@ export type Database = {
       can_log_day: { Args: { p_date: string }; Returns: boolean }
       push_enabled_players: { Args: never; Returns: string[] }
       redo_muscu_session: { Args: { p_session: string }; Returns: undefined }
+      my_return_plan: { Args: never; Returns: { occurred_on: string; id: string; step: number; title: string; criteria: string | null; planned_days: number; validated_on: string | null }[] }
       can_rate_match: { Args: { p_match: string }; Returns: boolean }
       delete_muscu_session: { Args: { p_session: string }; Returns: undefined }
       duplicate_week: {

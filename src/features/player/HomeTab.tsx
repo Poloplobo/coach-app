@@ -13,6 +13,7 @@ import { fatiguePercent } from '../wellness/fatigue'
 import { useWellnessDay } from '../wellness/useWellness'
 import { useLogsRange } from '../rpe/useRpe'
 import { MyWeek } from './MyWeek'
+import { ReturnPlanCard } from './ReturnPlanCard'
 import { usePlayerDay } from './playerDay'
 import { Loading } from '../../components/ui/Loading'
 
@@ -27,6 +28,7 @@ export function HomeTab() {
   return (
     <>
       <div {...rise(0)}><CatchUp playerId={playerId} today={today} /></div>
+      <div {...rise(0)}><ReturnPlanCard today={today} /></div>
       <div {...rise(0)}><Scoreboard playerId={playerId} today={today} /></div>
       <div {...rise(1)}><TodoToday playerId={playerId} today={today} /></div>
       <div {...rise(2)}><MyWeek playerId={playerId} date={today} footer={<MuscuWeek playerId={playerId} today={today} />} /></div>

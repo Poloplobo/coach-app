@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabaseClient'
 import { useProfile, useUserId } from '../auth/useAuth'
 import type { WellnessItems } from '../wellness/items'
 import type { ActivityType, Log, Player, TargetRpe, WeekType } from './load'
+import type { InjuryRecord } from './medical'
 import type { StaffMuscuSession } from './muscu'
 import { EXERCISE_SESSIONS, MUSCULATION } from '../rpe/activities'
 
@@ -136,6 +137,46 @@ export function useStaffSaveWellness() {
       check(await supabase.from('wellness_entries')
         .upsert({ player_id: w.playerId, entry_date: w.date, ...w.items, source: 'staff' }, { onConflict: 'player_id,entry_date' }).select())
     },
+    onSuccess: () => invalidateStaff(qc),
+  })
+}
+
+// Fiches blessure (0036) : toutes, pour le suivi en cours et l'épidémiologie ; étapes des plans de retour
+export function useInjuryRecords() {
+  return useQuery(query(['staff', 'injury-records'], async () => (check(await supabase.from('injuries')
+    .select('id, player_id, occurred_on, ended_on, location, tissue, mechanism, onset, activity, recurrence, diagnosis, notes, alerts')
+    .order('occurred_on', { ascending: false })) as unknown as (InjuryRecord & { diagnosis: string | null; notes: string | null })[])))
+}
+export function useInjurySteps() {
+  return useQuery(query(['staff', 'injury-steps'], async () => check(await supabase.from('injury_steps')
+    .select('id, injury_id, player_id, position, title, criteria, planned_days, validated_on').order('position'))))
+}
+export function useSaveInjury() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...fields }: { id: string } & Partial<{ occurred_on: string; location: string | null; tissue: string | null; mechanism: string | null;
+      onset: string | null; activity: string | null; recurrence: boolean; diagnosis: string | null; notes: string | null }>) => {
+      check(await supabase.from('injuries').update(fields).eq('id', id).select('id'))
+    },
+    onSuccess: () => invalidateStaff(qc),
+  })
+}
+// Étape du plan de retour : ajout, modification, validation (date du jour) ou annulation, suppression
+export function useSaveStep() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (s: { id?: string; injury_id: string; player_id: string; position: number; title: string; criteria: string | null; planned_days: number; validated_on?: string | null }) => {
+      if (s.id) check(await supabase.from('injury_steps').update({ title: s.title, criteria: s.criteria, planned_days: s.planned_days, position: s.position,
+        ...(s.validated_on !== undefined ? { validated_on: s.validated_on } : {}) }).eq('id', s.id).select('id'))
+      else check(await supabase.from('injury_steps').insert({ injury_id: s.injury_id, player_id: s.player_id, position: s.position, title: s.title, criteria: s.criteria, planned_days: s.planned_days }).select('id'))
+    },
+    onSuccess: () => invalidateStaff(qc),
+  })
+}
+export function useDeleteStep() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => { check(await supabase.from('injury_steps').delete().eq('id', id).select('id')) },
     onSuccess: () => invalidateStaff(qc),
   })
 }

@@ -121,6 +121,15 @@ function table(name, url) {
     case 'player_availability': return p.get('player_id')
       ? [{ status: INJURED.includes(p.get('player_id').slice(3)) ? 'blessé' : 'apte', since: '2026-10-20', note: null }]
       : INJURED.map(player_id => ({ player_id, status: 'blessé', since: '2026-10-20', note: 'Entorse cheville droite (fictif)' }))
+    case 'injuries': return [
+      { id: 'inj1', player_id: 'p5', occurred_on: '2026-10-20', ended_on: null, location: 'cheville', tissue: 'ligament', mechanism: 'plaque', onset: 'soudaine', activity: 'match', recurrence: false,
+        diagnosis: 'Entorse LLE (fictif)', notes: null, alerts: { wellness_days: 22, alert_days: 3, items_at_1: { fatigue: 2, 'courbatures bas': 1 }, acute: 2400, chronic: 1700 } },
+      { id: 'inj0', player_id: 'p2', occurred_on: '2026-09-28', ended_on: '2026-10-09', location: 'cuisse', tissue: 'muscle_tendon', mechanism: 'sans_contact', onset: 'soudaine', activity: 'entrainement', recurrence: false,
+        diagnosis: null, notes: null, alerts: { wellness_days: 18, alert_days: 0, acute: 1500, chronic: 1600 } },
+    ]
+    case 'injury_steps': return ['Soins et protection', 'Réathlétisation en salle', 'Course individuelle', 'Collectif sans contact', 'Entraînement avec contact', 'Retour match']
+      .map((title, i) => ({ id: `st${i}`, injury_id: 'inj1', player_id: 'p5', position: i + 1, title, criteria: i === 2 ? 'Course, appuis et changements de direction sans douleur' : null,
+        planned_days: [3, 7, 7, 7, 5, 0][i], validated_on: i === 0 ? '2026-10-23' : i === 1 ? '2026-11-02' : null }))
     case 'activity_types': return types
     case 'week_types': return weekTypes
     case 'season_weeks': return weeks
@@ -155,7 +164,12 @@ await ctx.route(/supabase\.co\//, async route => {
   const req = route.request(); const url = new URL(req.url())
   const m = url.pathname.match(/\/rest\/v1\/([a-z_]+)$/)
   if (req.method() !== 'GET' || !m) { blocked.push(`${req.method()} ${url.pathname}`); return route.abort() }
-  const rows = filtered(table(m[1], url), url.searchParams)
+  const all = filtered(table(m[1], url), url.searchParams)
+  // Pagination comme Supabase (fetchAll lit par pages de 1000) : paramètres offset / limit ou en-tête Range
+  const range = (req.headers()['range'] ?? '').match(/^(\d+)-(\d+)$/)
+  const offset = Number(url.searchParams.get('offset') ?? range?.[1] ?? 0)
+  const limit = url.searchParams.get('limit') ? Number(url.searchParams.get('limit')) : range ? Number(range[2]) - Number(range[1]) + 1 : all.length
+  const rows = all.slice(offset, offset + limit)
   const one = (req.headers()['accept'] ?? '').includes('vnd.pgrst.object')
   return route.fulfill({ json: one ? (rows[0] ?? null) : rows })
 })

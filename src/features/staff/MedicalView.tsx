@@ -10,7 +10,9 @@ import { EXERCISE_SESSIONS } from '../rpe/activities'
 import { fatiguePercent } from '../wellness/fatigue'
 import { injurySummary } from './injury'
 import { fullName, weekOf, type Log, type Player } from './load'
-import { useAllLogs, useAllWellness, useInjuries, useMedicalSessions, useReference, useRoster } from './useStaff'
+import { useAllLogs, useAllWellness, useInjuries, useInjuryRecords, useInjurySteps, useMedicalSessions, useReference, useRoster } from './useStaff'
+import { EpidemiologyCard, InjuryForm, ReturnPlan } from './MedicalParts'
+import { useMatches, useRatings } from '../performance/usePerformance'
 
 // Onglet Médical (décision du 06/11/2026) : les joueurs déclarés blessés sortent de la semaine du groupe ; ici, pour chacun,
 // le condensé de sa semaine (séances de réhab et membres sains, charge, forme, douleur) et le détail de ses séances.
@@ -33,16 +35,40 @@ export function MedicalView() {
   const sessions = useMedicalSessions(ids, from ? addDays(from, -21) : '', to)
   const logs = useAllLogs(from, to)
   const wellness = useAllWellness(from, to)
+  const records = useInjuryRecords()
+  const steps = useInjurySteps()
+  // Épidémiologie : saison entière ou un cycle ; exposition = minutes déclarées + minutes de match saisies par le coach
+  const [period, setPeriod] = useState('saison')
+  const cycles = [...new Set(weeks.map(w => w.cycle).filter((c): c is string => !!c))]
+  const inPeriod = period === 'saison' ? weeks : weeks.filter(w => w.cycle === period)
+  const pFrom = inPeriod[0]?.start_date ?? ''
+  const pTo = [inPeriod.length ? addDays(inPeriod.at(-1)!.start_date, 6) : today, today].sort()[0]
+  const periodLogs = useAllLogs(pFrom, pTo)
+  const matches = useMatches()
+  const ratings = useRatings()
 
   if (ref.isPending || roster.isPending || injuries.isPending) return <Loading />
   if (ref.isError || roster.isError || injuries.isError) return <p role="alert">Impossible de charger le suivi médical.</p>
   if (!week) return <p>Aucune semaine dans le calendrier.</p>
 
+  const matchMin = (ratings.data ?? []).filter(r => r.rater === 'staff' && r.minutes)
+    .filter(r => { const d = matches.data?.find(m => m.id === r.match_id)?.match_date; return !!d && d >= pFrom && d <= pTo })
+    .reduce((n, r) => n + (r.minutes ?? 0), 0)
   return (
     <>
-      <ViewSelect label="Semaine" value={week.code} onChange={setCode}>
-        {weeks.map(w => <option key={w.code} value={w.code}>{w.code} · {w.label}</option>)}
-      </ViewSelect>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+        <ViewSelect label="Semaine" value={week.code} onChange={setCode}>
+          {weeks.map(w => <option key={w.code} value={w.code}>{w.code} · {w.label}</option>)}
+        </ViewSelect>
+        <ViewSelect label="Épidémiologie" value={period} onChange={setPeriod}>
+          <option value="saison">Saison</option>
+          {cycles.map(c => <option key={c} value={c}>{c}</option>)}
+        </ViewSelect>
+      </div>
+      {records.data && periodLogs.data && pFrom && (
+        <EpidemiologyCard injuries={records.data} players={roster.data} from={pFrom} to={pTo} today={today} period={period === 'saison' ? 'saison' : period}
+          exposure={{ trainingMin: periodLogs.data.reduce((n, l) => n + l.duration_min, 0), matchMin }} />
+      )}
       {!injured.length ? (
         <Card title="Aucun joueur blessé">
           <p className="text-sm text-ink/70">Un joueur déclaré blessé (fiche joueur › Gestion, réservé à l'admin) apparaît ici et sort de l'onglet Semaine.</p>
@@ -52,6 +78,7 @@ export function MedicalView() {
           <div className="flex flex-col gap-6">
             {injured.map(p => (
               <InjuredPlayer key={p.id} player={p} from={from} to={to} today={today} since={injuries.data.find(i => i.player_id === p.id)}
+                injury={records.data?.find(i => i.player_id === p.id && !i.ended_on)} steps={steps.data ?? []}
                 sessions={sessions.data.filter(s => s.player_id === p.id)} logs={logs.data.filter(l => l.player_id === p.id)}
                 wellness={wellness.data.filter(w => w.player_id === p.id)} types={ref.data.types} />
             ))}
@@ -63,8 +90,10 @@ export function MedicalView() {
 
 type Session = NonNullable<ReturnType<typeof useMedicalSessions>['data']>[number]
 
-function InjuredPlayer({ player, from, to, today, since, sessions, logs, wellness, types }: {
+function InjuredPlayer({ player, from, to, today, since, injury, steps, sessions, logs, wellness, types }: {
   player: Player; from: string; to: string; today: string; since?: { since: string; note: string | null }
+  injury?: NonNullable<ReturnType<typeof useInjuryRecords>['data']>[number]
+  steps: NonNullable<ReturnType<typeof useInjurySteps>['data']>
   sessions: Session[]; logs: Log[]; wellness: { entry_date: string; score: number | null; soreness_lower: number | null; soreness_upper: number | null }[]
   types: { id: string; name: string }[]
 }) {
@@ -99,6 +128,13 @@ function InjuredPlayer({ player, from, to, today, since, sessions, logs, wellnes
         <Kpi label="Forme" value={w?.score != null ? `${fatiguePercent(w.score)} % fatigue` : 'non remplie'}
           hint={w ? `${DAY(w.entry_date)} · courbatures bas ${w.soreness_lower ?? '—'}/5, haut ${w.soreness_upper ?? '—'}/5` : undefined} />
       </div>
+
+      {injury && (
+        <div className="grid gap-6 xl:grid-cols-2">
+          <ReturnPlan injury={injury} steps={steps.filter(s => s.injury_id === injury.id)} today={today} />
+          <InjuryForm injury={injury} />
+        </div>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-2">
         <section aria-label="Séances de la semaine" className="flex flex-col">

@@ -22,6 +22,8 @@ const roster = NAMES.map(([first_name, last_name], i) => ({ id: `p${i + 1}`, fir
 const INJURED = ['p5']
 
 const types = [
+  { id: 't-rehab', name: 'Réhabilitation', pillar: 'physique', requires_rpe: true, default_duration_min: 45 },
+  { id: 't-sains', name: 'Membres sains', pillar: 'physique', requires_rpe: true, default_duration_min: 45 },
   { id: 't-ct', name: 'Collectif Total', pillar: 'rugby', requires_rpe: true, default_duration_min: 90 },
   { id: 't-jp', name: 'Jeu au Poste', pillar: 'rugby', requires_rpe: true, default_duration_min: 45 },
   { id: 't-dt', name: 'Dév. Tactique', pillar: 'rugby', requires_rpe: true, default_duration_min: 30 },
@@ -64,8 +66,9 @@ const ex = (id, position, block_label, name, sets, reps, load_value, load_unit, 
 const muscu = []
 for (const wk of weeks) for (const p of roster.slice(0, 10)) for (const dayOffset of [1, 3]) {
   const d = addDays(wk.start_date, dayOffset), past = d <= TODAY, base = 90 + Number(p.id.slice(1)) * 3 + weeks.indexOf(wk) * 2.5
-  const fb = (s, load) => (past && rnd() > 0.15 ? { rpe: 6 + Math.round(rnd() * 3), done_load: s === 'fait' ? load : null, status: s, comment: null } : null)
-  muscu.push({ id: `m-${p.id}-${d}`, session_date: d, player_id: p.id, activity_types: { name: 'Musculation' }, planned_duration_min: 60, planned_exercises: [
+  const hurt = INJURED.includes(p.id) // blessé : réhab le mardi, membres sains le jeudi, douleur EVA
+  const fb = (s, load) => (past && rnd() > 0.15 ? { rpe: 6 + Math.round(rnd() * 3), done_load: s === 'fait' ? load : null, status: s, comment: null, pain: hurt ? Math.max(0, 6 - weeks.indexOf(wk) - Math.round(rnd() * 2)) : null } : null)
+  muscu.push({ id: `m-${p.id}-${d}`, session_date: d, player_id: p.id, activity_type_id: hurt ? (dayOffset === 1 ? 't-rehab' : 't-sains') : 't-mus', activity_types: { name: hurt ? (dayOffset === 1 ? 'Réhabilitation' : 'Membres sains') : 'Musculation' }, planned_duration_min: 60, planned_exercises: [
     ex(`${p.id}${d}a`, 1, 'A1', 'Squat arrière', 5, '5', Math.round(base), 'kg', fb(rnd() > 0.2 ? 'fait' : 'partiel', `5x${Math.round(base)}`)),
     ex(`${p.id}${d}b`, 2, 'B1', 'Développé couché', 4, '6', Math.round(base * 0.7), 'kg', fb(rnd() > 0.25 ? 'fait' : 'non fait', `4x${Math.round(base * 0.7)}`)),
     ex(`${p.id}${d}c`, 3, 'C1', 'Gainage latéral', 3, "30''", null, 'bw', fb('fait', null)),
@@ -117,7 +120,7 @@ function table(name, url) {
     case 'profiles': return p.get('id') ? [{ id: STAFF, role: 'admin', first_name: 'Paul', last_name: 'COACH' }] : roster
     case 'player_availability': return p.get('player_id')
       ? [{ status: INJURED.includes(p.get('player_id').slice(3)) ? 'blessé' : 'apte', since: '2026-10-20', note: null }]
-      : INJURED.map(player_id => ({ player_id, status: 'blessé' }))
+      : INJURED.map(player_id => ({ player_id, status: 'blessé', since: '2026-10-20', note: 'Entorse cheville droite (fictif)' }))
     case 'activity_types': return types
     case 'week_types': return weekTypes
     case 'season_weeks': return weeks
@@ -174,7 +177,7 @@ if (only === 'perf') {
     await page.getByLabel('Afficher').selectOption(v); await page.waitForTimeout(1200)
     heights[`prog-${v}`] = await page.evaluate(() => document.documentElement.scrollHeight); await shot(`prog-${v}`)
   }
-} else for (const [name, path] of [['today', '/staff'], ['semaine', '/staff/semaine'], ['muscu', '/staff/musculation'], ['joueur', '/staff/joueur/p3']]) {
+} else for (const [name, path] of [['today', '/staff'], ['semaine', '/staff/semaine'], ['muscu', '/staff/musculation'], ['medical', '/staff/medical'], ['joueur', '/staff/joueur/p3']]) {
   await open(path); heights[name] = await page.evaluate(() => document.documentElement.scrollHeight); await shot(name)
 }
 console.log({ heights, blocked: [...new Set(blocked)] })

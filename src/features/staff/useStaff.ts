@@ -5,7 +5,7 @@ import { useProfile, useUserId } from '../auth/useAuth'
 import type { WellnessItems } from '../wellness/items'
 import type { ActivityType, Log, Player, TargetRpe, WeekType } from './load'
 import type { StaffMuscuSession } from './muscu'
-import { MUSCULATION } from '../rpe/activities'
+import { EXERCISE_SESSIONS, MUSCULATION } from '../rpe/activities'
 
 // Le staff lit tout (RLS) ; un joueur qui appellerait ces requêtes ne recevrait que ses propres lignes.
 
@@ -137,6 +137,24 @@ export function useStaffSaveWellness() {
         .upsert({ player_id: w.playerId, entry_date: w.date, ...w.items, source: 'staff' }, { onConflict: 'player_id,entry_date' }).select())
     },
     onSuccess: () => invalidateStaff(qc),
+  })
+}
+
+// Joueurs déclarés blessés, depuis quand et la note de l'admin (onglet Médical)
+export function useInjuries() {
+  return useQuery(query(['staff', 'injuries'], async () => check(await supabase.from('player_availability')
+    .select('player_id, since, note').eq('status', 'blessé'))))
+}
+
+// Séances à exercices des joueurs blessés (onglet Médical) : exercices, statut, RPE, charge et douleur EVA
+export function useMedicalSessions(playerIds: string[], from: string, to: string) {
+  return useQuery({
+    enabled: playerIds.length > 0 && !!from,
+    ...query(['staff', 'medical', playerIds.join(','), from, to], async () => check(await supabase.from('planned_sessions')
+      .select(`id, session_date, player_id, activity_type_id, activity_types!inner(name),
+        planned_exercises(id, position, block_label, sets, reps, exercises(name), exercise_feedback(status, rpe, pain, done_load))`)
+      .in('player_id', playerIds).in('activity_types.name', EXERCISE_SESSIONS)
+      .gte('session_date', from).lte('session_date', to).order('session_date'))),
   })
 }
 

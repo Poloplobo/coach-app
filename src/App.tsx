@@ -14,6 +14,7 @@ const StaffLayout = lazy(() => import('./features/staff/StaffLayout').then(m => 
 const TodayView = lazy(() => import('./features/staff/TodayView').then(m => ({ default: m.TodayView })))
 const WeekView = lazy(() => import('./features/staff/WeekView').then(m => ({ default: m.WeekView })))
 const MuscuView = lazy(() => import('./features/staff/MuscuView').then(m => ({ default: m.MuscuView })))
+const MedicalView = lazy(() => import('./features/staff/MedicalView').then(m => ({ default: m.MedicalView })))
 const PlayerView = lazy(() => import('./features/staff/PlayerView').then(m => ({ default: m.PlayerView })))
 const ProgrammingView = lazy(() => import('./features/staff/programming/ProgrammingView').then(m => ({ default: m.ProgrammingView })))
 const StaffPerformanceView = lazy(() => import('./features/performance/StaffPerformanceView').then(m => ({ default: m.StaffPerformanceView })))
@@ -34,6 +35,7 @@ export default function App() {
         <Route index element={<TodayView />} />
         <Route path="semaine" element={<WeekView />} />
         <Route path="musculation" element={<MuscuView />} />
+        <Route path="medical" element={<MedicalView />} />
         <Route path="programmation" element={<ProgrammingView />} />
         <Route path="performance" element={<StaffPerformanceView />} />
         <Route path="joueur/:playerId?" element={<PlayerView />} />

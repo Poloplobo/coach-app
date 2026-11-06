@@ -49,7 +49,9 @@ export function WeekView() {
 
   const wt = ref.data.weekTypes.find(t => t.code === week.week_type_code) ?? null
   const weekLogs = logs.data ?? []
-  const m = weekMatrix(roster.data, weekLogs, week.start_date, wt, { inProgress: weekEnd(week) >= parisDate() })
+  // Blessés : suivis dans l'onglet Médical, hors de la semaine du groupe (charge et RPE ne s'y appliquent plus)
+  const players = roster.data.filter(p => !p.injured)
+  const m = weekMatrix(players, weekLogs, week.start_date, wt, { inProgress: weekEnd(week) >= parisDate() })
   const types = ref.data.types
   // Seuils de charge (0030) : séances au-dessus du seuil de leur activité, et rythme de la semaine en cours selon le planning
   const alerts: Alerts = new Map(m.rows.map(r => [r.player.id, {
@@ -78,11 +80,11 @@ export function WeekView() {
           <Button variant="ghost" size="sm" disabled={!!exporting} onClick={() => run('pptx', async () => {
             const [{ downloadWeekReport }, { weekReport }] = await Promise.all([import('./exportPptx'), import('./report')]) // pptxgenjs chargé au clic
             const inProgress = weekEnd(week) >= parisDate()
-            await downloadWeekReport(weekReport({ week, wt, players: roster.data, logs: weekLogs, inProgress }), week, wt, weekLogs, types, `PER_${week.code}_${week.start_date}.pptx`)
+            await downloadWeekReport(weekReport({ week, wt, players, logs: weekLogs, inProgress }), week, wt, weekLogs, types, `PER_${week.code}_${week.start_date}.pptx`)
           })}>
             {exporting === 'pptx' ? 'Préparation…' : `Résumé ${week.code} (PowerPoint)`}
           </Button>
-          <Button variant="ghost" size="sm" disabled={!!exporting} onClick={() => run('xlsx', () => downloadWeek(week, wt, roster.data, weekLogs, types))}>
+          <Button variant="ghost" size="sm" disabled={!!exporting} onClick={() => run('xlsx', () => downloadWeek(week, wt, players, weekLogs, types))}>
             {exporting === 'xlsx' ? 'Préparation…' : `Tableaux ${week.code} (Excel)`}
           </Button>
           {exportFailed && <p role="alert" className="w-full text-sm text-rnr">Création du fichier impossible : recharge la page et réessaie.</p>}
@@ -92,12 +94,12 @@ export function WeekView() {
 
       <div className="flex flex-col gap-8">
       {tab === 'resume' && <CoachSummary m={m} wt={wt} code={week.code} pillars={pillarSplit(weekLogs, types, wt)} alerts={alerts}
-        missing={plan.data ? missingRpe(roster.data, plan.data, weekLogs, types, week.start_date, [weekEnd(week), addDays(parisDate(), -1)].sort()[0]) : null}
+        missing={plan.data ? missingRpe(players, plan.data, weekLogs, types, week.start_date, [weekEnd(week), addDays(parisDate(), -1)].sort()[0]) : null}
         gaps={l => rpeGap(l.rpe, sessionTarget(l, plan.data ?? [], week.week_type_code, targets.data ?? []).range)}
         rpeText={l => rpeVsTarget(l.rpe, sessionTarget(l, plan.data ?? [], week.week_type_code, targets.data ?? []).range)}
         logs={weekLogs} types={types} />}
       {tab === 'charge' && <LoadTable m={m} alerts={alerts} weekStart={week.start_date} />}
-      {tab === 'rpe' && <RpeTable data={rpeMatrix(roster.data, weekLogs, week.start_date)} logs={weekLogs} types={types} weekStart={week.start_date}
+      {tab === 'rpe' && <RpeTable data={rpeMatrix(players, weekLogs, week.start_date)} logs={weekLogs} types={types} weekStart={week.start_date}
         target={l => sessionTarget(l, plan.data ?? [], week.week_type_code, targets.data ?? []).range} />}
       {tab === 'jours' && (
         <Card title="Synthèse collective jour par jour" help="Pour chaque jour : combien de joueurs ont déclaré, durée et charge moyennes. UA/min : intensité moyenne de la journée.">
@@ -149,9 +151,8 @@ function CoachSummary({ m, wt, code, pillars, alerts, missing, gaps, rpeText, lo
     if (off.length) issues.push({ label: `${off.length} RPE hors fourchette`, tone: worst(off.map(x => x.g!.heat)),
       detail: off.map(x => `${shortDay(x.l.session_date)} ${name(x.l)} : ${rpeText(x.l)}`) })
     if (r.status && r.status !== 'conforme' && !r.player.injured) issues.push({ label: r.status, tone: STATUS_TONE[r.status], detail: [`${r.total} UA, ${pct(r.pct)} de la charge visée`] })
-    if (r.player.injured) issues.push({ label: 'blessé', tone: 'neutral', detail: ['Suivi de réhab (séances, douleur) dans sa fiche joueur'] })
     return { player: r.player, issues }
-  }).filter(w => w.issues.some(i => i.tone !== 'neutral') || w.player.injured)
+  }).filter(w => w.issues.length > 0)
     .sort((a, b) => b.issues.filter(i => i.tone === 'bad').length - a.issues.filter(i => i.tone === 'bad').length || b.issues.length - a.issues.length)
   const shownPillars = pillars.filter(p => p.pct > 0)
 
@@ -174,7 +175,7 @@ function CoachSummary({ m, wt, code, pillars, alerts, missing, gaps, rpeText, lo
 
       <div className="grid gap-4 xl:grid-cols-3">
         <div className="xl:col-span-2">
-          <Card title="Charge de chaque joueur" help="Une barre par joueur, du plus chargé au moins chargé. Bande verte : plage visée · pointillés : charge visée. Vert conforme, jaune sous-charge, rouge surcharge, gris blessé ou semaine en cours.">
+          <Card title="Charge de chaque joueur" help="Une barre par joueur, du plus chargé au moins chargé. Bande verte : plage visée · pointillés : charge visée. Vert conforme, jaune sous-charge, rouge surcharge, gris semaine en cours. Joueurs blessés : onglet Médical.">
             <div className="text-ink/60" style={{ height: Math.max(220, bars.length * 28) }}>
               <ResponsiveContainer>
                 <BarChart data={bars} layout="vertical" margin={{ left: 8, right: 16 }}>

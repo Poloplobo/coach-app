@@ -150,7 +150,7 @@ export function useInjuryRecords() {
 }
 export function useInjurySteps() {
   return useQuery(query(['staff', 'injury-steps'], async () => check(await supabase.from('injury_steps')
-    .select('id, injury_id, player_id, position, title, criteria, planned_days, validated_on').order('position'))))
+    .select('id, injury_id, player_id, position, title, criteria, planned_days, validated_on, phase, phase_days, objectives, kine_actions, prepa_actions, comment, is_test, in_progress').order('position'))))
 }
 export function useSaveInjury() {
   const qc = useQueryClient()

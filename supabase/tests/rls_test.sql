@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(177);
+select plan(180);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -587,12 +587,17 @@ select throws_ok($$insert into public.injury_steps (injury_id, player_id, positi
                  '23503', null, 'une étape ne peut pas être rattachée à un autre joueur que celui de la blessure');
 select isnt_empty($$update public.injuries set occurred_on = public.paris_today() - 5 where player_id = '00000000-0000-0000-0000-00000000000b' and ended_on is null returning alerts$$,
                   'le staff corrige la date de survenue (alertes recalculées)');
+select is(public.import_injury_plan((select id from public.injuries where player_id = '00000000-0000-0000-0000-00000000000b' and ended_on is null),
+  '[{"title":"Consolidation","phase":"Phase 1","phase_days":14,"planned_days":7,"objectives":"Antalgie","kine_actions":"Cryo","prepa_actions":"Vélo","validated_on":"2026-09-01"},
+    {"title":"TEST CLINIQUE","phase":"Phase 1","phase_days":14,"planned_days":7,"is_test":true,"in_progress":true}]'), 2, 'le staff importe un plan détaillé (remplace les étapes)');
 reset role;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}', true);
 set local role authenticated;
-select is((select count(*)::int from public.injury_steps), 6, 'B lit les étapes de son plan');
+select is((select count(*)::int from public.my_return_plan()), 2, 'B lit les étapes de son plan importé (par my_return_plan)');
+select is_empty($$select kine_actions, comment from public.injury_steps$$, 'B ne lit pas directement la table des étapes (actions kiné, commentaires)');
 select is_empty($$select 1 from public.injuries$$, 'B ne lit pas sa fiche blessure (diagnostic, alertes)');
 select is_empty($$update public.injury_steps set validated_on = public.paris_today() returning 1$$, 'B ne valide pas lui-même une étape');
+select throws_ok($$select public.import_injury_plan((select id from public.injuries limit 1), '[{"title":"x"}]')$$, '42501', null, 'B n''importe pas de plan');
 reset role;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
 set local role authenticated;

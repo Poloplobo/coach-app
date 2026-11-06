@@ -6,7 +6,7 @@ import { Card } from '../../components/ui/Card'
 import { Kpi } from '../../components/ui/Kpi'
 import { formatDay } from '../../lib/week'
 import { fullName, type Player } from './load'
-import { ACTIVITIES, LOCATIONS, MECHANISMS, ONSETS, TISSUES, epidemiology, planProgress, type InjuryRecord, type Step } from './medical'
+import { ACTIVITIES, LOCATIONS, MECHANISMS, ONSETS, TISSUES, byPhase, epidemiology, planProgress, type InjuryRecord, type Step } from './medical'
 import { useDeleteStep, useSaveInjury, useSaveStep } from './useStaff'
 
 // Blocs de l'onglet Médical (étape 13) : fiche blessure, plan de retour, rapport d'épidémiologie
@@ -80,10 +80,15 @@ export function ReturnPlan({ injury, steps, today }: { injury: Injury; steps: St
         {p.current ? <>Étape <strong>{p.index + 1}/{p.total}</strong> : {p.current.title} · <strong>{p.remainingDays} jour{p.remainingDays > 1 ? 's' : ''}</strong> théoriques restants
           {p.returnDate && <> · retour estimé le <strong>{formatDay(p.returnDate)}</strong></>}</> : <span className="text-ok">Toutes les étapes sont validées : retour possible (repasser le joueur « apte » dans sa fiche).</span>}
       </p>
-      <ol className="flex flex-col">
-        {p.ordered.map(s => <StepRow key={`${s.id}-${s.validated_on}-${s.planned_days}`} step={s} current={p.current?.id === s.id} today={today}
-          onSave={v => save.mutate({ ...base, ...s, ...v })} onDelete={() => remove.mutate(s.id)} />)}
-      </ol>
+      {byPhase(p.ordered).map((g, gi) => (
+        <div key={`${g.phase}-${gi}`} className="flex flex-col">
+          {g.phase && <p className="mt-2 rounded bg-field px-2 py-1 text-sm font-semibold">{g.phase}{g.days != null && <span className="font-normal text-ink/60"> · {g.days} jours</span>}</p>}
+          <ol className="flex flex-col">
+            {g.steps.map(s => <StepRow key={`${s.id}-${s.validated_on}-${s.planned_days}`} step={s} current={p.current?.id === s.id} today={today}
+              onSave={v => save.mutate({ ...base, id: s.id, position: s.position, title: s.title, criteria: s.criteria, planned_days: s.planned_days, ...v })} onDelete={() => remove.mutate(s.id)} />)}
+          </ol>
+        </div>
+      ))}
       <div>
         <Button size="sm" variant="ghost" disabled={save.isPending}
           onClick={() => save.mutate({ ...base, position: (p.ordered.at(-1)?.position ?? 0) + 1, title: 'Nouvelle étape', criteria: null, planned_days: 7 })}>
@@ -105,6 +110,12 @@ function StepRow({ step, current, today, onSave, onDelete }: {
   return (
     <li className={`flex flex-wrap items-start gap-2 border-t border-line py-2 first:border-0 ${current ? 'rounded-lg bg-gold/10 px-2' : ''}`}>
       <span className="w-6 pt-1.5 text-center font-semibold">{step.validated_on ? <span className="text-ok">✓</span> : step.position}</span>
+      {(step.is_test || step.in_progress) && (
+        <span className="flex w-full flex-wrap gap-1 pl-8 sm:order-last">
+          {step.is_test && <Badge tone="neutral">test / contrôle</Badge>}
+          {step.in_progress && !step.validated_on && <Badge tone="warn">en cours</Badge>}
+        </span>
+      )}
       <div className="flex min-w-60 flex-1 flex-col gap-1">
         <input value={title} aria-label="Étape" onChange={e => setTitle(e.target.value)} onBlur={() => title.trim() && title !== step.title && onSave({ title: title.trim() })}
           className={`${field} font-semibold`} />
@@ -115,6 +126,12 @@ function StepRow({ step, current, today, onSave, onDelete }: {
         <input type="number" min={0} max={365} value={daysText} aria-label="Durée théorique (jours)" onChange={e => setDaysText(e.target.value)}
           onBlur={() => Number.isInteger(d) && d >= 0 && d <= 365 && d !== step.planned_days && onSave({ planned_days: d })} className={`${field} w-16`} /> j
       </label>
+      {(step.objectives || step.kine_actions || step.prepa_actions || step.comment) && (
+        <dl className="order-last grid w-full gap-x-4 gap-y-1 pl-8 text-xs text-ink/75 sm:grid-cols-2">
+          {([['Objectifs', step.objectives], ['Actions kiné (staff)', step.kine_actions], ['Actions prépa', step.prepa_actions], ['Commentaire (staff)', step.comment]] as const)
+            .filter(([, v]) => v).map(([k, v]) => <div key={k}><dt className="font-semibold text-ink/60">{k}</dt><dd>{v}</dd></div>)}
+        </dl>
+      )}
       <span className="flex items-center gap-2 pt-1">
         {step.validated_on
           ? <><Badge tone="ok">validée le {formatDay(step.validated_on)}</Badge><button type="button" className="text-xs text-ink/60 underline" onClick={() => onSave({ validated_on: null })}>Annuler</button></>

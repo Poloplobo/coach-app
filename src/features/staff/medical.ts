@@ -18,7 +18,23 @@ export const MECHANISMS = {
 export const ACTIVITIES = { match: 'Match', entrainement: 'Entraînement rugby', musculation: 'Musculation / prépa', hors_rugby: 'Hors rugby' } as const
 export const ONSETS = { soudaine: 'Soudaine (traumatique)', progressive: 'Progressive (surmenage)' } as const
 
-export type Step = { id: string; position: number; title: string; criteria: string | null; planned_days: number; validated_on: string | null }
+export type Step = {
+  id: string; position: number; title: string; criteria: string | null; planned_days: number; validated_on: string | null
+  // plan détaillé (0040) : phase et sa durée, objectifs, actions prépa ; kiné et commentaire côté staff seulement
+  phase?: string | null; phase_days?: number | null; objectives?: string | null; prepa_actions?: string | null
+  kine_actions?: string | null; comment?: string | null; is_test?: boolean; in_progress?: boolean
+}
+
+// Étapes regroupées par phase, dans l'ordre (plan sans phase : un seul groupe sans titre)
+export function byPhase<S extends Step>(steps: S[]) {
+  const groups: { phase: string | null; days: number | null; steps: S[] }[] = []
+  for (const s of [...steps].sort((a, b) => a.position - b.position)) {
+    const last = groups.at(-1)
+    if (last && last.phase === (s.phase ?? null)) last.steps.push(s)
+    else groups.push({ phase: s.phase ?? null, days: s.phase_days ?? null, steps: [s] })
+  }
+  return groups
+}
 
 const days = (from: string, to: string) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000)
 

@@ -428,9 +428,9 @@ export type Database = {
         Relationships: []
       }
       injury_steps: {
-        Row: { criteria: string | null; id: string; injury_id: string; planned_days: number; player_id: string; position: number; title: string; validated_by: string | null; validated_on: string | null }
-        Insert: { criteria?: string | null; id?: string; injury_id: string; planned_days?: number; player_id: string; position: number; title: string; validated_by?: string | null; validated_on?: string | null }
-        Update: { criteria?: string | null; planned_days?: number; position?: number; title?: string; validated_by?: string | null; validated_on?: string | null }
+        Row: { comment: string | null; in_progress: boolean; is_test: boolean; kine_actions: string | null; objectives: string | null; phase: string | null; phase_days: number | null; prepa_actions: string | null; criteria: string | null; id: string; injury_id: string; planned_days: number; player_id: string; position: number; title: string; validated_by: string | null; validated_on: string | null }
+        Insert: { comment?: string | null; in_progress?: boolean; is_test?: boolean; kine_actions?: string | null; objectives?: string | null; phase?: string | null; phase_days?: number | null; prepa_actions?: string | null; criteria?: string | null; id?: string; injury_id: string; planned_days?: number; player_id: string; position: number; title: string; validated_by?: string | null; validated_on?: string | null }
+        Update: { comment?: string | null; in_progress?: boolean; is_test?: boolean; kine_actions?: string | null; objectives?: string | null; phase?: string | null; phase_days?: number | null; prepa_actions?: string | null; criteria?: string | null; planned_days?: number; position?: number; title?: string; validated_by?: string | null; validated_on?: string | null }
         Relationships: []
       }
       matches: {
@@ -1301,7 +1301,8 @@ export type Database = {
       can_log_day: { Args: { p_date: string }; Returns: boolean }
       push_enabled_players: { Args: never; Returns: string[] }
       redo_muscu_session: { Args: { p_session: string }; Returns: undefined }
-      my_return_plan: { Args: never; Returns: { occurred_on: string; id: string; step: number; title: string; criteria: string | null; planned_days: number; validated_on: string | null }[] }
+      my_return_plan: { Args: never; Returns: { occurred_on: string; id: string; step: number; title: string; criteria: string | null; planned_days: number; validated_on: string | null; phase: string | null; phase_days: number | null; objectives: string | null; prepa_actions: string | null; is_test: boolean; in_progress: boolean }[] }
+      import_injury_plan: { Args: { p_injury: string; p_steps: Json }; Returns: number }
       can_rate_match: { Args: { p_match: string }; Returns: boolean }
       delete_muscu_session: { Args: { p_session: string }; Returns: undefined }
       duplicate_week: {

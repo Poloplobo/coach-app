@@ -16,6 +16,7 @@
     "accounts:prod": "tsx --env-file=.env.prod.local scripts/create-accounts.ts",
     "import:prod": "tsx --env-file=.env.prod.local scripts/import/index.ts",
     "reset-password": "tsx --env-file=.env.local scripts/reset-password.ts",
+    "test-player:prod": "tsx --env-file=.env.prod.local scripts/create-test-player.ts",
     "reset-password:prod": "tsx --env-file=.env.prod.local scripts/reset-password.ts",
     "seed:dev": "tsx --env-file=.env.local scripts/seed-dev.ts",
     "photos:prod": "tsx --env-file=.env.prod.local scripts/upload-photos.ts",

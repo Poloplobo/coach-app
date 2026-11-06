@@ -69,7 +69,7 @@ export function MedicalView() {
         ? <p role="alert">Impossible de charger l'épidémiologie ou les plans de retour.</p>
         : records.data && periodLogs.data && matches.data && ratings.data && pFrom && (
           // Exposition au risque : activités d'entraînement avec RPE (vidéo, soins, récupération exclues) hors réhab et membres sains
-          <EpidemiologyCard injuries={records.data} players={roster.data} from={pFrom} to={pTo} today={today} period={period === 'saison' ? 'saison' : period}
+          <EpidemiologyCard injuries={records.data.filter(i => roster.data.some(p => p.id === i.player_id))} players={roster.data} from={pFrom} to={pTo} today={today} period={period === 'saison' ? 'saison' : period}
             exposure={{ trainingMin: periodLogs.data.filter(l => { const t = ref.data.types.find(x => x.id === l.activity_type_id)
               return t?.requires_rpe && t.name !== 'Réhabilitation' && t.name !== 'Membres sains' }).reduce((n, l) => n + l.duration_min, 0), matchMin }} />
         )}

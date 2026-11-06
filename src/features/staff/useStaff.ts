@@ -21,7 +21,7 @@ export const useIsAdmin = () => useProfile(useUserId()).data?.role === 'admin'
 
 export function useRoster() {
   return useQuery(query(['staff', 'roster'], async (): Promise<Player[]> => {
-    const profiles = check(await supabase.from('profiles').select('id, first_name, last_name, position').eq('role', 'player').order('last_name'))
+    const profiles = check(await supabase.from('profiles').select('id, first_name, last_name, position').eq('role', 'player').eq('is_test', false).order('last_name'))
     const injured = new Set(check(await supabase.from('player_availability').select('player_id').eq('status', 'blessé')).map(a => a.player_id))
     return profiles.map(p => ({ ...p, injured: injured.has(p.id) }))
   }))
@@ -40,7 +40,8 @@ export function useReference() {
 export function useAllLogs(from: string, to: string, playerId?: string) {
   return useQuery({
     ...query(['staff', 'logs', from, to, playerId ?? 'all'], (): Promise<Log[]> => fetchAll((a, b) => {
-      let q = supabase.from('session_logs').select('player_id, session_date, activity_type_id, duration_min, rpe, srpe, source, created_at, validated_at')
+      // Joueur de test (0038) exclu : ses déclarations ne comptent dans aucun chiffre du staff
+      let q = supabase.from('session_logs').select('player_id, session_date, activity_type_id, duration_min, rpe, srpe, source, created_at, validated_at, profiles!inner(is_test)').eq('profiles.is_test', false)
         .gte('session_date', from).lte('session_date', to)
       if (playerId) q = q.eq('player_id', playerId)
       return q.order('id').range(a, b)
@@ -52,7 +53,7 @@ export function useAllLogs(from: string, to: string, playerId?: string) {
 export function useAllWellness(from: string, to: string, playerId?: string) {
   return useQuery({ enabled: !!from && !!to, ...query(['staff', 'wellness', from, to, playerId ?? 'all'], () => fetchAll((a, b) => {
     let q = supabase.from('wellness_entries')
-      .select('player_id, entry_date, sleep_quality, fatigue, soreness, soreness_upper, soreness_lower, stress, mood, score, source')
+      .select('player_id, entry_date, sleep_quality, fatigue, soreness, soreness_upper, soreness_lower, stress, mood, score, source, profiles!inner(is_test)').eq('profiles.is_test', false)
       .gte('entry_date', from).lte('entry_date', to)
     if (playerId) q = q.eq('player_id', playerId)
     return q.order('id').range(a, b)

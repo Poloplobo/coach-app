@@ -791,6 +791,7 @@ export type Database = {
           first_name: string
           id: string
           import_name: string | null
+          is_test: boolean
           is_active: boolean
           last_name: string
           position: string | null
@@ -802,6 +803,7 @@ export type Database = {
           first_name: string
           id: string
           import_name?: string | null
+          is_test?: boolean
           is_active?: boolean
           last_name: string
           position?: string | null
@@ -813,6 +815,7 @@ export type Database = {
           first_name?: string
           id?: string
           import_name?: string | null
+          is_test?: boolean
           is_active?: boolean
           last_name?: string
           position?: string | null

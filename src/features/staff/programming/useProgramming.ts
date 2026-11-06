@@ -179,7 +179,7 @@ export function useDuplicateWeek() {
 export function useImportPlayers() {
   return useQuery({
     queryKey: ['staff', 'import-players'],
-    queryFn: async () => rows(await supabase.from('profiles').select('id, first_name, last_name, import_name').eq('role', 'player')),
+    queryFn: async () => rows(await supabase.from('profiles').select('id, first_name, last_name, import_name').eq('role', 'player').eq('is_test', false)),
   })
 }
 

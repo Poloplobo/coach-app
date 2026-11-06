@@ -2,6 +2,7 @@ import { Fragment, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ReferenceArea, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Badge } from '../../components/ui/Badge'
+import { MoreButton } from '../../components/ui/MoreButton'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Kpi } from '../../components/ui/Kpi'
@@ -122,7 +123,7 @@ export function WeekView() {
 
 // LE tableau du coach : charges vs cible, joueurs hors plage bien visibles, répartition de l'activité
 type Alerts = Map<string, { hot: ReturnType<typeof hotSessions>; pace: ReturnType<typeof weekPace> }>
-const HEAT_CELL: Record<Heat, string> = { warn: 'bg-gold/20 font-semibold', bad: 'bg-rnr/25 font-semibold text-rnr' }
+const HEAT_CELL: Record<Heat, string> = { warn: 'bg-gold/20 font-semibold', bad: 'bg-rnr/15 font-semibold' }
 const shortDay = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-FR', { weekday: 'short', timeZone: 'UTC' })
 
 function CoachSummary({ m, wt, code, pillars, alerts, missing, gaps, rpeText, logs, types }: {
@@ -240,36 +241,49 @@ function WatchCard({ rows, code, inProgress, counts }: {
   rows: { player: MatrixRow['player']; issues: Issue[] }[]; code: string; inProgress: boolean; counts: { under: number; over: number }
 }) {
   const [open, setOpen] = useState<string | null>(null)
+  const [all, setAll] = useState(false)
+  // Deux niveaux : « En priorité » (au moins un point grave) puis « À garder à l'œil » ; 6 lignes d'abord, le reste à la demande
+  const urgent = rows.filter(r => r.issues.some(i => i.tone === 'bad'))
+  const shown = all ? rows : rows.slice(0, 6)
+  const line = ({ player, issues }: (typeof rows)[number]) => {
+    const expanded = open === player.id
+    return (
+      <li key={player.id} className="border-t border-line/60 first:border-0">
+        <button type="button" onClick={() => setOpen(expanded ? null : player.id)} aria-expanded={expanded}
+          className="flex w-full flex-wrap items-center gap-x-1.5 gap-y-1 py-2 text-left text-sm">
+          <span className="mr-1 font-semibold">{fullName(player)}</span>
+          {issues.map(i => <Badge key={i.label} tone={i.tone}>{i.label}</Badge>)}
+          <span aria-hidden="true" className="ml-auto text-xs text-ink/50">{expanded ? 'Masquer' : 'Détails'}</span>
+        </button>
+        {expanded && (
+          <div className="mb-2 flex flex-col gap-1.5 rounded-lg bg-field px-3 py-2 text-sm">
+            {issues.map(i => (
+              <div key={i.label}>
+                <p className="font-semibold">{i.label}</p>
+                <ul className="text-ink/75">{i.detail.map((d, k) => <li key={k}>{d}</li>)}</ul>
+              </div>
+            ))}
+            <Link to={`/staff/joueur/${player.id}`} className="self-start text-gold hover:underline">Ouvrir sa fiche</Link>
+          </div>
+        )}
+      </li>
+    )
+  }
+  const group = (title: string, list: typeof rows) => list.length > 0 && (
+    <div>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-ink/50">{title} · {list.length}</h3>
+      <ul className="flex flex-col">{list.map(line)}</ul>
+    </div>
+  )
   return (
     <Card title={`À surveiller en ${code} · ${rows.length}`}
-      help="Clique sur un joueur pour le détail jour par jour.">
+      help="Pastille rouge : à voir en priorité ; jaune : à garder à l'œil. « Détails » : le jour par jour.">
       {!rows.length ? <p className="text-sm text-ok">Rien à signaler cette semaine.</p> : (
-        <ul className="flex flex-col">
-          {rows.map(({ player, issues }) => {
-            const expanded = open === player.id
-            return (
-              <li key={player.id} className="border-t border-line first:border-0">
-                <button type="button" onClick={() => setOpen(expanded ? null : player.id)} aria-expanded={expanded}
-                  className="flex w-full flex-wrap items-center gap-x-2 gap-y-1 py-2 text-left text-sm">
-                  <span className="font-semibold">{fullName(player)}</span>
-                  {issues.map(i => <Badge key={i.label} tone={i.tone}>{i.label}</Badge>)}
-                  <span aria-hidden="true" className="ml-auto text-ink/50">{expanded ? '▴' : '▾'}</span>
-                </button>
-                {expanded && (
-                  <div className="mb-2 flex flex-col gap-1.5 rounded-lg bg-field/60 px-3 py-2 text-sm">
-                    {issues.map(i => (
-                      <div key={i.label}>
-                        <p className="font-semibold">{i.label}</p>
-                        <ul className="text-ink/75">{i.detail.map((d, k) => <li key={k}>{d}</li>)}</ul>
-                      </div>
-                    ))}
-                    <Link to={`/staff/joueur/${player.id}`} className="self-start text-gold hover:underline">Ouvrir sa fiche</Link>
-                  </div>
-                )}
-              </li>
-            )
-          })}
-        </ul>
+        <div className="flex flex-col gap-3">
+          {group('En priorité', shown.filter(r => urgent.includes(r)))}
+          {group('À garder à l\'œil', shown.filter(r => !urgent.includes(r)))}
+          <MoreButton hidden={rows.length - shown.length} open={all} onToggle={() => setAll(!all)} />
+        </div>
       )}
       {inProgress ? <p className="text-xs text-ink/60">Semaine en cours : sous-charge et surcharge s'affichent une fois la semaine terminée.</p>
         : !counts.under && !counts.over && <p className="text-xs text-ink/60">Tous les joueurs aptes sont dans la plage de la semaine.</p>}

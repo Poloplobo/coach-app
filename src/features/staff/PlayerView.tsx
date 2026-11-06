@@ -37,6 +37,7 @@ export function PlayerView() {
   const roster = useRoster()
   const [code, setCode] = useState<string | null>(null)
   const [section, setSection] = useState<Section>('semaine')
+  const [pillarCols, setPillarCols] = useState(false)
   const weeks = ref.data?.weeks ?? []
   const week = weeks.find(w => w.code === code) ?? weekOf(weeks, today)
   const seasonStart = weeks[0]?.start_date ?? addDays(today, -60)
@@ -98,11 +99,10 @@ export function PlayerView() {
             {isAdmin && ratio.zone && <> Ratio aigu/chronique {ratio.ratio?.toLocaleString('fr-FR')} : <strong className={STATUS_TEXT[ZONE_TONE[ratio.zone]]}>{ZONE_LABEL[ratio.zone]}</strong>.</>}
           </p>
           <div className="flex flex-wrap gap-3">
-            <Kpi label="Séances déclarées" value={String(row.sessions)} />
+            <Kpi label="Séances déclarées" value={String(row.sessions)} hint={`${n(row.minutes)} min au total`} />
             <Kpi label={`Charge ${week.code}`} value={`${n(row.total)} UA`} hint={wt ? `Visée ${n(wt.target_srpe)} UA` : 'Hors calendrier'} />
             <Kpi label="% de la charge visée" value={pct(row.pct)} tone={row.status ? STATUS_TONE[row.status] : 'neutral'} hint={row.status ?? (m?.inProgress ? 'semaine en cours' : undefined)} />
             <Kpi label="Écart au groupe" value={pct(row.vsGroupPct, true)} />
-            <Kpi label="Temps total" value={`${n(row.minutes)} min`} />
             {player && seasonPlan.data && seasonLogs.data && (() => {
               const periods = (records.data ?? []).filter(i => i.player_id === player.id)
               const d = declarationRate(player, seasonPlan.data, seasonLogs.data, ref.data.types, seasonStart, addDays(today, -1), new Set(seasonLogs.data.map(l => l.session_date)),
@@ -127,43 +127,69 @@ export function PlayerView() {
       {section === 'semaine' && (
         <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_22rem]">
           <Card title={`Jour par jour${week ? ` — ${week.code}` : ''}`}
-            help="Minutes par pilier, effort moyen (RPE) et charge du jour (sRPE = RPE × minutes). Écart : différence avec la moyenne du groupe ce jour-là.">
+            help="Charge du jour (sRPE = RPE × minutes) ; le trait marque la moyenne du groupe ce jour-là. Écart : différence avec cette moyenne."
+            aside={<button type="button" onClick={() => setPillarCols(!pillarCols)} aria-expanded={pillarCols} className="text-sm font-semibold text-gold hover:underline">
+              {pillarCols ? 'Masquer les piliers' : 'Minutes par pilier'}</button>}>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="text-left text-xs text-ink/55">
-                  <tr>{['Jour', 'Activités', 'Min', 'Rugby', 'Physique', 'Accomp.', 'RPE moy.', 'sRPE', 'Groupe', 'Écart'].map(h => <th key={h} className="py-2 pr-3 font-normal">{h}</th>)}</tr>
+                  <tr>{['Jour', 'Activités', 'Min', ...(pillarCols ? ['Rugby', 'Physique', 'Accomp.'] : []), 'RPE moy.', 'Charge', 'Écart'].map(h => <th key={h} className="py-2 pr-3 font-normal">{h}</th>)}</tr>
                 </thead>
                 <tbody>
-                  {days.map(d => (
-                    <tr key={d.date} className="border-t border-line">
-                      <td className="py-1.5 pr-3 font-semibold">{d.day}</td><td className="pr-3 text-ink/75">{d.activities || '—'}</td><td className="pr-3">{d.minutes || '—'}</td>
-                      <td className="pr-3">{d.rugby || '—'}</td><td className="pr-3">{d.physique || '—'}</td><td className="pr-3">{d.accompagnement || '—'}</td>
-                      <td className="pr-3">{d.avgRpe ?? '—'}</td><td className="pr-3 font-semibold">{d.srpe || '—'}</td>
-                      <td className="pr-3 text-ink/60">{d.groupMean || '—'}</td>
-                      <td className={d.gap > 0 ? 'text-gold' : d.gap < 0 ? 'text-ink/60' : ''}>{d.srpe || d.groupMean ? `${d.gap > 0 ? '+' : ''}${d.gap}` : '—'}</td>
-                    </tr>
-                  ))}
+                  {(() => {
+                    const top = Math.max(1, ...days.map(d => Math.max(d.srpe, d.groupMean)))
+                    return days.map(d => (
+                      <tr key={d.date} className={`border-t border-line/60 ${!d.srpe && !d.minutes ? 'text-ink/40' : ''}`}>
+                        <td className="py-2 pr-3 font-semibold">{d.day}</td>
+                        <td className="pr-3 text-ink/75">{d.activities || '—'}</td>
+                        <td className="pr-3 tabular-nums">{d.minutes || '—'}</td>
+                        {pillarCols && <><td className="pr-3 tabular-nums">{d.rugby || '—'}</td><td className="pr-3 tabular-nums">{d.physique || '—'}</td><td className="pr-3 tabular-nums">{d.accompagnement || '—'}</td></>}
+                        <td className="pr-3 tabular-nums">{d.avgRpe ?? '—'}</td>
+                        <td className="min-w-40 pr-3">
+                          {d.srpe || d.groupMean ? (
+                            <span className="flex items-center gap-2" title={`Groupe : ${d.groupMean} UA`}>
+                              <span className="relative h-2 flex-1 rounded-full bg-field" aria-hidden="true">
+                                <span className="absolute inset-y-0 left-0 rounded-full bg-ink/60" style={{ width: `${(100 * d.srpe) / top}%` }} />
+                                {d.groupMean > 0 && <span className="absolute -top-1 h-4 w-0.5 rounded bg-gold" style={{ left: `${(100 * d.groupMean) / top}%` }} />}
+                              </span>
+                              <span className="w-10 text-right font-semibold tabular-nums">{d.srpe || '—'}</span>
+                            </span>
+                          ) : '—'}
+                        </td>
+                        <td className={`tabular-nums ${d.gap > 0 ? 'text-gold' : 'text-ink/60'}`}>{d.srpe || d.groupMean ? `${d.gap > 0 ? '+' : ''}${d.gap}` : '—'}</td>
+                      </tr>
+                    ))
+                  })()}
                 </tbody>
               </table>
             </div>
           </Card>
-          <Card title="Journal des saisies" help="Chaque déclaration de la semaine, quand et par qui (joueur, staff ou formulaire), avec le RPE déclaré face à la fourchette visée de la séance : orange à ±2, rouge à ±3.">
+          <Card title="Journal des saisies" help="Chaque déclaration de la semaine, quand et par qui, avec le RPE déclaré face à la fourchette visée : pastille jaune à ±2, rouge à ±3.">
             {!own.data.some(inWeek) && <p className="text-sm text-ink/70">Aucune déclaration cette semaine.</p>}
-            <ul className="text-sm flex flex-col max-h-96 overflow-y-auto">
-              {own.data.filter(inWeek).sort((a, b) => a.created_at.localeCompare(b.created_at)).map((l, i) => (
-                <li key={i} className="flex justify-between gap-2 border-t border-line py-1">
-                  <span>{DAY_NAMES[(new Date(`${l.session_date}T00:00:00Z`).getUTCDay() + 6) % 7].slice(0, 3)}. {ref.data.types.find(t => t.id === l.activity_type_id)?.name}</span>
-                  <span className="flex items-center gap-2 tabular-nums whitespace-nowrap">
-                    {(() => {
-                      // RPE déclaré face au RPE visé de la séance (orange à ±2, rouge à ±3)
+            {/* Regroupé par jour : le nom du jour une fois, puis ses saisies */}
+            <div className="flex max-h-[28rem] flex-col gap-3 overflow-y-auto text-sm">
+              {[...new Set(own.data.filter(inWeek).map(l => l.session_date))].sort().map(date => (
+                <section key={date}>
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-ink/50">{DAY_NAMES[(new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7]}</h3>
+                  <ul className="flex flex-col">
+                    {own.data.filter(l => l.session_date === date).sort((a, b) => a.created_at.localeCompare(b.created_at)).map((l, i) => {
+                      // RPE déclaré face au RPE visé de la séance (jaune à ±2, rouge à ±3)
                       const t = sessionTarget(l, weekPlan.data ?? [], week?.week_type_code, targets.data ?? []).range, g = rpeGap(l.rpe, t)
-                      return l.rpe === null ? null : g?.heat ? <Badge tone={g.heat}>{rpeVsTarget(l.rpe, t)}</Badge> : <span>{rpeVsTarget(l.rpe, t)}</span>
-                    })()}
-                    <span className="text-ink/60">{Number(l.srpe ?? 0)} UA · {SOURCE[l.source] ?? l.source}</span>
-                  </span>
-                </li>
+                      return (
+                        <li key={i} className="flex items-center justify-between gap-2 border-t border-line/60 py-1.5 first:border-0">
+                          <span className="min-w-0 truncate">{ref.data.types.find(t => t.id === l.activity_type_id)?.name}
+                            <span className="ml-1.5 text-xs text-ink/50">{SOURCE[l.source] ?? l.source}</span></span>
+                          <span className="flex shrink-0 items-center gap-2 tabular-nums">
+                            {l.rpe !== null && (g?.heat ? <Badge tone={g.heat}>{rpeVsTarget(l.rpe, t)}</Badge> : <span className="text-ink/70">{rpeVsTarget(l.rpe, t)}</span>)}
+                            <span className="w-14 text-right font-semibold">{Number(l.srpe ?? 0)} UA</span>
+                          </span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </section>
               ))}
-            </ul>
+            </div>
           </Card>
         </div>
       )}

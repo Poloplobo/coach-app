@@ -61,6 +61,17 @@ for (let d = weeks[0].start_date; d <= TODAY; d = addDays(d, 1)) {
   }
 }
 
+// Planning du groupe (mêmes activités que les déclarations) avec RPE visé 4-6 : RPE non déclarés, hors fourchette, rythme
+const groupPlan = []
+for (let d = weeks[0].start_date; d <= addDays(monday, 6); d = addDays(d, 1)) {
+  const dow = (new Date(`${d}T00:00:00Z`).getUTCDay() + 6) % 7
+  if (dow < 6) for (const a of dow % 2 ? ['t-ct', 't-vid'] : ['t-jp', 't-mus', 't-dt']) {
+    const t = types.find(x => x.id === a)
+    groupPlan.push({ player_id: null, session_date: d, activity_type_id: a, planned_duration_min: t.default_duration_min, planned_rpe: t.requires_rpe ? 4 : null,
+      planned_rpe_max: t.requires_rpe ? 6 : null, activity_types: { name: t.name, default_duration_min: t.default_duration_min } })
+  }
+}
+
 const ex = (id, position, block_label, name, sets, reps, load_value, load_unit, fb) =>
   ({ id, position, block_label, sets, reps, load_value, load_unit, tempo: null, rest: "2'", instructions: null, exercises: { name }, exercise_feedback: fb ? [fb] : [] })
 const muscu = []
@@ -135,7 +146,7 @@ function table(name, url) {
     case 'season_weeks': return weeks
     case 'session_logs': return logs
     case 'wellness_entries': return wellness
-    case 'planned_sessions': return p.get('select').includes('planned_exercises') ? muscu : muscu.map(m => ({ player_id: m.player_id, session_date: m.session_date }))
+    case 'planned_sessions': return p.get('select').includes('planned_rpe') ? groupPlan : p.get('select').includes('planned_exercises') ? muscu : muscu.map(m => ({ player_id: m.player_id, session_date: m.session_date }))
     case 'test_results': return tests
     case 'player_targets': return targets
     case 'groups': return [{ id: 'g1', name: 'Pôle Espoir' }, { id: 'g2', name: 'Crabos' }]

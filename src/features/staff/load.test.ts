@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  acwr, hotSessions, overLoad, parseRpeRange, plannedLoad, rpeGap, rpeMatrix, rpeVsTarget, sessionTarget, dailySynthesis, latecomers, weekPace, loadStatus, pctOfTarget, pillarSplit, playerDays, reminderMessage, weekMatrix, wellnessAlerts,
+  acwr, hotSessions, missingRpe, overLoad, parseRpeRange, plannedLoad, rpeGap, rpeMatrix, rpeVsTarget, sessionTarget, dailySynthesis, latecomers, weekPace, loadStatus, pctOfTarget, pillarSplit, playerDays, reminderMessage, weekMatrix, wellnessAlerts,
   type ActivityType, type Log, type Player, type WeekType,
 } from './load'
 
@@ -91,30 +91,26 @@ it('playerDays : activités du jour, minutes par pilier, RPE moyen, écart à la
   expect(d[1].avgRpe).toBeNull()
 })
 
-describe('acwr : aigu 7 j / moyenne hebdo 28 j', () => {
-  const day = (offset: number) => new Date(Date.UTC(2026, 9, 24 - offset)).toISOString().slice(0, 10)
-  it('charge régulière : ratio 1, zone optimale', () => {
-    const logs = Array.from({ length: 28 }, (_, i) => log('a', day(i), 'muscu', 60, 5)) // 300 UA / jour
-    expect(acwr(logs, '2026-10-24')).toEqual({ acute: 2100, chronic: 2100, ratio: 1, zone: 'optimal' })
+describe('acwr : 4 derniers jours d\'entraînement / 16 derniers ÷ 4 (lun, mar, mer, ven)', () => {
+  // vendredi 23/10/2026 ; jours d'entraînement : 23, 21, 20, 19 (aigu), puis 16, 14, 13, 12, 9, 7, 6, 5, 2, 30/09, 29/09, 28/09
+  const training = ['2026-10-23', '2026-10-21', '2026-10-20', '2026-10-19', '2026-10-16', '2026-10-14', '2026-10-13', '2026-10-12',
+    '2026-10-09', '2026-10-07', '2026-10-06', '2026-10-05', '2026-10-02', '2026-09-30', '2026-09-29', '2026-09-28']
+  it('charge régulière : ratio 1 ; jeudi et week-end (match) ne comptent pas', () => {
+    const logs = [...training.map(d => log('a', d, 'muscu', 60, 5)), log('a', '2026-10-22', 'poste', 60, 9), log('a', '2026-10-18', 'poste', 70, 10)]
+    expect(acwr(logs, '2026-10-23')).toEqual({ acute: 1200, chronic: 1200, ratio: 1, zone: 'optimal' })
+    expect(acwr(logs, '2026-10-24')).toEqual({ acute: 1200, chronic: 1200, ratio: 1, zone: 'optimal' }) // samedi : mêmes jours
   })
-  it('pic sur la dernière semaine après 3 semaines très légères : zone de risque', () => {
-    const logs = [log('a', day(27), 'muscu', 100, 1), ...Array.from({ length: 7 }, (_, i) => log('a', day(i), 'muscu', 60, 10))]
-    expect(acwr(logs, '2026-10-24')).toMatchObject({ acute: 4200, chronic: 1075, ratio: 3.91, zone: 'risque' })
+  it('pic sur les 4 derniers jours d\'entraînement après 3 blocs légers : risque', () => {
+    const logs = [log('a', '2026-09-28', 'muscu', 100, 1), ...training.slice(0, 4).map(d => log('a', d, 'muscu', 60, 10))]
+    expect(acwr(logs, '2026-10-23')).toMatchObject({ acute: 2400, chronic: 625, ratio: 3.84, zone: 'risque' })
   })
-  it('moins de 28 jours d\'historique : pas de ratio (sinon faux « risque »)', () => {
-    const logs = Array.from({ length: 7 }, (_, i) => log('a', day(i), 'muscu', 60, 5)) // nouveau joueur, 1 semaine
-    expect(acwr(logs, '2026-10-24')).toMatchObject({ acute: 2100, ratio: null, zone: null })
+  it('historique plus court que 16 jours d\'entraînement, ou aucun : pas de ratio', () => {
+    expect(acwr(training.slice(0, 8).map(d => log('a', d, 'muscu', 60, 5)), '2026-10-23')).toMatchObject({ acute: 1200, ratio: null, zone: null })
+    expect(acwr([], '2026-10-23')).toEqual({ acute: 0, chronic: 0, ratio: null, zone: null })
   })
-  it('seuils : < 0,8 bas, ≤ 1,3 optimal, ≤ 1,5 vigilance', () => {
-    const zone = (acute: number) => acwr([log('a', '2026-09-27', 'muscu', 100, 4), log('a', '2026-10-24', 'muscu', acute, 1)], '2026-10-24').zone
-    // chronique = (400 + aigu) / 4 ; on choisit l'aigu pour viser chaque zone
-    expect(zone(50)).toBe('bas')        // 50 / 113 = 0,44
-    expect(zone(130)).toBe('optimal')   // 130 / 133 = 0,98
-    expect(zone(215)).toBe('vigilance') // 215 / 154 = 1,40
-    expect(zone(800)).toBe('risque')    // 800 / 300 = 2,67
-  })
-  it('aucun historique : pas de ratio', () => {
-    expect(acwr([], '2026-10-24')).toEqual({ acute: 0, chronic: 0, ratio: null, zone: null })
+  it('seuils : < 0,8 bas, ≤ 1,3 optimal, ≤ 1,5 vigilance, au-delà risque', () => {
+    const zone = (acute: number) => acwr([log('a', '2026-09-28', 'muscu', 100, 4), log('a', '2026-10-23', 'muscu', acute, 1)], '2026-10-23').zone
+    expect([zone(50), zone(130), zone(215), zone(800)]).toEqual(['bas', 'optimal', 'vigilance', 'risque'])
   })
 })
 
@@ -221,5 +217,25 @@ describe('RPE visé en fourchette', () => {
   })
   it('plannedLoad : milieu de la fourchette × minutes', () => {
     expect(plannedLoad([{ minutes: 60, range: { min: 3, max: 4 } }, { minutes: 30, range: { min: 4, max: 4 } }, { minutes: 20, range: null }])).toBe(330)
+  })
+})
+
+describe('missingRpe : RPE non déclarés jour par jour', () => {
+  const t = [...types, { id: 'recup', name: 'Récupération', pillar: 'accompagnement' as const, requires_rpe: false }]
+  const plan = [
+    { player_id: null, session_date: '2026-11-04', activity_type_id: 'poste' },
+    { player_id: null, session_date: '2026-11-04', activity_type_id: 'video' }, // sans RPE : ignoré
+    { player_id: 'a', session_date: '2026-11-04', activity_type_id: 'muscu' },
+    { player_id: null, session_date: '2026-11-05', activity_type_id: 'recup' },
+  ]
+  it('activités avec RPE sans déclaration et muscu non validée, les plus oublieux d\'abord ; blessé : pas les séances du groupe', () => {
+    const logs = [
+      { player_id: 'b', session_date: '2026-11-04', activity_type_id: 'poste', validated_at: null },
+      { player_id: 'a', session_date: '2026-11-04', activity_type_id: 'muscu', validated_at: null }, // retours saisis, pas validée
+    ]
+    const r = missingRpe([player('a'), player('b'), player('c', true)], plan, logs, t, '2026-11-02', '2026-11-05')
+    expect(r.map(x => [x.player.id, x.missed, x.planned, x.days])).toEqual([
+      ['a', 2, 2, [{ date: '2026-11-04', missing: ['Jeu au Poste', 'Musculation'] }]],
+    ])
   })
 })

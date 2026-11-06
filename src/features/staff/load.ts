@@ -258,15 +258,27 @@ export function playerDays(playerLogs: Log[], types: ActivityType[], weekStart: 
 
 export type AcwrZone = 'bas' | 'optimal' | 'vigilance' | 'risque'
 
-// Aigu = charge des 7 derniers jours ; chronique = moyenne hebdomadaire des 28 derniers jours
+// Jours d'entraînement du Pôle (décision du 06/11/2026) : lundi, mardi, mercredi, vendredi (getUTCDay)
+export const TRAINING_DAYS = [1, 2, 3, 5]
+const isTrainingDay = (d: string) => TRAINING_DAYS.includes(new Date(`${d}T00:00:00Z`).getUTCDay())
+
+// Les n derniers jours d'entraînement jusqu'à date incluse, du plus récent au plus ancien
+function lastTrainingDays(date: string, n: number) {
+  const days: string[] = []
+  for (let d = date; days.length < n; d = addDays(d, -1)) if (isTrainingDay(d)) days.push(d)
+  return days
+}
+
+// Sur les jours d'entraînement seulement (match et activités des autres jours exclus) : aigu = charge des 4 derniers jours
+// d'entraînement ; chronique = charge des 16 derniers, ramenée à 4 jours (moyenne de 4 blocs)
 export function acwr(playerLogs: Log[], date: string): { acute: number; chronic: number; ratio: number | null; zone: AcwrZone | null } {
-  const sum = (days: number) => playerLogs
-    .filter(l => l.session_date > addDays(date, -days) && l.session_date <= date).reduce((s, l) => s + srpeOf(l), 0)
-  const acute = sum(7)
-  const chronic = round(sum(28) / 4)
-  // Moins de 28 jours d'historique : la moyenne chronique serait sous-estimée et le ratio gonflé (faux « risque »)
+  const days = lastTrainingDays(date, 16)
+  const sum = (window: string[]) => playerLogs.filter(l => window.includes(l.session_date)).reduce((s, l) => s + srpeOf(l), 0)
+  const acute = sum(days.slice(0, 4))
+  const chronic = round(sum(days) / 4)
+  // Historique plus court que les 16 jours d'entraînement : chronique sous-estimée, ratio gonflé (faux « risque »)
   const firstDay = playerLogs.reduce<string | null>((min, l) => (min === null || l.session_date < min ? l.session_date : min), null)
-  if (!chronic || firstDay === null || firstDay > addDays(date, -27)) return { acute, chronic, ratio: null, zone: null }
+  if (!chronic || firstDay === null || firstDay > days[15]) return { acute, chronic, ratio: null, zone: null }
   const ratio = round(acute / chronic, 2)
   const zone: AcwrZone = ratio < 0.8 ? 'bas' : ratio <= 1.3 ? 'optimal' : ratio <= 1.5 ? 'vigilance' : 'risque'
   return { acute, chronic, ratio, zone }
@@ -309,6 +321,28 @@ export function latecomers(
     if (pendingYesterday) missing.push('RPE d\'hier')
     return missing.length ? [{ player: p, missing }] : []
   })
+}
+
+// RPE non déclarés jour par jour (décision du 06/11/2026 : à remplir à chaque entraînement) : activités prévues avec
+// RPE sans déclaration, et séance de musculation non validée. Du plus oublieux au moins oublieux.
+export function missingRpe(players: Player[], plan: PlanItem[], logs: Pick<Log, 'player_id' | 'session_date' | 'activity_type_id' | 'validated_at'>[],
+  types: ActivityType[], from: string, to: string) {
+  return players.flatMap(p => {
+    const days: { date: string; missing: string[] }[] = []
+    let planned = 0
+    for (let d = from; d <= to; d = addDays(d, 1)) {
+      const mine = plan.filter(s => s.session_date === d && (s.player_id === null ? !p.injured : s.player_id === p.id))
+        .map(s => types.find(t => t.id === s.activity_type_id)).filter((t): t is ActivityType => !!t?.requires_rpe)
+      planned += mine.length
+      const missing = mine.filter(t => {
+        const l = logs.find(x => x.player_id === p.id && x.session_date === d && x.activity_type_id === t.id)
+        return !l || (t.name === MUSCULATION && !l.validated_at)
+      }).map(t => t.name)
+      if (missing.length) days.push({ date: d, missing })
+    }
+    const missed = days.reduce((n, d) => n + d.missing.length, 0)
+    return missed ? [{ player: p, missed, planned, days }] : []
+  }).sort((a, b) => b.missed - a.missed || b.missed / b.planned - a.missed / a.planned)
 }
 
 export const reminderMessage = (p: Player, missing: string[]) =>

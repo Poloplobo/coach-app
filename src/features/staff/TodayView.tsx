@@ -13,7 +13,7 @@ import { useProfile, useUserId } from '../auth/useAuth'
 import { StatCard } from './StatCard'
 import { fatiguePercent, postureOf } from '../wellness/fatigue'
 import { WELLNESS_ITEMS } from '../wellness/items'
-import { fullName, itemValue, latecomers, overLoad, reminderMessage, rpeGap, rpeVsTarget, sessionTarget, weekOf, weekPace, wellnessAlerts, type Heat } from './load'
+import { fullName, itemValue, latecomers, missingRpe, overLoad, reminderMessage, rpeGap, rpeVsTarget, sessionTarget, weekOf, weekPace, wellnessAlerts, type Heat } from './load'
 import { useAllLogs, useAllPlan, useAllWellness, usePushEnabled, useReference, useRemind, useReminders, useRoster, useTargetRpes } from './useStaff'
 
 // Seules les réponses moyennes ou mauvaises ressortent : l'œil va droit aux problèmes
@@ -45,6 +45,9 @@ export function TodayView() {
   const weekLogs = useAllLogs(monday, today)
   const weekPlan = useAllPlan(monday, addDays(monday, 6))
   const targets = useTargetRpes()
+  // RPE non déclarés sur les 7 derniers jours (aujourd'hui exclu : la journée n'est pas finie)
+  const recentLogs = useAllLogs(addDays(today, -7), yesterday)
+  const recentPlan = useAllPlan(addDays(today, -7), yesterday)
   const [filter, setFilter] = useState<Filter>('tous')
 
   if (roster.isPending || wellness.isPending || logs.isPending || plan.isPending) return <Loading />
@@ -216,6 +219,11 @@ export function TodayView() {
             </Card>
           </div>
 
+          <div className="rise" style={{ animationDelay: '440ms' }}>
+            <MissingRpeCard data={recentLogs.data && recentPlan.data && ref.data
+              ? missingRpe(roster.data, recentPlan.data, recentLogs.data, ref.data.types, addDays(today, -7), yesterday) : null} />
+          </div>
+
           <div className="rise" style={{ animationDelay: '480ms' }}>
         <Card boxed title={`À relancer (${late.length})`}
           help="Ont oublié une saisie hier ou aujourd'hui. « Relancer » : le joueur voit un bandeau dans l'app et peut déclarer sa journée d'hier jusqu'à minuit. « Copier » : message à envoyer vous-même.">
@@ -249,6 +257,30 @@ function LoadCell({ load }: { load: { total: number; pace: ReturnType<typeof wee
         </span>
       ))}
     </span>
+  )
+}
+
+// Les joueurs qui ne déclarent pas leur RPE : nombre d'oublis sur les 7 derniers jours, et le détail jour par jour
+export function MissingRpeCard({ data, title = 'RPE non déclarés (7 derniers jours)' }: { data: ReturnType<typeof missingRpe> | null; title?: string }) {
+  return (
+    <Card boxed title={data ? `${title} · ${data.length}` : title}
+      help="Activités prévues avec RPE sans déclaration, et séances de musculation non validées. Le joueur ne peut rattraper que la veille, après une relance : au-delà, la saisie se fait par le staff dans sa fiche.">
+      {!data ? <p className="text-sm text-ink/45">…</p> : !data.length ? <p className="text-sm text-ok">Tous les RPE prévus ont été déclarés.</p> : (
+        <ul className="flex flex-col">
+          {data.map(({ player, missed, planned, days }) => (
+            <li key={player.id} className="border-t border-line py-1.5 text-sm">
+              <span className="flex items-center justify-between gap-2">
+                <Link to={`/staff/joueur/${player.id}`} className="font-semibold hover:underline">{fullName(player)}</Link>
+                <Badge tone={missed / planned >= 0.25 ? 'bad' : 'warn'}>{missed} oubli{missed > 1 ? 's' : ''} sur {planned}</Badge>
+              </span>
+              <span className="block text-xs text-ink/60">
+                {days.map(d => `${shortDay(d.date)} : ${d.missing.join(', ')}`).join(' · ')}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   )
 }
 

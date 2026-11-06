@@ -100,7 +100,7 @@ export function PlayerView() {
             {isAdmin && (
               <Kpi label="Ratio aigu / chronique" value={ratio.ratio === null ? '—' : ratio.ratio.toLocaleString('fr-FR')}
                 tone={ratio.zone ? ZONE_TONE[ratio.zone] : 'neutral'}
-                hint={ratio.zone ? `7 j ${n(ratio.acute)} / 28 j ${n(ratio.chronic)} UA` : 'Pas assez d\'historique'} />
+                hint={ratio.zone ? `4 j d'entr. ${n(ratio.acute)} / 16 j ÷ 4 ${n(ratio.chronic)} UA (lun, mar, mer, ven)` : 'Pas assez d\'historique (16 jours d\'entraînement)'} />
             )}
           </div>
         </section>

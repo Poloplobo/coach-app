@@ -11,10 +11,11 @@ import { addDays, parisDate } from '../../lib/week'
 import { pct } from '../../lib/format'
 import { PILLAR_LABEL, downloadWeek, weekEnd } from './exportWeek'
 import {
-  DAY_NAMES, STATUS_TONE, dailySynthesis, fullName, hotSessions, pillarSplit, rangeLabel, rpeGap, rpeMatrix, rpeVsTarget, sessionTarget, weekMatrix, weekOf, weekPace,
+  DAY_NAMES, STATUS_TONE, dailySynthesis, fullName, hotSessions, missingRpe, pillarSplit, rangeLabel, rpeGap, rpeMatrix, rpeVsTarget, sessionTarget, weekMatrix, weekOf, weekPace,
   type ActivityType, type Heat, type Log, type MatrixRow, type Pillar, type RpeRange, type WeekType,
 } from './load'
 import { useAllLogs, useAllPlan, useReference, useRoster, useTargetRpes } from './useStaff'
+import { MissingRpeCard } from './TodayView'
 import { Loading } from '../../components/ui/Loading'
 
 // Un tableau à la fois : le résumé du coach d'abord, le détail sur demande
@@ -91,7 +92,8 @@ export function WeekView() {
 
 
       <div className="flex flex-col gap-8">
-      {tab === 'resume' && <CoachSummary m={m} wt={wt} code={week.code} pillars={pillarSplit(weekLogs, types, wt)} alerts={alerts} />}
+      {tab === 'resume' && <CoachSummary m={m} wt={wt} code={week.code} pillars={pillarSplit(weekLogs, types, wt)} alerts={alerts}
+        missing={plan.data ? missingRpe(roster.data, plan.data, weekLogs, types, week.start_date, [weekEnd(week), addDays(parisDate(), -1)].sort()[0]) : null} />}
       {tab === 'charge' && <LoadTable m={m} alerts={alerts} weekStart={week.start_date} />}
       {tab === 'rpe' && <RpeTable data={rpeMatrix(roster.data, weekLogs, week.start_date)} logs={weekLogs} types={types} weekStart={week.start_date}
         target={l => sessionTarget(l, plan.data ?? [], week.week_type_code, targets.data ?? []).range} />}
@@ -118,7 +120,9 @@ type Alerts = Map<string, { hot: ReturnType<typeof hotSessions>; pace: ReturnTyp
 const HEAT_CELL: Record<Heat, string> = { warn: 'bg-gold/20 font-semibold', bad: 'bg-rnr/25 font-semibold text-rnr' }
 const shortDay = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-FR', { weekday: 'short', timeZone: 'UTC' })
 
-function CoachSummary({ m, wt, code, pillars, alerts }: { m: ReturnType<typeof weekMatrix>; wt: WeekType | null; code: string; pillars: ReturnType<typeof pillarSplit>; alerts: Alerts }) {
+function CoachSummary({ m, wt, code, pillars, alerts, missing }: {
+  m: ReturnType<typeof weekMatrix>; wt: WeekType | null; code: string; pillars: ReturnType<typeof pillarSplit>; alerts: Alerts; missing: ReturnType<typeof missingRpe> | null
+}) {
   const bars = [...m.rows].sort((a, b) => b.total - a.total).map(r => ({
     name: fullName(r.player), total: r.total,
     color: r.player.injured || !r.status ? BRAND.muted : STATUS_COLOR[r.status],
@@ -169,6 +173,8 @@ function CoachSummary({ m, wt, code, pillars, alerts }: { m: ReturnType<typeof w
         </div>
 
         <div className="flex flex-col gap-4">
+          <MissingRpeCard data={missing} title={`RPE non déclarés en ${code}`} />
+
           <Card title="Charge trop haute" help="Rythme : charge du joueur comparée à la charge visée de la semaine, au prorata du planning déjà passé. Séances : charge au-dessus du seuil de la séance (haut de la fourchette de RPE visé × durée prévue, Programmation › RPE visés et seuils), orange puis rouge au-delà de 1,25 × le seuil.">
             {m.inProgress && (ahead.length
               ? <Group title={`Au-dessus du rythme de la semaine (${ahead.length})`} rows={ahead} tone="bad"

@@ -327,13 +327,25 @@ export function latecomers(
 // RPE non déclarés jour par jour (décision du 06/11/2026 : à remplir à chaque entraînement) : activités prévues avec
 // RPE sans déclaration, et séance de musculation non validée. Du plus oublieux au moins oublieux. Un jour où personne du
 // groupe n'a rien déclaré (entraînement annulé, app pas encore utilisée) n'est pas compté.
-export function missingRpe(players: Player[], plan: PlanItem[], logs: Pick<Log, 'player_id' | 'session_date' | 'activity_type_id' | 'validated_at'>[],
-  types: ActivityType[], from: string, to: string) {
-  return players.flatMap(p => {
+type DeclLog = Pick<Log, 'player_id' | 'session_date' | 'activity_type_id' | 'validated_at'>
+export function missingRpe(players: Player[], plan: PlanItem[], logs: DeclLog[], types: ActivityType[], from: string, to: string) {
+  const activeDays = new Set(logs.map(l => l.session_date))
+  return players.map(p => playerDeclarations(p, plan, logs, types, from, to, activeDays)).filter(x => x.missed)
+    .sort((a, b) => b.missed - a.missed || b.missed / b.planned - a.missed / a.planned)
+}
+
+// Taux de déclaration d'un joueur sur une période (fiche joueur) : activeDays = jours où le groupe a déclaré quelque chose
+export function declarationRate(p: Player, plan: PlanItem[], logs: DeclLog[], types: ActivityType[], from: string, to: string, activeDays: Set<string>) {
+  const r = playerDeclarations(p, plan, logs, types, from, to, activeDays)
+  return { ...r, rate: r.planned ? Math.round((100 * (r.planned - r.missed)) / r.planned) : null }
+}
+
+function playerDeclarations(p: Player, plan: PlanItem[], logs: DeclLog[], types: ActivityType[], from: string, to: string, activeDays: Set<string>) {
+  {
     const days: { date: string; missing: string[] }[] = []
     let planned = 0
     for (let d = from; d <= to; d = addDays(d, 1)) {
-      if (!logs.some(l => l.session_date === d)) continue
+      if (!activeDays.has(d)) continue
       const mine = plan.filter(s => s.session_date === d && (s.player_id === null ? !p.injured : s.player_id === p.id))
         .map(s => ({ s, t: types.find(t => t.id === s.activity_type_id) })).filter((x): x is { s: PlanItem; t: ActivityType } => !!x.t?.requires_rpe)
       planned += mine.length
@@ -345,8 +357,8 @@ export function missingRpe(players: Player[], plan: PlanItem[], logs: Pick<Log, 
       if (missing.length) days.push({ date: d, missing })
     }
     const missed = days.reduce((n, d) => n + d.missing.length, 0)
-    return missed ? [{ player: p, missed, planned, days }] : []
-  }).sort((a, b) => b.missed - a.missed || b.missed / b.planned - a.missed / a.planned)
+    return { player: p, missed, planned, days }
+  }
 }
 
 export const reminderMessage = (p: Player, missing: string[]) =>

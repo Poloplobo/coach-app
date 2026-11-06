@@ -6,6 +6,7 @@ import webpush from 'web-push'
 const MESSAGES = {
   morning: 'Pense à remplir ton état de forme du jour.',
   late: 'Ton état de forme du jour n\'est pas encore rempli.',
+  rpe: 'Pense à déclarer ton RPE de l\'entraînement du jour.', // 20h, entraînement non déclaré (0035)
 } as const
 // Mêmes services que la contrainte de push_subscriptions : jamais d'appel vers une autre adresse
 const PUSH_HOST = /^https:\/\/(fcm\.googleapis\.com|[a-z0-9.-]+\.push\.apple\.com|updates\.push\.services\.mozilla\.com|[a-z0-9.-]+\.notify\.windows\.com)\//
@@ -20,7 +21,7 @@ export function authorized(header: string | null, secret: string) {
 export function readBody(body: unknown): { kind: keyof typeof MESSAGES; subscriptions: Subscription[] } | null {
   if (!body || typeof body !== 'object') return null
   const { kind, subscriptions } = body as { kind?: unknown; subscriptions?: unknown }
-  if ((kind !== 'morning' && kind !== 'late') || !Array.isArray(subscriptions) || subscriptions.length > 500) return null
+  if ((kind !== 'morning' && kind !== 'late' && kind !== 'rpe') || !Array.isArray(subscriptions) || subscriptions.length > 500) return null
   // Une entrée mal formée est ignorée : les autres joueurs reçoivent quand même leur rappel
   return { kind, subscriptions: subscriptions.filter((s): s is Subscription => typeof s?.endpoint === 'string' && PUSH_HOST.test(s.endpoint)
     && typeof s.keys?.p256dh === 'string' && typeof s.keys?.auth === 'string') }
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
   if (!body) return new Response('requête invalide', { status: 400 })
 
   webpush.setVapidDetails('https://rugby-tracker-rnr.vercel.app', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
-  const payload = JSON.stringify({ title: 'Pôle Espoir', body: MESSAGES[body.kind], url: '/joueur/forme' })
+  const payload = JSON.stringify({ title: 'Pôle Espoir', body: MESSAGES[body.kind], url: body.kind === 'rpe' ? '/joueur' : '/joueur/forme' })
   const results = await Promise.allSettled(body.subscriptions.map(s => webpush.sendNotification(s, payload, { TTL: 2 * 3600, urgency: 'high' })))
   // Abonnement expiré ou retiré : la base le supprime au prochain envoi
   const gone = results.flatMap((r, i) => r.status === 'rejected' && [404, 410].includes((r.reason as { statusCode?: number })?.statusCode ?? 0) ? [body.subscriptions[i].endpoint] : [])

@@ -11,7 +11,7 @@ import { completion } from '../seances/program'
 import { useWeekProgram } from '../seances/useSeance'
 import { MyGoals } from '../tests/MyGoals'
 import { fatiguePercent } from '../wellness/fatigue'
-import { DAY_NAMES, STATUS_TONE, WELLNESS_ALERT_SCORE, acwr, fullName, loadStatus, playerDays, rpeGap, rpeVsTarget, sessionTarget, weekMatrix, weekOf, type Log, type WeekType } from './load'
+import { DAY_NAMES, STATUS_TONE, WELLNESS_ALERT_SCORE, acwr, fullName, loadStatus, playerDays, declarationRate, rpeGap, rpeVsTarget, sessionTarget, weekMatrix, weekOf, type Log, type WeekType } from './load'
 import { AvailabilityPanel, CorrectionPanel } from './PlayerAdmin'
 import { TestsPanel } from './programming/TestsPanel'
 import { useAllLogs, useAllPlan, useAllWellness, useInjurySessions, useIsAdmin, useReference, useRoster, useTargetRpes } from './useStaff'
@@ -46,6 +46,9 @@ export function PlayerView() {
   const wellness = useAllWellness(selectedId ? seasonStart : '', today, selectedId)
   const weekLogs = useAllLogs(week?.start_date ?? '', week ? addDays(week.start_date, 6) : '')
   const weekPlan = useAllPlan(week?.start_date ?? '', week ? addDays(week.start_date, 6) : '') // RPE visé des séances
+  // Taux de déclaration de la saison : planning et déclarations du groupe (jours d'entraînement réellement suivis)
+  const seasonPlan = useAllPlan(selectedId ? seasonStart : '', addDays(today, -1))
+  const seasonLogs = useAllLogs(selectedId ? seasonStart : '', addDays(today, -1))
   const targets = useTargetRpes()
   const injury = useInjurySessions(roster.data?.find(p => p.id === selectedId)?.injured ? selectedId : undefined, addDays(today, -28), today)
 
@@ -99,6 +102,11 @@ export function PlayerView() {
             <Kpi label="% de la charge visée" value={pct(row.pct)} tone={row.status ? STATUS_TONE[row.status] : 'neutral'} hint={row.status ?? (m?.inProgress ? 'semaine en cours' : undefined)} />
             <Kpi label="Écart au groupe" value={pct(row.vsGroupPct, true)} />
             <Kpi label="Temps total" value={`${n(row.minutes)} min`} />
+            {player && seasonPlan.data && seasonLogs.data && (() => {
+              const d = declarationRate(player, seasonPlan.data, seasonLogs.data, ref.data.types, seasonStart, addDays(today, -1), new Set(seasonLogs.data.map(l => l.session_date)))
+              return d.rate === null ? null : <Kpi label="RPE déclarés (saison)" value={`${d.rate} %`} tone={d.rate >= 90 ? 'ok' : d.rate >= 70 ? 'warn' : 'bad'}
+                hint={`${d.planned - d.missed} sur ${d.planned} activités prévues`} />
+            })()}
             {isAdmin && (
               <Kpi label="Ratio aigu / chronique" value={ratio.ratio === null ? '—' : ratio.ratio.toLocaleString('fr-FR')}
                 tone={ratio.zone ? ZONE_TONE[ratio.zone] : 'neutral'}

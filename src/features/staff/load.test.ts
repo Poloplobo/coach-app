@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  acwr, hotSessions, missingRpe, overLoad, parseRpeRange, plannedLoad, rpeGap, rpeMatrix, rpeVsTarget, sessionTarget, dailySynthesis, latecomers, weekPace, loadStatus, pctOfTarget, pillarSplit, playerDays, reminderMessage, weekMatrix, wellnessAlerts,
+  acwr, declarationRate, hotSessions, missingRpe, overLoad, parseRpeRange, plannedLoad, rpeGap, rpeMatrix, rpeVsTarget, sessionTarget, dailySynthesis, latecomers, weekPace, loadStatus, pctOfTarget, pillarSplit, playerDays, reminderMessage, weekMatrix, wellnessAlerts,
   type ActivityType, type Log, type Player, type WeekType,
 } from './load'
 
@@ -237,6 +237,12 @@ describe('missingRpe : RPE non déclarés jour par jour', () => {
     expect(r.map(x => [x.player.id, x.missed, x.planned, x.days])).toEqual([
       ['a', 2, 2, [{ date: '2026-11-04', missing: ['Jeu au Poste', 'Musculation'] }]],
     ])
+  })
+  it('declarationRate : part des activités prévues déclarées sur la période', () => {
+    const logs = [{ player_id: 'a', session_date: '2026-11-04', activity_type_id: 'poste', validated_at: null }]
+    expect(declarationRate(player('a'), plan, logs, t, '2026-11-02', '2026-11-05', new Set(['2026-11-04'])))
+      .toMatchObject({ planned: 2, missed: 1, rate: 50 })
+    expect(declarationRate(player('a'), plan, [], t, '2026-11-02', '2026-11-05', new Set()).rate).toBeNull()
   })
   it('jour où personne n\'a rien déclaré (entraînement annulé) : pas compté', () => {
     expect(missingRpe([player('a')], plan, [], t, '2026-11-02', '2026-11-05')).toEqual([])

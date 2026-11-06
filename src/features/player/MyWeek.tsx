@@ -48,7 +48,7 @@ export function MyWeek({ playerId, date, footer }: { playerId: string; date: str
       {/* Trois chiffres depuis lundi, comme les cartes du staff : déclarées, charge, fatigue moyenne (tendance vs semaine dernière) */}
       <dl className="grid grid-cols-3 gap-2">
         {([
-          ['Déclarées', planned > 0 ? `${declared}/${planned}` : String(declared), 'depuis lundi', ''],
+          ['Déclarées', String(declared), planned > 0 ? `pour ${planned} prévue${planned > 1 ? 's' : ''}` : 'depuis lundi', ''], // pas de fraction : les ajouts hors planning la feraient dépasser (« 4/3 »)
           ['Charge', `${load.toLocaleString('fr-FR')}`, `UA · ${minutes} min`, ''],
           ['Fatigue moy.', fatigue === null ? '—' : `${fatigue} %`, trend ? (trend === 'en hausse' ? '↑ en hausse' : trend === 'en baisse' ? '↓ en baisse' : 'stable') : 'cette semaine', trend === 'en hausse' ? 'text-gold' : trend === 'en baisse' ? 'text-ok' : ''],
         ] as const).map(([label, value, sub, tone]) => (

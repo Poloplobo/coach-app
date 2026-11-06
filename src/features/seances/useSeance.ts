@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabaseClient'
-import { MUSCULATION } from '../rpe/activities'
+import { EXERCISE_SESSIONS } from '../rpe/activities'
 import { addDays } from '../../lib/week'
 import type { FeedbackStatus, PastLoad, PlannedExercise, ReferenceMax } from './program'
 
-export type MuscuSession = { id: string; session_date: string; planned_duration_min: number | null; planned_exercises: PlannedExercise[] }
+export type MuscuSession = { id: string; session_date: string; planned_duration_min: number | null; activity_types: { name: string }; planned_exercises: PlannedExercise[] }
 
 // Séances de musculation du joueur sur la semaine ; la RLS ne renvoie que ses propres retours
 export function useWeekProgram(playerId: string, from: string, to: string) {
@@ -14,8 +14,8 @@ export function useWeekProgram(playerId: string, from: string, to: string) {
       const { data, error } = await supabase.from('planned_sessions')
         .select(`id, session_date, planned_duration_min, activity_types!inner(name),
           planned_exercises(id, exercise_id, position, block_label, sets, reps, load_value, load_unit, tempo, rest, instructions,
-            exercises(name), exercise_feedback(rpe, done_load, status, comment))`)
-        .eq('player_id', playerId).eq('activity_types.name', MUSCULATION)
+            exercises(name), exercise_feedback(rpe, done_load, status, comment, pain))`)
+        .eq('player_id', playerId).in('activity_types.name', EXERCISE_SESSIONS)
         .gte('session_date', from).lte('session_date', to).order('session_date')
       if (error) throw error
       return data
@@ -53,7 +53,7 @@ export function usePastLoads(playerId: string, before: string) {
   })
 }
 
-export type FeedbackInput = { plannedExerciseId: string; status: FeedbackStatus; doneLoad: string | null; rpe: number | null; comment: string | null }
+export type FeedbackInput = { plannedExerciseId: string; status: FeedbackStatus; doneLoad: string | null; rpe: number | null; comment: string | null; pain?: number | null }
 
 // Modifiable toute la journée tant que la séance n'est pas validée (verrou en base)
 export function useSaveFeedback(playerId: string) {
@@ -62,7 +62,7 @@ export function useSaveFeedback(playerId: string) {
     mutationFn: async (f: FeedbackInput) => {
       const { error } = await supabase.from('exercise_feedback').upsert({
         player_id: playerId, planned_exercise_id: f.plannedExerciseId, status: f.status,
-        done_load: f.doneLoad, rpe: f.rpe, comment: f.comment,
+        done_load: f.doneLoad, rpe: f.rpe, comment: f.comment, ...(f.pain !== undefined ? { pain: f.pain } : {}),
       }, { onConflict: 'player_id,planned_exercise_id' })
       if (error) throw error
     },

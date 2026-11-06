@@ -140,6 +140,17 @@ export function useStaffSaveWellness() {
   })
 }
 
+// Séances de réhab et membres sains d'un joueur blessé, avec la douleur EVA de chaque exercice (0034)
+export function useInjurySessions(playerId: string | undefined, from: string, to: string) {
+  return useQuery({
+    enabled: !!playerId && !!from,
+    ...query(['staff', 'injury', playerId, from, to], async () => check(await supabase.from('planned_sessions')
+      .select('id, session_date, activity_type_id, activity_types!inner(name), planned_exercises(exercises(name), exercise_feedback(pain, status))')
+      .eq('player_id', playerId!).in('activity_types.name', ['Réhabilitation', 'Membres sains'])
+      .gte('session_date', from).lte('session_date', to).order('session_date'))),
+  })
+}
+
 // Séances de musculation individuelles (avec exercices et retours) ; playerId : un seul joueur (progression sur la saison)
 export function useStaffMuscu(from: string, to: string, playerId?: string) {
   return useQuery({

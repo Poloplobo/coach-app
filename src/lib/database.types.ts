@@ -139,6 +139,7 @@ export type Database = {
           created_at: string
           done_load: string | null
           id: string
+          pain: number | null
           planned_exercise_id: string
           player_id: string
           rpe: number | null
@@ -149,6 +150,7 @@ export type Database = {
           created_at?: string
           done_load?: string | null
           id?: string
+          pain?: number | null
           planned_exercise_id: string
           player_id: string
           rpe?: number | null
@@ -159,6 +161,7 @@ export type Database = {
           created_at?: string
           done_load?: string | null
           id?: string
+          pain?: number | null
           planned_exercise_id?: string
           player_id?: string
           rpe?: number | null

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Card } from '../../components/ui/Card'
 import { ActivityRow } from './ActivityRow'
-import { MUSCULATION, dayActivities, type DayActivity } from './activities'
+import { EXERCISE_SESSIONS, INJURED_EXTRAS, dayActivities, type DayActivity } from './activities'
 import { useActivityTypes, useAvailability, useLogsRange, usePlanRange } from './useRpe'
 import { Loading } from '../../components/ui/Loading'
 
@@ -26,15 +26,17 @@ export function TodayActivities({ playerId, date, title = 'Mes activités du jou
   // Activités déclarées hors planning (déjà enregistrées, ou ajoutées à l'instant)
   const extras = types.data
     .filter(t => !plannedIds.has(t.id) && (extraIds.includes(t.id) || logs.data.some(l => l.activity_type_id === t.id)))
-    .filter(t => t.name !== MUSCULATION)
+    .filter(t => !EXERCISE_SESSIONS.includes(t.name))
     .map(toActivity)
   const shown = new Set([...plannedIds, ...extras.map(a => a.activityTypeId)])
-  const addable = types.data.filter(t => !shown.has(t.id) && t.name !== MUSCULATION)
+  // Blessé : plus les activités du groupe, il ajoute son cardio et sa reprise terrain ; séances à exercices dans l'onglet Séance
+  const injured = availability.data === 'blessé'
+  const addable = types.data.filter(t => !shown.has(t.id) && !EXERCISE_SESSIONS.includes(t.name) && (!injured || INJURED_EXTRAS.includes(t.name)))
 
   return (
     <Card title={title} help="Pour chaque activité : ton effort ressenti et la durée. Vidéo et soins : un simple « J'y étais ».">
       {availability.data === 'blessé' && (
-        <p className="rounded-lg border border-gold px-3 py-2 text-sm">Tu es noté blessé : seul ton programme individuel apparaît.</p>
+        <p className="rounded-lg border border-gold px-3 py-2 text-sm">Tu es noté blessé : tes séances de réhab et membres sains sont dans l'onglet Séance. Ici, ajoute ton cardio ou ta reprise terrain quand tu en fais.</p>
       )}
       {planned.length === 0 && extras.length === 0 && <p className="text-sm text-ink/70">Aucune activité prévue aujourd'hui.</p>}
       <ul className="flex flex-col divide-y divide-line/60">

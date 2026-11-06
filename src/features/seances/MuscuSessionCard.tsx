@@ -12,8 +12,9 @@ import { blockGroups, completion, lastLoads, sessionRpe, sortedExercises } from 
 import { useMarkNotDone, usePastLoads, useRedoMuscu, useReferenceMaxes, useValidateSession, useWeekProgram } from './useSeance'
 import { Loading } from '../../components/ui/Loading'
 
-// catchUp : séance d'hier rouverte par une relance du staff ; rien à afficher si elle n'existe pas ou est déjà validée
-export function MuscuSessionCard({ playerId, date, catchUp = false }: { playerId: string; date: string; catchUp?: boolean }) {
+// catchUp : séance d'hier rouverte par une relance du staff ; rien à afficher si elle n'existe pas ou est déjà validée.
+// activity : Musculation, ou pour un blessé Réhabilitation / Membres sains (une carte par séance, douleur EVA par exercice)
+export function MuscuSessionCard({ playerId, date, catchUp = false, activity = MUSCULATION }: { playerId: string; date: string; catchUp?: boolean; activity?: string }) {
   const from = isoWeekStart(date)
   const to = addDays(from, 6)
   const program = useWeekProgram(playerId, from, to)
@@ -30,18 +31,21 @@ export function MuscuSessionCard({ playerId, date, catchUp = false }: { playerId
   const [finishing, setFinishing] = useState(false) // 2e étape : effort de la séance et validation
 
   if (catchUp && (program.isPending || logs.isPending || types.isPending)) return null
-  if (program.isPending || logs.isPending || types.isPending) return <Card title="Musculation"><Loading /></Card>
-  if (program.isError || logs.isError || types.isError) return <Card title="Musculation"><p>Impossible de charger ton programme.</p></Card>
+  if (program.isPending || logs.isPending || types.isPending) return <Card title={activity}><Loading /></Card>
+  if (program.isError || logs.isError || types.isError) return <Card title={activity}><p>Impossible de charger ton programme.</p></Card>
 
-  const muscuType = types.data.find(t => t.name === MUSCULATION)
-  const session = program.data.find(s => s.session_date === date)
-  const others = program.data.filter(s => s.session_date !== date)
+  const muscuType = types.data.find(t => t.name === activity)
+  const week = program.data.filter(s => s.activity_types.name === activity)
+  const session = week.find(s => s.session_date === date)
+  const others = week.filter(s => s.session_date !== date)
+  const rehab = activity !== MUSCULATION
+  const label = activity === MUSCULATION ? 'musculation' : activity.toLowerCase()
   // Bande de la semaine : une case par jour, séance faite (validée), aujourd'hui, à venir ou sans muscu
   const validated = new Set(logs.data.filter(l => l.validated_at && l.planned_session_id).map(l => l.planned_session_id))
   const strip = (
-    <ol aria-label="Mes séances de musculation de la semaine" className="grid grid-cols-7 gap-1.5">
+    <ol aria-label={`Mes séances de ${label} de la semaine`} className="grid grid-cols-7 gap-1.5">
       {Array.from({ length: 7 }, (_, i) => addDays(from, i)).map((d, i) => {
-        const s = program.data.find(x => x.session_date === d)
+        const s = week.find(x => x.session_date === d)
         const done = s && validated.has(s.id), isToday = d === date
         const label = !s ? 'pas de musculation' : done ? `séance faite (${completion(s.planned_exercises).done}/${s.planned_exercises.length})` : d < date ? 'séance non validée' : isToday ? (catchUp ? "séance d'hier à remplir" : "séance d'aujourd'hui") : 'séance à venir'
         return (
@@ -60,7 +64,7 @@ export function MuscuSessionCard({ playerId, date, catchUp = false }: { playerId
   if (catchUp && (!session || !muscuType || logs.data.some(l => l.planned_session_id === session.id && l.validated_at))) return null
   if (!session || !muscuType) {
     return (
-      <Card title="Musculation" help="Ta semaine de musculation : ✓ séance faite, ● séance prévue.">
+      <Card title={activity} help={`Ta semaine de ${label} : ✓ séance faite, ● séance prévue.`}>
         {strip}
         <p className="text-sm text-ink/70">
           Pas de séance aujourd'hui.{next && <> Prochaine : <strong className="text-ink first-letter:uppercase">{formatDay(next.session_date)}</strong> ({next.planned_exercises.length} exercices).</>}
@@ -90,7 +94,7 @@ export function MuscuSessionCard({ playerId, date, catchUp = false }: { playerId
   const sessionEffort = computed?.rpe ?? rpe
 
   return (
-    <Card title={catchUp ? 'Ma séance d\'hier (relance du staff)' : 'Ma séance de musculation'}
+    <Card title={catchUp ? `Ma séance d'hier : ${label} (relance du staff)` : `Ma séance de ${label}`}
       help="Note chaque exercice (fait, partiel ou non fait, et ton RPE), puis termine la séance."
       aside={plannedMinutes ? <span className="text-sm tabular-nums text-ink/60">{plannedMinutes} min prévues</span> : undefined}>
       {strip}
@@ -119,7 +123,7 @@ export function MuscuSessionCard({ playerId, date, catchUp = false }: { playerId
                 <span className="text-sm tabular-nums text-ink/60" aria-label={`${gc.done} faits sur ${gc.total}`}>{gc.done}/{gc.total}</span>
               </header>
               <ul className="divide-y divide-line/60 px-3">
-                {g.items.map(e => <ExerciseRow key={e.id} playerId={playerId} exercise={e} editable={!log} maxes={maxes}
+                {g.items.map(e => <ExerciseRow key={e.id} playerId={playerId} exercise={e} editable={!log} maxes={maxes} pain={rehab}
                   last={e.exercise_id ? last.get(e.exercise_id) : undefined} />)}
               </ul>
             </section>

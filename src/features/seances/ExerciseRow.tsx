@@ -5,6 +5,7 @@ import { OfflineNote } from '../../components/ui/OfflineNote'
 import { SavedFlash } from '../../components/ui/SavedFlash'
 import { useSavedFlash } from '../../components/ui/useSavedFlash'
 import { RpePicker } from '../rpe/RpePicker'
+import { ScalePicker } from '../../components/ui/ScalePicker'
 import { STATUSES, estimatedKg, prescriptionParts, type PastLoad, type ReferenceMax, type FeedbackStatus, type PlannedExercise } from './program'
 import { RestTimer } from './RestTimer'
 import { useSaveFeedback } from './useSeance'
@@ -27,8 +28,9 @@ function StatusMark({ status }: { status?: string | null }) {
 const shortDate = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' })
 
 // maxes / last : repères facultatifs (charge indicative d'un %RM, charge réalisée la dernière fois sur cet exercice)
-export function ExerciseRow({ playerId, exercise, editable, maxes = [], last }: {
-  playerId: string; exercise: PlannedExercise; editable: boolean; maxes?: ReferenceMax[]; last?: PastLoad
+// pain : séance d'un blessé (réhab, membres sains) : douleur EVA de 0 à 10 sur l'exercice
+export function ExerciseRow({ playerId, exercise, editable, maxes = [], last, pain: askPain = false }: {
+  playerId: string; exercise: PlannedExercise; editable: boolean; maxes?: ReferenceMax[]; last?: PastLoad; pain?: boolean
 }) {
   const saved = exercise.exercise_feedback[0]
   const save = useSaveFeedback(playerId)
@@ -38,12 +40,14 @@ export function ExerciseRow({ playerId, exercise, editable, maxes = [], last }: 
   const [doneLoad, setDoneLoad] = useState(saved?.done_load ?? '')
   const [rpe, setRpe] = useState<number | null>(saved?.rpe ?? null)
   const [comment, setComment] = useState(saved?.comment ?? '')
+  const [pain, setPain] = useState<number | null>(saved?.pain ?? null)
 
   // Repartir du dernier enregistrement (il a pu changer, ex. « Séance non faite »)
   const startEditing = () => {
     setStatus((saved?.status as FeedbackStatus) ?? null)
     setDoneLoad(saved?.done_load ?? '')
     setRpe(saved?.rpe ?? null)
+    setPain(saved?.pain ?? null)
     setComment(saved?.comment ?? '')
     setEditing(true)
   }
@@ -87,7 +91,7 @@ export function ExerciseRow({ playerId, exercise, editable, maxes = [], last }: 
               <span className={`font-semibold ${saved.status === 'fait' ? 'text-ok' : saved.status === 'partiel' ? 'text-gold' : 'text-ink/60'}`}>
                 {STATUS_LABEL[saved.status]}
               </span>
-              <span className="text-ink/70">{saved.rpe !== null ? ` · RPE ${saved.rpe}` : ''}{saved.done_load ? ` · ${saved.done_load}` : ''}</span>
+              <span className="text-ink/70">{saved.rpe !== null ? ` · RPE ${saved.rpe}` : ''}{saved.pain != null ? ` · douleur ${saved.pain}/10` : ''}{saved.done_load ? ` · ${saved.done_load}` : ''}</span>
               {saved.comment && <span className="block text-ink/60">« {saved.comment} »</span>}
               <SavedFlash shown={flash} />
             </p>
@@ -99,7 +103,7 @@ export function ExerciseRow({ playerId, exercise, editable, maxes = [], last }: 
   }
 
   const submit = () => save.mutate(
-    { plannedExerciseId: exercise.id, status: status!, doneLoad: doneLoad.trim() || null, rpe, comment: comment.trim() || null },
+    { plannedExerciseId: exercise.id, status: status!, doneLoad: doneLoad.trim() || null, rpe, comment: comment.trim() || null, pain: askPain ? pain : undefined },
     { onSuccess: () => { setEditing(false); showFlash() } },
   )
 
@@ -127,6 +131,10 @@ export function ExerciseRow({ playerId, exercise, editable, maxes = [], last }: 
             </label>
             <RpePicker label="RPE de l'exercice" value={rpe} onChange={setRpe} />
           </>
+        )}
+        {askPain && status && (
+          <ScalePicker label="Douleur pendant l'exercice (EVA)" min={0} max={10} value={pain} onChange={setPain}
+            low="0 : aucune" high="10 : maximale" hint="Échelle visuelle analogique : ta douleur sur la zone blessée, de 0 à 10." />
         )}
         {/* tant qu'aucun statut n'est choisi, l'exercice reste compact : la séance se lit d'un coup d'œil */}
         {status && (

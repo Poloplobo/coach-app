@@ -5,7 +5,7 @@ import { Badge } from '../../components/ui/Badge'
 import { Card } from '../../components/ui/Card'
 import { Kpi } from '../../components/ui/Kpi'
 import { BRAND } from '../../lib/brand'
-import { addDays, parisDate } from '../../lib/week'
+import { addDays, isoWeekStart, parisDate } from '../../lib/week'
 import { pct } from '../../lib/format'
 import { completion } from '../seances/program'
 import { useWeekProgram } from '../seances/useSeance'
@@ -14,7 +14,8 @@ import { fatiguePercent } from '../wellness/fatigue'
 import { DAY_NAMES, STATUS_TONE, WELLNESS_ALERT_SCORE, acwr, fullName, loadStatus, playerDays, rpeGap, rpeVsTarget, sessionTarget, weekMatrix, weekOf, type Log, type WeekType } from './load'
 import { AvailabilityPanel, CorrectionPanel } from './PlayerAdmin'
 import { TestsPanel } from './programming/TestsPanel'
-import { useAllLogs, useAllPlan, useAllWellness, useIsAdmin, useReference, useRoster, useTargetRpes } from './useStaff'
+import { useAllLogs, useAllPlan, useAllWellness, useInjurySessions, useIsAdmin, useReference, useRoster, useTargetRpes } from './useStaff'
+import { injurySummary } from './injury'
 import { Loading } from '../../components/ui/Loading'
 import { ViewSelect } from '../../components/ui/ViewSelect'
 
@@ -46,6 +47,7 @@ export function PlayerView() {
   const weekLogs = useAllLogs(week?.start_date ?? '', week ? addDays(week.start_date, 6) : '')
   const weekPlan = useAllPlan(week?.start_date ?? '', week ? addDays(week.start_date, 6) : '') // RPE visé des séances
   const targets = useTargetRpes()
+  const injury = useInjurySessions(roster.data?.find(p => p.id === selectedId)?.injured ? selectedId : undefined, addDays(today, -28), today)
 
   if (ref.isPending || roster.isPending) return <Loading />
   if (ref.isError || roster.isError || own.isError || wellness.isError || weekLogs.isError) return <p>Impossible de charger la fiche joueur.</p>
@@ -104,6 +106,11 @@ export function PlayerView() {
             )}
           </div>
         </section>
+      )}
+
+      {section === 'semaine' && player?.injured && injury.data && (
+        <InjuryCard summary={injurySummary(injury.data, new Set(injury.data.filter(s => own.data.some(l => l.session_date === s.session_date
+          && l.activity_type_id === s.activity_type_id && l.validated_at)).map(s => s.id)), isoWeekStart(today), today)} />
       )}
 
       {section === 'semaine' && (
@@ -246,6 +253,34 @@ function MuscuWeek({ playerId, from }: { playerId: string; from: string }) {
           )
         })}
       </ul>
+    </Card>
+  )
+}
+
+// Joueur blessé : assiduité de la réhab sur la semaine et douleur EVA exercice par exercice (4 dernières semaines)
+function InjuryCard({ summary: s }: { summary: ReturnType<typeof injurySummary> }) {
+  const tone = (v: number) => (v >= 7 ? 'text-rnr' : v >= 4 ? 'text-gold' : 'text-ok')
+  return (
+    <Card title="Suivi blessé" help="Séances de réhabilitation et membres sains validées cette semaine (jusqu'à aujourd'hui), et douleur EVA (0 : aucune, 10 : maximale) déclarée sur chaque exercice depuis 4 semaines. Flèche : évolution depuis la première mesure.">
+      <div className="flex flex-wrap gap-3">
+        <Kpi label="Séances faites cette semaine" value={`${s.done} / ${s.planned}`} tone={s.planned && s.done < s.planned ? 'warn' : 'ok'} />
+        {s.byType.map(t => <Kpi key={t.type} label={t.type} value={`${t.done} / ${t.planned}`} />)}
+      </div>
+      {!s.pain.length ? <p className="text-sm text-ink/60">Aucune douleur déclarée sur les exercices pour l'instant.</p> : (
+        <table className="text-sm">
+          <thead className="text-left text-ink/60"><tr><th className="py-1 pr-4 font-normal">Exercice</th><th className="pr-4 font-normal">Dernière</th><th className="pr-4 font-normal">Évolution</th><th className="font-normal">Historique</th></tr></thead>
+          <tbody>
+            {s.pain.map(p => (
+              <tr key={p.name} className="border-t border-line">
+                <td className="py-1 pr-4 font-semibold">{p.name}</td>
+                <td className={`pr-4 font-semibold tabular-nums ${tone(p.last)}`}>{p.last}/10</td>
+                <td className={`pr-4 tabular-nums ${p.trend < 0 ? 'text-ok' : p.trend > 0 ? 'text-rnr' : 'text-ink/60'}`}>{p.trend < 0 ? `↓ ${-p.trend}` : p.trend > 0 ? `↑ ${p.trend}` : '='}</td>
+                <td className="tabular-nums text-ink/70">{p.points.map(x => `${x.date.slice(8, 10)}/${x.date.slice(5, 7)} : ${x.pain}`).join(' · ')}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </Card>
   )
 }

@@ -1,7 +1,7 @@
 // Séance de musculation individuelle : exercices en blocs (MOB, A1, A2, B1… F), retour du joueur par exercice
 
 export type FeedbackStatus = 'fait' | 'partiel' | 'non fait'
-export type Feedback = { rpe: number | null; done_load: string | null; status: string | null; comment: string | null }
+export type Feedback = { rpe: number | null; done_load: string | null; status: string | null; comment: string | null; pain?: number | null }
 export type PlannedExercise = {
   // exercise_id : lu côté joueur seulement (repères de charge)
   id: string; exercise_id?: string; position: number; block_label: string | null; sets: number | null; reps: string | null

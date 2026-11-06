@@ -1,7 +1,7 @@
 // Calculs du tableau de bord staff, calqués sur les onglets TABLEAU_DE_BORD et SUIVI_INDIVIDUEL du classeur PER.
 // Fonctions pures : la vue, l'export Excel et les tests utilisent exactement les mêmes chiffres.
 import { addDays } from '../../lib/week'
-import { MUSCULATION } from '../rpe/activities'
+import { EXERCISE_SESSIONS } from '../rpe/activities'
 import { WELLNESS_ITEMS, type WellnessKey } from '../wellness/items'
 
 export type Pillar = 'rugby' | 'physique' | 'accompagnement' | 'ppid'
@@ -166,10 +166,11 @@ export const plannedLoad = (items: { minutes: number; range: RpeRange | null }[]
 // Rythme de la semaine en cours : la part du planning déjà passée (minutes prévues jusqu'à aujourd'hui inclus) fixe la
 // charge « au rythme » ; au-dessus de la charge visée à ce rythme (décision du 03/11/2026 : la cible, pas le haut de la
 // plage), le joueur est trop haut pour le moment de la semaine.
-// Séances du groupe (player_id nul) pour les aptes, plus ses séances individuelles. Pas de plan
+// Séances du groupe (player_id nul) et ses séances individuelles. Pas de plan, blessé
 // ou pas de type de semaine : null.
 export function weekPace(player: Player, total: number, plan: PlanItem[], today: string, wt: Pick<WeekType, 'target_srpe'> | null) {
-  if (!wt?.target_srpe) return null
+  // Blessé : il ne suit pas la charge du groupe, son suivi est celui de la réhab (séances, douleur)
+  if (!wt?.target_srpe || player.injured) return null
   const mine = plan.filter(s => (s.player_id === null ? !player.injured : s.player_id === player.id))
   const minutes = (s: PlanItem) => s.planned_duration_min ?? s.activity_types?.default_duration_min ?? 0
   const all = mine.reduce((n, s) => n + minutes(s), 0)
@@ -316,7 +317,7 @@ export function latecomers(
     const pendingYesterday = plan.some(s => {
       if (s.session_date !== yesterday || (s.player_id === null ? p.injured : s.player_id !== p.id)) return false
       const l = logs.find(x => x.player_id === p.id && x.session_date === yesterday && x.activity_type_id === s.activity_type_id)
-      return !l || (s.activity_types?.name === MUSCULATION && !l.validated_at)
+      return !l || (EXERCISE_SESSIONS.includes(s.activity_types?.name ?? '') && !l.validated_at)
     })
     if (pendingYesterday) missing.push('RPE d\'hier')
     return missing.length ? [{ player: p, missing }] : []
@@ -338,7 +339,7 @@ export function missingRpe(players: Player[], plan: PlanItem[], logs: Pick<Log, 
       planned += mine.length
       const missing = mine.filter(t => {
         const l = logs.find(x => x.player_id === p.id && x.session_date === d && x.activity_type_id === t.id)
-        return !l || (t.name === MUSCULATION && !l.validated_at)
+        return !l || (EXERCISE_SESSIONS.includes(t.name) && !l.validated_at)
       }).map(t => t.name)
       if (missing.length) days.push({ date: d, missing })
     }

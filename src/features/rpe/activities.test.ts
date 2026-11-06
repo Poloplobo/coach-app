@@ -21,9 +21,11 @@ describe('dayActivities', () => {
     ])
   })
 
-  it('joueur blessé : seulement son programme individuel', () => {
-    const list = dayActivities([group('s1', tactique), indiv('s2', rehab)], { injured: true })
-    expect(list.map(a => a.name)).toEqual(['Réhabilitation'])
+  it('joueur blessé : seulement son programme individuel ; réhab et membres sains vont dans l\'onglet Séance', () => {
+    const reprise = type('t5', 'Reprise terrain'), sains = type('t6', 'Membres sains')
+    const plan = [group('s1', tactique), indiv('s2', rehab), indiv('s3', sains), indiv('s4', reprise)]
+    expect(dayActivities(plan, { injured: true }).map(a => a.name)).toEqual(['Reprise terrain'])
+    expect(dayActivities(plan, { injured: true, includeMuscu: true }).map(a => a.name)).toEqual(['Réhabilitation', 'Membres sains', 'Reprise terrain'])
   })
 
   it('même activité au groupe et en individuel : une seule ligne, celle du joueur', () => {

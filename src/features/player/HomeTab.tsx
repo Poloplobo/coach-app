@@ -2,7 +2,7 @@ import { Card } from '../../components/ui/Card'
 import { addDays, isoWeekStart } from '../../lib/week'
 import { Check, ChevronRight } from 'lucide-react'
 import { TabLink } from '../../components/ui/TabLink'
-import { MUSCULATION, dayActivities, upcomingByDay } from '../rpe/activities'
+import { EXERCISE_SESSIONS, dayActivities, upcomingByDay } from '../rpe/activities'
 import { useAvailability, useCatchUpDay, usePlanRange, useWeekTarget } from '../rpe/useRpe'
 import { completion } from '../seances/program'
 import { useWeekProgram } from '../seances/useSeance'
@@ -51,7 +51,7 @@ function TodoToday({ playerId, today, title }: { playerId: string; today: string
   if (!plan.data || !logs.data || !availability.data) return null
   const acts = dayActivities(plan.data, { injured: availability.data === 'blessé', includeMuscu: true })
   if (!acts.length) return null
-  const isMuscu = (a: (typeof acts)[number]) => a.name === MUSCULATION
+  const isMuscu = (a: (typeof acts)[number]) => EXERCISE_SESSIONS.includes(a.name)
   // la musculation compte quand la séance est validée ; les autres activités dès qu'elles sont déclarées
   const pending = acts.filter(a => {
     const l = logs.data.find(x => x.activity_type_id === a.activityTypeId)

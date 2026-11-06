@@ -182,8 +182,8 @@ describe('weekPace : rythme de la semaine selon le planning', () => {
     expect(weekPace(player('a'), 1060, plan, '2026-11-03', COMP)).toEqual({ share: 54, limit: 1086, over: false, pct: 98 })
     expect(weekPace(player('a'), 1100, plan, '2026-11-03', COMP)?.over).toBe(true)
   })
-  it('blessé : seulement ses séances individuelles ; sans type de semaine ou sans planning : rien', () => {
-    expect(weekPace(player('a', true), 600, plan, '2026-11-03', COMP)).toMatchObject({ share: 100, limit: 2000 })
+  it('blessé (suivi de réhab, pas de charge du groupe), sans type de semaine ou sans planning : rien', () => {
+    expect(weekPace(player('a', true), 600, plan, '2026-11-03', COMP)).toBeNull()
     expect(weekPace(player('a'), 1060, plan, '2026-11-03', null)).toBeNull()
     expect(weekPace(player('c'), 100, [], '2026-11-03', COMP)).toBeNull()
   })

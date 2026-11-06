@@ -2,6 +2,10 @@
 
 // La séance de musculation se valide exercice par exercice (étape 5), pas ici
 export const MUSCULATION = 'Musculation'
+// Séances à exercices (onglet Séance) : la musculation, et pour un blessé la réhab et les membres sains (0034)
+export const EXERCISE_SESSIONS = [MUSCULATION, 'Réhabilitation', 'Membres sains']
+// Ce qu'un joueur blessé ajoute lui-même (il n'a plus les séances du groupe)
+export const INJURED_EXTRAS = ['Cardio (porté / course)', 'Reprise terrain']
 
 export type PlannedRow = {
   id: string
@@ -24,7 +28,7 @@ export function dayActivities(plan: PlannedRow[], { injured, includeMuscu = fals
   const individualIds = new Set<string>()
   for (const s of plan) {
     const a = s.activity_types
-    if (a.name === MUSCULATION && !includeMuscu) continue
+    if (EXERCISE_SESSIONS.includes(a.name) && !includeMuscu) continue
     const individual = s.player_id !== null
     if (injured && !individual) continue // blessé : seulement son programme individuel
     // Une seule déclaration par activité et par jour : le programme individuel l'emporte sur celui du groupe

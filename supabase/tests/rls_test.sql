@@ -3,18 +3,20 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(174);
+select plan(177);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
   ('00000000-0000-0000-0000-00000000000b', 'b@test.fr'),
   ('00000000-0000-0000-0000-00000000000c', 'c@test.fr'),
-  ('00000000-0000-0000-0000-00000000000d', 'm@test.fr');
+  ('00000000-0000-0000-0000-00000000000d', 'm@test.fr'),
+  ('00000000-0000-0000-0000-0000000000ee', 't@test.fr');
 insert into public.profiles (id, first_name, last_name, role) values
   ('00000000-0000-0000-0000-00000000000a', 'Joueur', 'A', 'player'),
   ('00000000-0000-0000-0000-00000000000b', 'Joueur', 'B', 'player'),
   ('00000000-0000-0000-0000-00000000000c', 'Coach',  'C', 'coach'),
   ('00000000-0000-0000-0000-00000000000d', 'Admin',  'M', 'admin');
+insert into public.profiles (id, first_name, last_name, role, is_test) values ('00000000-0000-0000-0000-0000000000ee', 'Joueur', 'TEST', 'player', true);
 
 -- B est inscrit dans deux saisons, seule 26/27 a une semaine qui couvre sa séance
 insert into public.groups (id, name, season) values
@@ -601,6 +603,18 @@ set local role authenticated;
 update public.player_availability set status = 'apte', since = public.paris_today() where player_id = '00000000-0000-0000-0000-00000000000b';
 select is((select ended_on from public.injuries where player_id = '00000000-0000-0000-0000-00000000000b' order by occurred_on desc limit 1), public.paris_today(),
           'retour « apte » : la fiche est close (jours d''absence)');
+
+-- Compte de test (0039) : lecture seule, aucune écriture possible
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000ee","role":"authenticated"}', true);
+set local role authenticated;
+select throws_ok($$insert into public.wellness_entries (player_id, sleep_quality, fatigue, soreness_upper, soreness_lower, stress, mood)
+                   values ('00000000-0000-0000-0000-0000000000ee', 4, 4, 4, 4, 4, 4)$$, '42501', null, 'le compte de test ne remplit pas d''état de forme');
+select throws_ok($$insert into public.session_logs (player_id, session_date, activity_type_id, duration_min, rpe)
+                   values ('00000000-0000-0000-0000-0000000000ee', public.paris_today(), (select id from public.activity_types where name = 'Vidéo'), 20, null)$$,
+                 '42501', null, 'le compte de test ne déclare pas d''activité');
+select throws_ok($$insert into public.push_subscriptions (endpoint, p256dh, auth) values ('https://fcm.googleapis.com/fcm/send/test-t', repeat('k', 40), repeat('a', 16))$$,
+                 '42501', null, 'le compte de test ne s''abonne pas aux rappels');
 
 -- ---------- Visiteur non connecté ----------
 reset role;

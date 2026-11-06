@@ -20,7 +20,9 @@ export function PlayerLayout() {
   const { pathname } = useLocation()
 
   // Tant que l'état de forme du jour n'est pas confirmé (chargement, réseau coupé), on reste verrouillé
-  const mustFillForm = !wellness.isSuccess || !wellness.data
+  // Compte de test (lecture seule, 0039) : il ne peut rien remplir, donc rien ne lui est verrouillé
+  const testAccount = !!profile.data?.is_test
+  const mustFillForm = !testAccount && (!wellness.isSuccess || !wellness.data)
   // Pendant le chargement on attend sur place (sinon chaque ouverture de l'app renvoyait vers Forme, même rempli)
   const locked = isTabLocked(pathname, mustFillForm)
   if (locked && !wellness.isPending) return <Navigate to="/joueur/forme" replace />
@@ -28,6 +30,7 @@ export function PlayerLayout() {
   return (
     <div className="min-h-dvh pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
       <main className="mx-auto max-w-md px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] flex flex-col gap-4">
+        {testAccount && <p role="status" className="rounded-lg border border-gold bg-gold/10 px-3 py-2 text-sm font-semibold">Compte de test : lecture seule, rien n'est enregistré.</p>}
         <header className="flex items-center justify-between gap-3 pt-2">
           <div>
             <p className="text-sm text-ink/60 first-letter:uppercase">{formatDay(today)}</p>

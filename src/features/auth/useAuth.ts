@@ -28,7 +28,7 @@ export function useProfile(userId: string | undefined) {
     enabled: !!userId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('profiles').select('id, role, first_name, last_name').eq('id', userId!).maybeSingle()
+        .from('profiles').select('id, role, first_name, last_name, is_test').eq('id', userId!).maybeSingle()
       if (error) throw error
       return data
     },

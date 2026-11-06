@@ -30,7 +30,7 @@ export function WellnessCard({ playerId, date }: { playerId: string; date: strin
   const entry = today.data
   if (entry && !draft) {
     return (
-      <Card title="Mon état de forme">
+      <Card boxed title="Mon état de forme">
         {/* le joueur voit son % de fatigue, pas le score sur 30 (réservé au staff) */}
         {entry.score !== null ? <FatigueBody wellness={entry} score={entry.score} /> : <p>État de forme enregistré.</p>}
         <div className="flex items-center justify-between gap-3">
@@ -52,8 +52,8 @@ export function WellnessCard({ playerId, date }: { playerId: string; date: strin
   const submit = () => save.mutate({ date, items: values as WellnessItems }, { onSuccess: () => { setDraft(null); showFlash() } })
 
   return (
-    <Card title="Mon état de forme" help="Chaque jour, 6 questions. 5 = meilleur état, pour toutes.">
-      <div className="flex flex-col gap-3">
+    <Card boxed title="Mon état de forme" help="6 questions, 5 = meilleur état pour toutes.">
+      <div className="flex flex-col gap-4">
         {WELLNESS_ITEMS.map(item => (
           <ScalePicker inline
             key={item.key} label={item.label} min={1} max={5} low={item.low} high={item.high}

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Badge } from '../../components/ui/Badge'
 import { Card } from '../../components/ui/Card'
 import { ActivityRow } from './ActivityRow'
 import { EXERCISE_SESSIONS, INJURED_EXTRAS, dayActivities, type DayActivity } from './activities'
@@ -35,21 +36,25 @@ export function TodayActivities({ playerId, date, title = 'Mes activités du jou
   // Blessé : son cardio, sa reprise terrain, et les activités sans RPE (kiné, soins, récupération, vidéo)
   const addable = types.data.filter(t => !shown.has(t.id) && !EXERCISE_SESSIONS.includes(t.name) && (!injured || INJURED_EXTRAS.includes(t.name) || !t.requires_rpe))
 
+  // Compteur en tête : activités déclarées (RPE ou « pas faite ») sur celles affichées
+  const all = [...planned, ...extras]
+  const answered = all.filter(a => logs.data.some(l => l.activity_type_id === a.activityTypeId) || skips.data.some(k => k.activity_type_id === a.activityTypeId)).length
   return (
-    <Card title={title} help="Pour chaque activité : ton effort ressenti et la durée. Vidéo et soins : un simple « J'y étais ».">
+    <Card boxed title={title} help="Ton effort ressenti (RPE) et la durée. Vidéo et soins : un simple « J'y étais »."
+      aside={all.length > 0 ? <Badge tone={answered === all.length ? 'ok' : 'neutral'}>{answered}/{all.length} déclarée{answered > 1 ? 's' : ''}</Badge> : undefined}>
       {availability.data === 'blessé' && (
-        <p className="rounded-lg border border-gold px-3 py-2 text-sm">Tu es noté blessé : tes séances de réhab et membres sains sont dans l'onglet Séance. Ici, ajoute ton cardio, ta reprise terrain ou tes soins quand tu en fais.</p>
+        <p className="rounded-xl bg-gold/10 px-3 py-2.5 text-sm ring-1 ring-gold/40">Tu es noté blessé : tes séances de réhab et membres sains sont dans l'onglet Séance. Ici, ajoute ton cardio, ta reprise terrain ou tes soins quand tu en fais.</p>
       )}
       {planned.length === 0 && extras.length === 0 && <p className="text-sm text-ink/70">Aucune activité prévue aujourd'hui.</p>}
       <ul className="flex flex-col divide-y divide-line/60">
-        {[...planned, ...extras].map(a => (
+        {all.map(a => (
           <ActivityRow key={a.activityTypeId} playerId={playerId} date={date} activity={a}
             log={logs.data.find(l => l.activity_type_id === a.activityTypeId)} skip={skips.data.find(k => k.activity_type_id === a.activityTypeId)}
             onRemove={plannedIds.has(a.activityTypeId) ? undefined : () => setExtraIds(ids => ids.filter(id => id !== a.activityTypeId))} />
         ))}
       </ul>
       {addable.length > 0 && (
-        <label className="flex flex-col gap-1 text-sm border-t border-line pt-3">
+        <label className="flex flex-col gap-1 border-t border-line/60 pt-3 text-sm text-ink/70">
           Tu as fait une autre activité ?
           <select value="" onChange={e => setExtraIds(ids => [...ids, e.target.value])} className="rounded-lg bg-field border border-line px-3 py-3 text-base">
             <option value="">Choisir une activité…</option>

@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { TabLink } from '../../components/ui/TabLink'
-import { Activity, Dumbbell, HeartPulse, House, Lock, Settings, Users, type LucideIcon } from 'lucide-react'
+import { Activity, Dumbbell, Eye, HeartPulse, House, Lock, Settings, Users, type LucideIcon } from 'lucide-react'
 import { Loading } from '../../components/ui/Loading'
 import { formatDay } from '../../lib/week'
 import { useParisToday } from '../../lib/useParisToday'
@@ -29,34 +29,35 @@ export function PlayerLayout() {
 
   return (
     <div className="min-h-dvh pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
-      <main className="mx-auto max-w-md px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] flex flex-col gap-4">
-        {testAccount && <p role="status" className="rounded-lg border border-gold bg-gold/10 px-3 py-2 text-sm font-semibold">Compte de test : lecture seule, rien n'est enregistré.</p>}
-        <header className="flex items-center justify-between gap-3 pt-2">
-          <div>
-            <p className="text-sm text-ink/60 first-letter:uppercase">{formatDay(today)}</p>
-            <h1 className="font-display text-3xl font-bold leading-tight">Salut {profile.data?.first_name}</h1>
+      {/* En-tête compact et collant : le nom, la date et les réglages restent à portée sans manger l'écran */}
+      <header className="sticky top-0 z-20 border-b border-line/60 bg-app/90 pt-[env(safe-area-inset-top)] backdrop-blur [view-transition-name:player-header]">
+        <div className="mx-auto flex max-w-md items-center gap-3 px-4 py-2">
+          <img src="/logo-rnr.svg" alt="" className="h-9 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-ink/55 first-letter:uppercase">{formatDay(today)}</p>
+            <h1 className="truncate font-display text-xl font-bold leading-tight">Salut {profile.data?.first_name}</h1>
           </div>
-          <div className="flex items-center gap-3">
-            {/* Réglages dans l'en-tête : la barre du bas garde 5 onglets lisibles au pouce */}
-            <TabLink to="/joueur/reglages" end aria-label="Réglages"
-              className={({ isActive }) => `flex h-10 w-10 items-center justify-center rounded-full ${isActive ? 'bg-rnr text-white' : 'bg-field text-ink/70 hover:text-ink'}`}>
-              <Settings size={20} aria-hidden="true" />
-            </TabLink>
-            <img src="/logo-rnr.svg" alt="" className="h-12" />
-          </div>
-        </header>
+          {/* Réglages dans l'en-tête : la barre du bas garde 5 onglets lisibles au pouce */}
+          <TabLink to="/joueur/reglages" end aria-label="Réglages"
+            className={({ isActive }) => `flex h-11 w-11 items-center justify-center rounded-full ${isActive ? 'bg-ink text-app' : 'bg-field text-ink/70 hover:text-ink'}`}>
+            <Settings size={20} aria-hidden="true" />
+          </TabLink>
+        </div>
+      </header>
+      <main className="mx-auto flex max-w-md flex-col gap-4 px-4 pb-4 pt-4">
+        {testAccount && <p role="status" className="flex items-center gap-2 rounded-xl bg-gold/10 px-3 py-2.5 text-sm font-semibold ring-1 ring-gold/40"><Eye size={16} aria-hidden="true" className="shrink-0 text-gold" />Compte de test : lecture seule, rien n'est enregistré.</p>}
         {wellness.isSuccess && !wellness.data && (
-          <p role="status" className="rounded-lg border border-gold px-3 py-2 text-sm">
-            Remplis ton état de forme du jour pour accéder au reste de l'application.
+          <p role="status" className="flex items-center gap-2 rounded-xl bg-gold/10 px-3 py-2.5 text-sm ring-1 ring-gold/40">
+            <Lock size={16} aria-hidden="true" className="shrink-0 text-gold" />Remplis ton état de forme du jour pour accéder au reste de l'application.
           </p>
         )}
         {wellness.isError && (
-          <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">
+          <p role="alert" className="rounded-xl bg-rnr/15 px-3 py-2.5 text-sm ring-1 ring-rnr/50">
             Impossible de vérifier ton état de forme. Vérifie ta connexion internet.
           </p>
         )}
         {/* « page » : seul le contenu s'anime au changement d'onglet (index.css) ; en-tête et barre restent fixes */}
-        <div className="flex flex-col gap-7 [view-transition-name:page]">
+        <div className="flex flex-col gap-6 [view-transition-name:page]">
           {locked ? <Loading /> : <Outlet key={today} context={{ playerId, today } satisfies PlayerDay} />}
         </div>
       </main>

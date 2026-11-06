@@ -54,7 +54,7 @@ export function SettingsTab() {
           </div>
         </details>
       </div>
-      <Button variant="quiet" className="self-start" onClick={() => signOut.mutate()}>Se déconnecter</Button>
+      <Button variant="ghost" className="w-full" onClick={() => signOut.mutate()}>Se déconnecter</Button>
     </Card>
   )
 }

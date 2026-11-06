@@ -109,7 +109,11 @@ const pages = scenario === 'vide' ? ['forme'] : scenario === 'blesse' ? ['accuei
 for (const p of pages) {
   await page.goto(`http://localhost:5199${p === 'accueil' ? '/joueur' : `/joueur/${p}`}`)
   await page.waitForLoadState('networkidle'); await page.waitForTimeout(1500)
-  await page.screenshot({ path: `${out}/player-${theme}-${scenario}-${p}.png`, fullPage: true })
+  // fenêtre à la hauteur de la page : la barre d'onglets (fixe) reste en bas au lieu de couvrir le milieu de la capture
+  await page.setViewportSize({ width: 390, height: Math.max(844, await page.evaluate(() => document.documentElement.scrollHeight)) })
+  await page.waitForTimeout(300)
+  await page.screenshot({ path: `${out}/player-${theme}-${scenario}-${p}.png` })
+  await page.setViewportSize({ width: 390, height: 844 })
 }
 console.log({ pages, blocked: [...new Set(blocked)] })
 await browser.close()

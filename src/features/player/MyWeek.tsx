@@ -40,17 +40,25 @@ export function MyWeek({ playerId, date, footer }: { playerId: string; date: str
   })
   const load = days.reduce((s, x) => s + x.load, 0)
   const minutes = logs.data.filter(l => l.session_date >= start).reduce((s, l) => s + l.duration_min, 0)
-  const s = (n: number) => (n > 1 ? 's' : '')
   const max = Math.max(300, ...days.map(x => x.load))
 
   return (
     <Card title="Ma semaine"
-      help="Barre : charge du jour (effort × minutes) · point : fatigue (vert ça va, jaune moyen, rouge à surveiller).">
-      <p className="leading-snug">
-        <strong>{declared} activité{s(declared)} déclarée{s(declared)}</strong>{planned > 0 && <> sur {planned} prévue{s(planned)}</>} depuis lundi
-        {' · '}<strong>{load.toLocaleString('fr-FR')} UA</strong> en {minutes} min.
-        {fatigue !== null && <> Fatigue moyenne <strong>{fatigue} %</strong>{trend && <>, <span className={trend === 'en hausse' ? 'text-rnr' : trend === 'en baisse' ? 'text-ok' : ''}>{trend}</span> par rapport à la semaine dernière</>}.</>}
-      </p>
+      help="Barre : charge du jour · point : fatigue (vert ça va, jaune moyen, rouge à surveiller).">
+      {/* Trois chiffres depuis lundi, comme les cartes du staff : déclarées, charge, fatigue moyenne (tendance vs semaine dernière) */}
+      <dl className="grid grid-cols-3 gap-2">
+        {([
+          ['Déclarées', planned > 0 ? `${declared}/${planned}` : String(declared), 'depuis lundi', ''],
+          ['Charge', `${load.toLocaleString('fr-FR')}`, `UA · ${minutes} min`, ''],
+          ['Fatigue moy.', fatigue === null ? '—' : `${fatigue} %`, trend ? (trend === 'en hausse' ? '↑ en hausse' : trend === 'en baisse' ? '↓ en baisse' : 'stable') : 'cette semaine', trend === 'en hausse' ? 'text-gold' : trend === 'en baisse' ? 'text-ok' : ''],
+        ] as const).map(([label, value, sub, tone]) => (
+          <div key={label} className="flex flex-col rounded-xl bg-field px-3 py-2">
+            <dt className="text-xs text-ink/60">{label}</dt>
+            <dd className="font-display text-2xl font-semibold leading-tight tabular-nums">{value}</dd>
+            <dd className={`text-[11px] leading-tight ${tone || 'text-ink/55'}`}>{sub}</dd>
+          </div>
+        ))}
+      </dl>
       <ol className="grid grid-cols-7 gap-1.5">
         {days.map((x, i) => (
           <li key={x.d} className={`flex flex-col items-center gap-1.5 ${x.d > date ? 'opacity-35' : ''}`}

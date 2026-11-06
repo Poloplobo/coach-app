@@ -57,9 +57,9 @@ function TodoToday({ playerId, today, title }: { playerId: string; today: string
     const l = logs.data.find(x => x.activity_type_id === a.activityTypeId)
     return isMuscu(a) ? !l?.validated_at : !l
   })
-  if (!pending.length) return title ? null : <p className="flex items-center gap-2 rounded-xl bg-ok/10 px-4 py-3 font-semibold text-ok"><Check size={18} aria-hidden="true" />Tout est déclaré pour aujourd'hui.</p>
+  if (!pending.length) return title ? null : <p className="flex items-center gap-2 rounded-2xl bg-ok/10 px-4 py-3 text-sm font-semibold text-ok ring-1 ring-ok/30"><Check size={18} aria-hidden="true" />Tout est déclaré pour aujourd'hui.</p>
   return (
-    <section aria-label={title ?? 'À faire aujourd\'hui'} className={`flex flex-col gap-2 rounded-xl bg-surface p-4 ring-1 ${title ? 'ring-2 ring-gold' : 'ring-line/60'}`}>
+    <section aria-label={title ?? 'À faire aujourd\'hui'} className={`flex flex-col gap-3 rounded-2xl bg-surface p-5 ${title ? 'ring-2 ring-gold' : 'ring-1 ring-line/60'}`}>
       <h2 className="font-display text-xl font-semibold leading-tight">{title ?? 'À faire aujourd\'hui'}</h2>
       <ul className="flex flex-col gap-2">
         {pending.map(a => (
@@ -87,17 +87,17 @@ function Scoreboard({ playerId, today }: { playerId: string; today: string }) {
   const load = logs.data?.filter(l => l.session_date >= week).reduce((sum, l) => sum + Number(l.srpe ?? 0), 0)
 
   return (
-    <section aria-label="Mon tableau du jour" className="flex flex-col gap-3 rounded-lg border border-line bg-surface px-4 py-3">
+    <section aria-label="Mon tableau du jour" className="flex flex-col gap-4 rounded-2xl bg-surface p-5 ring-1 ring-line/60">
       <div className="flex items-center gap-4">
-        {w && w.score !== null && <FatigueBody wellness={w} score={w.score} figureOnly />}
+        {w && w.score !== null && <FatigueBody wellness={w} score={w.score} figureOnly compact />}
         <dl className="grid flex-1 grid-cols-2 divide-x divide-line">
           <div className="pr-3 flex flex-col-reverse">
             <dt className="mt-1 text-sm text-ink/60">Fatigue du jour</dt>
-            <dd className="font-display text-[clamp(2.4rem,12vw,3.75rem)] font-bold leading-none tabular-nums">{w?.score != null ? fatiguePercent(w.score) : '–'}<span className="text-2xl">%</span></dd>
+            <dd className="font-display text-5xl font-semibold leading-none tabular-nums">{w?.score != null ? fatiguePercent(w.score) : '–'}<span className="text-2xl text-ink/60">%</span></dd>
           </div>
           <div className="pl-3 flex flex-col-reverse">
             <dt className="mt-1 text-sm text-ink/60">UA cette semaine</dt>
-            <dd className="font-display text-[clamp(2.4rem,12vw,3.75rem)] font-bold leading-none tabular-nums">{load ?? '–'}</dd>
+            <dd className="font-display text-5xl font-semibold leading-none tabular-nums">{load ?? '–'}</dd>
           </div>
         </dl>
       </div>
@@ -117,7 +117,7 @@ function WeekGauge({ load, target, daysLeft }: {
   const pos = (v: number) => `${(100 * v) / top}%`
   return (
     <div className="flex flex-col gap-1.5 border-t border-line pt-3">
-      <p className="flex items-baseline justify-between gap-3 text-sm">
+      <p className="flex items-baseline justify-between gap-3 text-xs">
         <span><span className="font-semibold">{target.week} · {target.name}</span> <span className="text-ink/60">plage {min.toLocaleString('fr-FR')}{target.srpe_max !== null ? `–${target.srpe_max.toLocaleString('fr-FR')}` : ' et +'} UA</span></span>
         <span className={`shrink-0 font-semibold ${where === 'in' ? 'text-ok' : where === 'above' ? 'text-rnr' : 'text-ink/60'}`}>
           {where === 'in' ? 'dans la plage' : where === 'above' ? 'au-dessus' : daysLeft > 0 ? `encore ${daysLeft} j` : 'sous la plage'}

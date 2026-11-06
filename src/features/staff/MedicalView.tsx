@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Link } from 'react-router-dom'
 import { Badge } from '../../components/ui/Badge'
 import { Card } from '../../components/ui/Card'
 import { Kpi } from '../../components/ui/Kpi'
 import { Loading } from '../../components/ui/Loading'
 import { ViewSelect } from '../../components/ui/ViewSelect'
+import { BRAND } from '../../lib/brand'
 import { addDays, formatDay, parisDate } from '../../lib/week'
 import { EXERCISE_SESSIONS } from '../rpe/activities'
 import { fatiguePercent } from '../wellness/fatigue'
@@ -38,6 +40,7 @@ export function MedicalView() {
   const [view, setView] = useState<ViewId>('suivi')
   const [chosen, setChosen] = useState<string | null>(null)
   const [code, setCode] = useState<string | null>(null)
+  const [period, setPeriod] = useState('saison')
   const injured = (roster.data ?? []).filter(p => p.injured)
   const player = injured.find(p => p.id === chosen) ?? injured[0]
   const injury = records.data?.find(i => i.player_id === player?.id && !i.ended_on)
@@ -69,13 +72,19 @@ export function MedicalView() {
             {injured.map(p => <option key={p.id} value={p.id}>{fullName(p)}</option>)}
           </ViewSelect>
         )}
+        {view === 'epidemio' && (
+          <ViewSelect label="Période" value={period} onChange={setPeriod}>
+            <option value="saison">Saison</option>
+            {[...new Set(weeks.map(w => w.cycle).filter((c): c is string => !!c))].map(c => <option key={c} value={c}>{c}</option>)}
+          </ViewSelect>
+        )}
         {view === 'suivi' && player && (
           <ViewSelect label="Semaine du détail" value={week.code} onChange={setCode}>
             {weeks.map(w => <option key={w.code} value={w.code}>{w.code} · {w.label}</option>)}
           </ViewSelect>
         )}
       </div>
-      {view === 'epidemio' ? <Epidemiology today={today} />
+      {view === 'epidemio' ? <Epidemiology today={today} period={period} />
         : !player ? (
           <Card title="Aucun joueur blessé">
             <p className="text-sm text-ink/70">Un joueur déclaré blessé (fiche joueur › Gestion, réservé à l'admin) apparaît ici et sort de l'onglet Semaine.</p>
@@ -88,18 +97,25 @@ export function MedicalView() {
               : <p className="text-sm text-ink/60">Pas de fiche blessure ouverte pour ce joueur.</p>}
           </Card>
         ) : view === 'preparation' ? (
-          <div className="flex flex-col gap-6">
+          // Quatre outils repliés : on n'ouvre que celui dont on a besoin (le plan, d'abord)
+          <div className="flex flex-col gap-3">
             {injury ? <>
-              <Card title="Importer un plan (Excel)" help="Même format que le plan de réhabilitation : Étape | Objectifs | Actions Kiné | Actions Prépa | Statut | Commentaires, avec les lignes « Phase N : … - 14 JOURS ». Aperçu avant de remplacer le plan.">
-                <ImportPlan injury={injury} current={steps.data.filter(s => s.injury_id === injury.id).length} today={today} />
-              </Card>
-              <Card title="Créer ou modifier le plan" help="Chaque étape : titre, critères, durée, et ses détails (phase, objectifs, actions). Valide une étape quand ses critères sont atteints.">
+              <Fold title="Créer ou modifier le plan" summary={`${steps.data.filter(s => s.injury_id === injury.id).length} étape(s) · titres, critères, durées et détails ; valider une étape quand ses critères sont atteints`} open>
                 <ReturnPlan injury={injury} steps={steps.data.filter(s => s.injury_id === injury.id)} today={today} />
-              </Card>
+              </Fold>
+              <Fold title="Importer un plan (Excel)" summary="Étape | Objectifs | Actions Kiné | Actions Prépa | Statut | Commentaires, lignes « Phase N : … - 14 JOURS » ; aperçu avant de remplacer le plan">
+                <ImportPlan injury={injury} current={steps.data.filter(s => s.injury_id === injury.id).length} today={today} />
+              </Fold>
             </> : <p className="text-sm text-ink/60">Pas de fiche blessure ouverte pour ce joueur.</p>}
             {/* Séances de réhab et membres sains : mêmes fiches que Programmation (« Lundi RÉHAB : », « Lundi MEMBRES SAINS : ») */}
-            <ImportPanel />
-            {injury && <InjuryForm injury={injury} />}
+            <Fold title="Séances de réhab et membres sains" summary="Import des fiches du cycle, comme dans Programmation (« Lundi RÉHAB : », « Lundi MEMBRES SAINS : »)">
+              <ImportPanel />
+            </Fold>
+            {injury && (
+              <Fold title="Fiche blessure" summary={`Survenue le ${formatDay(injury.occurred_on)} · localisation, tissu, mécanisme, diagnostic (staff seulement)`}>
+                <InjuryForm injury={injury} />
+              </Fold>
+            )}
           </div>
         ) : sessions.isError || logs.isError || wellness.isError ? <p role="alert">Impossible de charger les séances du joueur.</p>
         : !sessions.data || !logs.data || !wellness.data ? <Loading />
@@ -110,13 +126,11 @@ export function MedicalView() {
 }
 
 // Épidémiologie : saison entière ou un cycle ; exposition = minutes déclarées + minutes de match saisies par le coach
-function Epidemiology({ today }: { today: string }) {
+function Epidemiology({ today, period }: { today: string; period: string }) {
   const ref = useReference()
   const roster = useRoster()
   const records = useInjuryRecords()
-  const [period, setPeriod] = useState('saison')
   const weeks = ref.data?.weeks ?? []
-  const cycles = [...new Set(weeks.map(w => w.cycle).filter((c): c is string => !!c))]
   const inPeriod = period === 'saison' ? weeks : weeks.filter(w => w.cycle === period)
   const pFrom = inPeriod[0]?.start_date ?? ''
   const pTo = [inPeriod.length ? addDays(inPeriod.at(-1)!.start_date, 6) : today, today].sort()[0]
@@ -130,10 +144,6 @@ function Epidemiology({ today }: { today: string }) {
     .reduce((n, r) => n + (r.minutes ?? 0), 0)
   return (
     <>
-      <ViewSelect label="Période" value={period} onChange={setPeriod}>
-        <option value="saison">Saison</option>
-        {cycles.map(c => <option key={c} value={c}>{c}</option>)}
-      </ViewSelect>
       {/* Exposition au risque : activités d'entraînement avec RPE (vidéo, soins, récupération exclues) hors réhab et membres sains */}
       <EpidemiologyCard injuries={records.data.filter(i => roster.data.some(p => p.id === i.player_id))} players={roster.data} from={pFrom} to={pTo} today={today} period={period}
         exposure={{ trainingMin: periodLogs.data.filter(l => { const t = ref.data.types.find(x => x.id === l.activity_type_id)
@@ -170,11 +180,8 @@ function InjuredPlayer({ player, from, to, start, today, since, sessions: all, l
 
   return (
     <Card title={fullName(player)}
-      help="Rapport depuis la blessure, semaine par semaine. Puis, pour la semaine choisie : séances à exercices validées (jusqu'à aujourd'hui), charge déclarée, forme et douleur EVA (0 à 10). Clique sur une séance pour ses exercices."
-      aside={<Link to={`/staff/joueur/${player.id}`} className="text-sm text-gold hover:underline">Fiche</Link>}>
-      <p className="text-sm text-ink/70">
-        <Badge tone="warn">blessé</Badge>{since && <> depuis le {formatDay(since.since)}</>}{since?.note && <> · {since.note}</>}
-      </p>
+      help={<>Blessé depuis le {formatDay(start)} (J+{Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 864e5)}){since?.note && <> · {since.note}</>}</>}
+      aside={<Link to={`/staff/joueur/${player.id}`} className="text-sm text-gold hover:underline">Ouvrir sa fiche</Link>}>
       <div className="flex flex-wrap gap-3">
         <Kpi label="Séances faites" value={`${summary.done} / ${summary.planned}`} tone={summary.planned && summary.done < summary.planned ? 'warn' : 'ok'}
           hint={summary.byType.filter(t => t.planned).map(t => `${t.type} ${t.done}/${t.planned}`).join(' · ') || 'Aucune séance prévue'} />
@@ -185,18 +192,22 @@ function InjuredPlayer({ player, from, to, start, today, since, sessions: all, l
           hint={w ? `${DAY(w.entry_date)} · courbatures bas ${w.soreness_lower ?? '—'}/5, haut ${w.soreness_upper ?? '—'}/5` : undefined} />
       </div>
 
-      <ReportTable weeks={report.weeks} since={start} />
+      <div className="grid gap-6 xl:grid-cols-2">
+        <PainChart points={report.points} />
+        <ReportTable weeks={report.weeks} />
+      </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
         <section aria-label="Séances de la semaine" className="flex flex-col">
-          <h3 className="font-display text-lg font-semibold">Séances de la semaine</h3>
+          <h3 className="font-display text-lg font-semibold">Séances de la semaine choisie</h3>
+          <p className="text-xs text-ink/60">Clique sur une séance pour ses exercices.</p>
           {!week.length && <p className="text-sm text-ink/60">Aucune séance à exercices cette semaine.</p>}
           <ul className="flex flex-col">
             {week.map(s => {
               const ex = s.planned_exercises, done = ex.filter(e => e.exercise_feedback[0]?.status === 'fait').length
               const log = logOf(s), pain = painOf(s), expanded = open === s.id
               return (
-                <li key={s.id} className="border-t border-line first:border-0">
+                <li key={s.id} className="border-t border-line/60 first:border-0">
                   <button type="button" onClick={() => setOpen(expanded ? null : s.id)} aria-expanded={expanded}
                     className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 py-2 text-left text-sm">
                     <span className="w-16 text-ink/60">{DAY(s.session_date)}</span>
@@ -263,12 +274,12 @@ function InjuredPlayer({ player, from, to, start, today, since, sessions: all, l
 }
 
 // Rapport de suivi depuis la blessure : une ligne par semaine (la plus récente en haut)
-function ReportTable({ weeks, since }: { weeks: ReturnType<typeof injuryReport>['weeks']; since: string }) {
+function ReportTable({ weeks }: { weeks: ReturnType<typeof injuryReport>['weeks'] }) {
   const ratio = (x: { done: number; planned: number }) => (x.planned ? `${x.done}/${x.planned}` : '—')
   const extra = (x: { n: number; min: number }) => (x.n ? `${x.n} · ${x.min} min` : '—')
   return (
     <section aria-label="Rapport depuis la blessure" className="flex flex-col gap-1">
-      <h3 className="font-display text-lg font-semibold">Depuis la blessure ({formatDay(since)})</h3>
+      <h3 className="font-display text-lg font-semibold">Semaine par semaine</h3>
       {!weeks.length ? <p className="text-sm text-ink/60">Rien de déclaré depuis la blessure.</p> : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -290,6 +301,51 @@ function ReportTable({ weeks, since }: { weeks: ReturnType<typeof injuryReport>[
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+    </section>
+  )
+}
+
+// Section repliable de « Préparer » : titre et une ligne de résumé, le contenu au clic
+function Fold({ title, summary, open = false, children }: { title: string; summary: string; open?: boolean; children: ReactNode }) {
+  return (
+    <details open={open} className="group rounded-2xl bg-surface ring-1 ring-line/60 [&_summary::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-4">
+        <span className="min-w-0 flex-1">
+          <span className="block font-display text-lg font-semibold leading-tight">{title}</span>
+          <span className="block truncate text-sm text-ink/60">{summary}</span>
+        </span>
+        <span aria-hidden="true" className="text-ink/50 transition-transform group-open:rotate-180">▾</span>
+      </summary>
+      <div className="flex flex-col gap-4 border-t border-line/60 px-5 py-4">{children}</div>
+    </details>
+  )
+}
+
+// Évolution depuis la blessure : douleur EVA moyenne et RPE de chaque séance à exercices (0 à 10)
+function PainChart({ points }: { points: ReturnType<typeof injuryReport>['points'] }) {
+  const data = points.filter(p => p.pain != null || p.rpe != null).map(p => ({ day: DAY(p.date), douleur: p.pain, rpe: p.rpe == null ? null : Number(p.rpe), type: p.type }))
+  return (
+    <section aria-label="Évolution de la douleur et du RPE" className="flex flex-col gap-1">
+      <h3 className="font-display text-lg font-semibold">Douleur et RPE, séance par séance</h3>
+      <p className="flex gap-4 text-xs text-ink/60">
+        <span className="flex items-center gap-1.5"><span className="h-0.5 w-4 rounded" style={{ background: BRAND.gold }} />douleur EVA (moyenne des exercices)</span>
+        <span className="flex items-center gap-1.5"><span className="h-0.5 w-4 rounded bg-ink/60" />RPE de séance</span>
+      </p>
+      {data.length < 2 ? <p className="text-sm text-ink/60">Pas encore assez de séances pour une courbe.</p> : (
+        <div className="h-48 text-ink/60">
+          <ResponsiveContainer>
+            <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
+              <CartesianGrid strokeOpacity={0.15} vertical={false} />
+              <XAxis dataKey="day" tick={{ fill: 'currentColor', fontSize: 11 }} minTickGap={16} />
+              <YAxis domain={[0, 10]} ticks={[0, 2, 4, 6, 8, 10]} tick={{ fill: 'currentColor', fontSize: 11 }} />
+              <Tooltip formatter={(v, n) => [String(v).replace('.', ','), n === 'douleur' ? 'Douleur' : 'RPE']} labelFormatter={(l, p) => `${l} · ${p?.[0]?.payload?.type ?? ''}`}
+                contentStyle={{ background: 'rgb(var(--surface))', border: '1px solid rgb(var(--line))', borderRadius: 8, fontSize: 12 }} itemStyle={{ color: 'rgb(var(--ink))' }} />
+              <Line dataKey="rpe" stroke="currentColor" strokeOpacity={0.6} strokeWidth={1.5} dot={{ r: 2 }} connectNulls />
+              <Line dataKey="douleur" stroke={BRAND.gold} strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       )}
     </section>

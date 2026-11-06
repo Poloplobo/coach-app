@@ -81,6 +81,7 @@ export function ReturnPlan({ injury, steps, today }: { injury: Injury; steps: St
         {p.current ? <>Étape <strong>{p.index + 1}/{p.total}</strong> : {p.current.title} · <strong>{p.remainingDays} jour{p.remainingDays > 1 ? 's' : ''}</strong> théoriques restants
           {p.returnDate && <> · retour estimé le <strong>{formatDay(p.returnDate)}</strong></>}</> : <span className="text-ok">Toutes les étapes sont validées : retour possible (repasser le joueur « apte » dans sa fiche).</span>}
       </p>
+      <PlanStrip p={p} />
       {byPhase(p.ordered).map((g, gi) => (
         <div key={`${g.phase}-${gi}`} className="flex flex-col">
           {g.phase && <p className="mt-2 rounded bg-field px-2 py-1 text-sm font-semibold">{g.phase}{g.days != null && <span className="font-normal text-ink/60"> · {g.days} jours</span>}</p>}
@@ -169,7 +170,7 @@ function StepRow({ step, current, today, onSave, onDelete }: {
       <span className="flex items-center gap-2 pt-1">
         {step.validated_on
           ? <><Badge tone="ok">validée le {formatDay(step.validated_on)}</Badge><button type="button" className="text-xs text-ink/60 underline" onClick={() => onSave({ validated_on: null })}>Annuler</button></>
-          : <Button size="sm" onClick={() => onSave({ validated_on: today })}>Valider</Button>}
+          : <Button size="sm" variant={current ? 'primary' : 'ghost'} onClick={() => onSave({ validated_on: today })}>Valider</Button>}
         {!step.validated_on && <ConfirmButton size="sm" variant="quiet" confirmLabel="Confirmer" onClick={onDelete} aria-label={`Retirer l'étape ${step.title}`}>Retirer</ConfirmButton>}
       </span>
     </li>
@@ -213,6 +214,20 @@ function StepDetailsEditor({ step, onSave }: { step: Step; onSave: (v: Partial<S
 }
 
 // Présentation du plan pour le staff (lecture seule) : avancement, phases, détail de chaque étape
+// Frise du plan : une case par étape, largeur selon sa durée ; vert validée, or en cours
+function PlanStrip({ p }: { p: ReturnType<typeof planProgress> }) {
+  return (
+    <ol aria-hidden="true" className="flex gap-1">
+      {p.ordered.map(s => (
+        <li key={s.id} className="flex min-w-0 flex-col gap-1" style={{ flex: `${Math.max(1, s.planned_days)} 1 0` }}>
+          <span className={`h-2 rounded-full ${s.validated_on ? 'bg-ok' : p.current?.id === s.id ? 'bg-gold' : 'bg-field'}`} />
+          <span className={`truncate text-xs ${p.current?.id === s.id ? 'font-semibold text-ink' : 'text-ink/55'}`}>{s.title}</span>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
 export function PlanOverview({ injury, steps, today }: { injury: Injury; steps: Step[]; today: string }) {
   const p = planProgress(steps, injury.occurred_on, today)
   if (!p.total) return <p className="text-sm text-ink/60">Pas encore de plan : importe-le ou crée-le dans « Préparer le plan et les séances ».</p>
@@ -222,12 +237,13 @@ export function PlanOverview({ injury, steps, today }: { injury: Injury; steps: 
         {p.current ? <>Étape <strong>{p.index + 1}/{p.total}</strong> : {p.current.title} · <strong>{p.remainingDays} jour{p.remainingDays > 1 ? 's' : ''}</strong> théoriques restants
           {p.returnDate && <> · retour estimé le <strong>{formatDay(p.returnDate)}</strong></>}</> : <span className="text-ok">Toutes les étapes sont validées.</span>}
       </p>
+      <PlanStrip p={p} />
       {byPhase(p.ordered).map((g, gi) => (
         <div key={`${g.phase}-${gi}`} className="flex flex-col">
           {g.phase && <p className="mt-2 rounded bg-field px-2 py-1 text-sm font-semibold">{g.steps.every(s => s.validated_on) ? '✓ ' : ''}{g.phase}{g.days != null && <span className="font-normal text-ink/60"> · {g.days} jours</span>}</p>}
           <ol className="flex flex-col">
             {g.steps.map(s => (
-              <li key={s.id} className={`border-t border-line py-2 text-sm first:border-0 ${p.current?.id === s.id ? 'rounded-lg bg-gold/10 px-2' : ''}`}>
+              <li key={s.id} className={`border-t border-line/60 py-2 text-sm first:border-0 ${p.current?.id === s.id ? 'rounded-lg border-l-2 border-l-gold bg-gold/10 px-3' : ''}`}>
                 <p className="flex flex-wrap items-center gap-2">
                   <span className="font-semibold">{s.validated_on ? <span className="text-ok">✓ </span> : `${s.position}. `}{s.title}</span>
                   {s.is_test && <Badge tone="neutral">test / contrôle</Badge>}
@@ -256,9 +272,15 @@ export function EpidemiologyCard({ injuries, players, exposure, from, to, today,
   const e = epidemiology(injuries, exposure, from, to, today)
   const label = (map: Record<string, string>, k: string) => map[k] ?? (k === 'non_renseigne' ? 'Non renseigné' : k)
   const list = (title: string, rows: [string, number][], map: Record<string, string>) => (
-    <div className="min-w-44">
-      <p className="text-xs text-ink/60">{title}</p>
-      <ul className="text-sm">{rows.length ? rows.map(([k, n]) => <li key={k} className="flex justify-between gap-3"><span>{label(map, k)}</span><span className="tabular-nums">{n}</span></li>) : <li className="text-ink/50">—</li>}</ul>
+    <div className="flex min-w-0 flex-col gap-1.5 rounded-xl bg-field px-3 py-2.5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-ink/50">{title}</p>
+      {/* une barre par catégorie, au prorata des blessures de la période */}
+      <ul className="flex flex-col gap-1.5 text-sm">{rows.length ? rows.map(([k, n]) => (
+        <li key={k} className="flex flex-col gap-0.5">
+          <span className="flex justify-between gap-3"><span className="truncate">{label(map, k)}</span><span className="tabular-nums text-ink/70">{n}</span></span>
+          <span aria-hidden="true" className="h-1.5 rounded-full bg-ink/10"><span className="block h-full rounded-full bg-ink/55" style={{ width: `${(100 * n) / Math.max(1, e.count)}%` }} /></span>
+        </li>
+      )) : <li className="text-ink/50">—</li>}</ul>
     </div>
   )
   const name = (id: string) => { const p = players.find(x => x.id === id); return p ? fullName(p) : '—' }
@@ -274,11 +296,11 @@ export function EpidemiologyCard({ injuries, players, exposure, from, to, today,
       </div>
       {e.count > 0 && (
         <>
-          <div className="flex flex-wrap gap-6">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {list('Localisation', e.byLocation, LOCATIONS)}{list('Mécanisme', e.byMechanism, MECHANISMS)}
             {list('Survenue en', e.byActivity, ACTIVITIES)}{list('Tissu', e.byTissue, TISSUES)}
           </div>
-          <table className="text-sm">
+          <table className="w-full text-sm">
             <thead className="text-left text-xs text-ink/55"><tr><th className="py-1 pr-4 font-normal">Joueur</th><th className="pr-4 font-normal">Survenue</th><th className="pr-4 font-normal">Localisation</th><th className="pr-4 font-normal">En</th><th className="font-normal">Jours</th></tr></thead>
             <tbody>
               {injuries.filter(i => i.occurred_on >= from && i.occurred_on <= to).map(i => (

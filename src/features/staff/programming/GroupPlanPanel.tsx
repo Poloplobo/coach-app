@@ -65,6 +65,19 @@ export function GroupPlanPanel() {
           {' '}pour une charge visée de {wt.target_srpe} UA ({wt.code}, plage {wt.srpe_min ?? 0}{wt.srpe_max ? `-${wt.srpe_max}` : '+'}). Hors match du week-end s'il n'est pas au planning.
         </p>
       )}
+      {wt && !week.is_off && total > wt.target_srpe * 1.1 && (() => {
+        // Au-dessus de la cible de plus de 10 % : deux leviers chiffrés pour y revenir (étape 12d)
+        const excess = total - wt.target_srpe
+        const muscuRange = typeRange(muscuType?.id ?? null)
+        const muscuMin = muscuRange ? Math.min(muscuMinutes, Math.ceil(excess / ((muscuRange.min + muscuRange.max) / 2) / 5) * 5) : 0
+        return (
+          <p className="rounded-lg border border-gold px-3 py-2 text-sm">
+            Pour revenir à {wt.target_srpe} UA ({excess} UA de trop) :
+            {muscuMin > 0 && <> retirer environ <strong>{muscuMin} min de musculation</strong> par joueur{muscuMin >= 60 ? ` (≈ ${Math.round(muscuMin / 60)} séance${Math.round(muscuMin / 60) > 1 ? 's' : ''})` : ''}, ou</>}
+            {' '}baisser les RPE visés d'environ <strong>{Math.round(100 * excess / total)} %</strong>, ou raccourcir les activités les plus longues.
+          </p>
+        )
+      })()}
       {week.is_off && <p className="rounded-lg border border-gold px-3 py-2 text-sm">{week.code} est une semaine OFF : pas d'entraînement collectif.</p>}
       <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-7">
         {days.map(d => (

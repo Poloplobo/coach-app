@@ -15,6 +15,7 @@ import {
   type ActivityType, type Heat, type Log, type MatrixRow, type Pillar, type RpeRange, type WeekType,
 } from './load'
 import { useAllLogs, useAllPlan, useReference, useRoster, useTargetRpes } from './useStaff'
+import { EXERCISE_SESSIONS } from '../rpe/activities'
 import { Loading } from '../../components/ui/Loading'
 
 // Un tableau à la fois : le résumé du coach d'abord, le détail sur demande
@@ -150,6 +151,10 @@ function CoachSummary({ m, wt, code, pillars, alerts, missing, gaps, rpeText, lo
     const off = logs.filter(l => l.player_id === id).map(l => ({ l, g: gaps(l) })).filter(x => x.g?.heat)
     if (off.length) issues.push({ label: `${off.length} RPE hors fourchette`, tone: worst(off.map(x => x.g!.heat)),
       detail: off.map(x => `${shortDay(x.l.session_date)} ${name(x.l)} : ${rpeText(x.l)}`) })
+    // RPE de séance à exercices ≤ 2 : effort quasi nul, échelle sans doute mal comprise (étape 12c)
+    const low = logs.filter(l => l.player_id === id && l.rpe !== null && Number(l.rpe) <= 2 && EXERCISE_SESSIONS.includes(name(l)))
+    if (low.length) issues.push({ label: `RPE muscu très bas (${low.length})`, tone: 'warn',
+      detail: [...low.map(l => `${shortDay(l.session_date)} ${name(l)} : RPE ${Number(l.rpe).toLocaleString('fr-FR')}`), 'Échelle de Borg mal comprise ? À vérifier avec le joueur.'] })
     if (r.status && r.status !== 'conforme' && !r.player.injured) issues.push({ label: r.status, tone: STATUS_TONE[r.status], detail: [`${r.total} UA, ${pct(r.pct)} de la charge visée`] })
     return { player: r.player, issues }
   }).filter(w => w.issues.length > 0)

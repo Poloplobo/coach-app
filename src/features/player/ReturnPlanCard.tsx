@@ -12,7 +12,7 @@ export function ReturnPlanCard({ today }: { today: string }) {
     <Card title="Mon retour" help="Ton plan de retour, préparé et validé étape par étape par le staff. Le temps restant est théorique : il dépend de tes sensations et des critères de chaque étape.">
       {p.current ? (
         <p className="text-sm">
-          Étape <strong>{p.done + 1} sur {p.total}</strong> : <strong>{p.current.title}</strong>
+          Étape <strong>{p.index + 1} sur {p.total}</strong> : <strong>{p.current.title}</strong>
           <span className="block text-ink/70">Encore environ <strong className="text-ink">{p.remainingDays} jour{p.remainingDays > 1 ? 's' : ''}</strong>
             {p.returnDate && <> · retour visé le <strong className="text-ink">{formatDay(p.returnDate)}</strong></>}</span>
           {p.current.criteria && <span className="mt-1 block rounded-lg bg-field px-3 py-2">Pour valider cette étape : {p.current.criteria}</span>}

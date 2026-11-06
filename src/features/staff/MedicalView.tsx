@@ -65,10 +65,14 @@ export function MedicalView() {
           {cycles.map(c => <option key={c} value={c}>{c}</option>)}
         </ViewSelect>
       </div>
-      {records.data && periodLogs.data && pFrom && (
-        <EpidemiologyCard injuries={records.data} players={roster.data} from={pFrom} to={pTo} today={today} period={period === 'saison' ? 'saison' : period}
-          exposure={{ trainingMin: periodLogs.data.reduce((n, l) => n + l.duration_min, 0), matchMin }} />
-      )}
+      {records.isError || periodLogs.isError || matches.isError || ratings.isError || steps.isError
+        ? <p role="alert">Impossible de charger l'épidémiologie ou les plans de retour.</p>
+        : records.data && periodLogs.data && matches.data && ratings.data && pFrom && (
+          // Exposition au risque : activités d'entraînement avec RPE (vidéo, soins, récupération exclues) hors réhab et membres sains
+          <EpidemiologyCard injuries={records.data} players={roster.data} from={pFrom} to={pTo} today={today} period={period === 'saison' ? 'saison' : period}
+            exposure={{ trainingMin: periodLogs.data.filter(l => { const t = ref.data.types.find(x => x.id === l.activity_type_id)
+              return t?.requires_rpe && t.name !== 'Réhabilitation' && t.name !== 'Membres sains' }).reduce((n, l) => n + l.duration_min, 0), matchMin }} />
+        )}
       {!injured.length ? (
         <Card title="Aucun joueur blessé">
           <p className="text-sm text-ink/70">Un joueur déclaré blessé (fiche joueur › Gestion, réservé à l'admin) apparaît ici et sort de l'onglet Semaine.</p>

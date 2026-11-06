@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
+import { ConfirmButton } from '../../components/ui/ConfirmButton'
 import { Card } from '../../components/ui/Card'
 import { Kpi } from '../../components/ui/Kpi'
 import { formatDay } from '../../lib/week'
@@ -35,6 +36,10 @@ export function InjuryForm({ injury }: { injury: Injury }) {
     <section aria-label="Fiche blessure" className="flex flex-col gap-2">
       <h3 className="font-display text-lg font-semibold">Fiche blessure <span className="font-sans text-sm font-normal text-ink/60">survenue le {formatDay(injury.occurred_on)}</span></h3>
       <div className="grid gap-2 sm:grid-cols-3">
+        <label className="flex flex-col gap-1 text-xs text-ink/70">Survenue le (corrige la date de déclaration)
+          <input type="date" defaultValue={injury.occurred_on} max={injury.ended_on ?? undefined} className={field}
+            onBlur={e => e.target.value && e.target.value !== injury.occurred_on && set({ id: injury.id, occurred_on: e.target.value })} />
+        </label>
         <Choice label="Localisation" value={injury.location} options={LOCATIONS} onChange={v => set({ id: injury.id, location: v })} />
         <Choice label="Tissu" value={injury.tissue} options={TISSUES} onChange={v => set({ id: injury.id, tissue: v })} />
         <Choice label="Mécanisme" value={injury.mechanism} options={MECHANISMS} onChange={v => set({ id: injury.id, mechanism: v })} />
@@ -72,7 +77,7 @@ export function ReturnPlan({ injury, steps, today }: { injury: Injury; steps: St
     <section aria-label="Plan de retour" className="flex flex-col gap-2">
       <h3 className="font-display text-lg font-semibold">Plan de retour</h3>
       <p className="text-sm">
-        {p.current ? <>Étape <strong>{p.done + 1}/{p.total}</strong> : {p.current.title} · <strong>{p.remainingDays} jour{p.remainingDays > 1 ? 's' : ''}</strong> théoriques restants
+        {p.current ? <>Étape <strong>{p.index + 1}/{p.total}</strong> : {p.current.title} · <strong>{p.remainingDays} jour{p.remainingDays > 1 ? 's' : ''}</strong> théoriques restants
           {p.returnDate && <> · retour estimé le <strong>{formatDay(p.returnDate)}</strong></>}</> : <span className="text-ok">Toutes les étapes sont validées : retour possible (repasser le joueur « apte » dans sa fiche).</span>}
       </p>
       <ol className="flex flex-col">
@@ -114,7 +119,7 @@ function StepRow({ step, current, today, onSave, onDelete }: {
         {step.validated_on
           ? <><Badge tone="ok">validée le {formatDay(step.validated_on)}</Badge><button type="button" className="text-xs text-ink/60 underline" onClick={() => onSave({ validated_on: null })}>Annuler</button></>
           : <Button size="sm" onClick={() => onSave({ validated_on: today })}>Valider</Button>}
-        {!step.validated_on && <button type="button" className="text-xs text-ink/60 underline" onClick={onDelete} aria-label={`Retirer l'étape ${step.title}`}>Retirer</button>}
+        {!step.validated_on && <ConfirmButton size="sm" variant="quiet" confirmLabel="Confirmer" onClick={onDelete} aria-label={`Retirer l'étape ${step.title}`}>Retirer</ConfirmButton>}
       </span>
     </li>
   )

@@ -10,6 +10,11 @@ describe('planProgress', () => {
     // étape 2 commencée le 03/11 (validation de l'étape 1) ; le 06/11, 3 jours passés : 4 + 7 restants
     expect(planProgress(steps, '2026-10-31', '2026-11-06')).toMatchObject({ current: { position: 2 }, done: 1, total: 4, remainingDays: 11, returnDate: '2026-11-17' })
   })
+  it('étape validée dans le désordre : l\'étape en cours reste la première non validée, son début est la validation juste avant', () => {
+    const steps = [step(1, 3, '2026-11-01'), step(2, 7), step(3, 7, '2026-11-05'), step(4, 5)]
+    // étape 2 commencée le 01/11 : le 06/11, 5 jours passés → 2 + 5 (l'étape 3 validée ne compte plus)
+    expect(planProgress(steps, '2026-10-30', '2026-11-06')).toMatchObject({ current: { position: 2 }, index: 1, remainingDays: 7 })
+  })
   it('étape en retard : jamais de jours négatifs ; tout validé : retour atteint', () => {
     expect(planProgress([step(1, 3), step(2, 5)], '2026-10-01', '2026-11-06').remainingDays).toBe(5)
     expect(planProgress([step(1, 3, '2026-11-01')], '2026-10-30', '2026-11-06')).toMatchObject({ current: null, remainingDays: 0, returnDate: null })

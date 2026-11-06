@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(172);
+select plan(174);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -580,6 +580,11 @@ select lives_ok($$insert into public.player_availability (player_id, status, sin
                   on conflict (player_id) do update set status = 'blessé', since = excluded.since$$, 'l''admin déclare B blessé');
 select is((select count(*)::int from public.injuries where player_id = '00000000-0000-0000-0000-00000000000b' and ended_on is null), 1, 'fiche blessure créée automatiquement');
 select is((select count(*)::int from public.injury_steps where player_id = '00000000-0000-0000-0000-00000000000b'), 6, 'plan de retour par défaut en 6 étapes');
+select throws_ok($$insert into public.injury_steps (injury_id, player_id, position, title)
+                   select id, '00000000-0000-0000-0000-00000000000a', 9, 'Étape mal rattachée' from public.injuries where player_id = '00000000-0000-0000-0000-00000000000b' and ended_on is null$$,
+                 '23503', null, 'une étape ne peut pas être rattachée à un autre joueur que celui de la blessure');
+select isnt_empty($$update public.injuries set occurred_on = public.paris_today() - 5 where player_id = '00000000-0000-0000-0000-00000000000b' and ended_on is null returning alerts$$,
+                  'le staff corrige la date de survenue (alertes recalculées)');
 reset role;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}', true);
 set local role authenticated;

@@ -28,11 +28,12 @@ export function planProgress(steps: Step[], occurredOn: string, today: string) {
   const ordered = [...steps].sort((a, b) => a.position - b.position)
   const current = ordered.find(s => !s.validated_on) ?? null
   const done = ordered.filter(s => s.validated_on).length
-  if (!current) return { ordered, current, done, total: ordered.length, remainingDays: 0, returnDate: null as string | null }
-  const startedOn = ordered.filter(s => s.validated_on).map(s => s.validated_on!).sort().at(-1) ?? occurredOn
+  if (!current) return { ordered, current, index: ordered.length, done, total: ordered.length, remainingDays: 0, returnDate: null as string | null }
+  // Début de l'étape en cours : validation de l'étape validée juste avant elle (même si une étape a été validée dans le désordre)
+  const startedOn = ordered.filter(s => s.validated_on && s.position < current.position).at(-1)?.validated_on ?? occurredOn
   const left = ordered.filter(s => !s.validated_on && s.position > current.position).reduce((n, s) => n + s.planned_days, 0)
   const remainingDays = Math.max(0, current.planned_days - days(startedOn, today)) + left
-  return { ordered, current, done, total: ordered.length, remainingDays, returnDate: addDays(today, remainingDays) }
+  return { ordered, current, index: ordered.indexOf(current), done, total: ordered.length, remainingDays, returnDate: addDays(today, remainingDays) }
 }
 
 export type InjuryRecord = {
@@ -56,7 +57,7 @@ export function epidemiology(injuries: InjuryRecord[], exposure: { trainingMin: 
     count: list.length, open: list.filter(i => !i.ended_on).length, hours: Math.round(hours),
     incidence: per1000(list.length, hours),
     matchIncidence: per1000(list.filter(i => i.activity === 'match').length, exposure.matchMin / 60),
-    trainingIncidence: per1000(list.filter(i => i.activity && i.activity !== 'match').length, exposure.trainingMin / 60),
+    trainingIncidence: per1000(list.filter(i => i.activity === 'entrainement' || i.activity === 'musculation').length, exposure.trainingMin / 60),
     daysLost: list.reduce((n, i) => n + lost(i), 0),
     burden: per1000(list.reduce((n, i) => n + lost(i), 0), hours),
     recurrences: list.filter(i => i.recurrence).length,

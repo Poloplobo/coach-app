@@ -335,18 +335,21 @@ export function missingRpe(players: Player[], plan: PlanItem[], logs: DeclLog[],
 }
 
 // Taux de déclaration d'un joueur sur une période (fiche joueur) : activeDays = jours où le groupe a déclaré quelque chose
-export function declarationRate(p: Player, plan: PlanItem[], logs: DeclLog[], types: ActivityType[], from: string, to: string, activeDays: Set<string>) {
-  const r = playerDeclarations(p, plan, logs, types, from, to, activeDays)
+// injuredOn : blessé ce jour-là (périodes des fiches blessure) ; sans elle, le statut d'aujourd'hui vaut pour toute la période
+export function declarationRate(p: Player, plan: PlanItem[], logs: DeclLog[], types: ActivityType[], from: string, to: string, activeDays: Set<string>,
+  injuredOn?: (date: string) => boolean) {
+  const r = playerDeclarations(p, plan, logs, types, from, to, activeDays, injuredOn)
   return { ...r, rate: r.planned ? Math.round((100 * (r.planned - r.missed)) / r.planned) : null }
 }
 
-function playerDeclarations(p: Player, plan: PlanItem[], logs: DeclLog[], types: ActivityType[], from: string, to: string, activeDays: Set<string>) {
+function playerDeclarations(p: Player, plan: PlanItem[], logs: DeclLog[], types: ActivityType[], from: string, to: string, activeDays: Set<string>,
+  injuredOn: (date: string) => boolean = () => p.injured) {
   {
     const days: { date: string; missing: string[] }[] = []
     let planned = 0
     for (let d = from; d <= to; d = addDays(d, 1)) {
       if (!activeDays.has(d)) continue
-      const mine = plan.filter(s => s.session_date === d && (s.player_id === null ? !p.injured : s.player_id === p.id))
+      const mine = plan.filter(s => s.session_date === d && (s.player_id === null ? !injuredOn(d) : s.player_id === p.id))
         .map(s => ({ s, t: types.find(t => t.id === s.activity_type_id) })).filter((x): x is { s: PlanItem; t: ActivityType } => !!x.t?.requires_rpe)
       planned += mine.length
       // Séance individuelle à exercices : comptée faite une fois validée ; le reste, dès qu'il est déclaré

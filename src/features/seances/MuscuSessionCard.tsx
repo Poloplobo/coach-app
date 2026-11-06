@@ -9,7 +9,7 @@ import { RpePicker } from '../rpe/RpePicker'
 import { useActivityTypes, useLogsRange } from '../rpe/useRpe'
 import { ExerciseRow } from './ExerciseRow'
 import { blockGroups, completion, lastLoads, sessionRpe, sortedExercises } from './program'
-import { useMarkNotDone, usePastLoads, useReferenceMaxes, useValidateSession, useWeekProgram } from './useSeance'
+import { useMarkNotDone, usePastLoads, useRedoMuscu, useReferenceMaxes, useValidateSession, useWeekProgram } from './useSeance'
 import { Loading } from '../../components/ui/Loading'
 
 // catchUp : séance d'hier rouverte par une relance du staff ; rien à afficher si elle n'existe pas ou est déjà validée
@@ -21,6 +21,7 @@ export function MuscuSessionCard({ playerId, date, catchUp = false }: { playerId
   const types = useActivityTypes()
   const validate = useValidateSession(playerId)
   const markNotDone = useMarkNotDone(playerId)
+  const redo = useRedoMuscu(playerId)
   // Repères (facultatifs : en cas d'échec, la séance s'affiche sans eux)
   const maxes = useReferenceMaxes(playerId).data
   const past = usePastLoads(playerId, date).data
@@ -64,6 +65,16 @@ export function MuscuSessionCard({ playerId, date, catchUp = false }: { playerId
         <p className="text-sm text-ink/70">
           Pas de séance aujourd'hui.{next && <> Prochaine : <strong className="text-ink first-letter:uppercase">{formatDay(next.session_date)}</strong> ({next.planned_exercises.length} exercices).</>}
         </p>
+        {/* Séance d'un jour passé de la semaine, non validée : le joueur peut la faire aujourd'hui (une par jour) */}
+        {!catchUp && muscuType && others.filter(s => s.session_date < date && !validated.has(s.id)).map(s => (
+          <div key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gold/60 px-3 py-2 text-sm">
+            <span>Séance manquée : <strong className="first-letter:uppercase">{formatDay(s.session_date)}</strong> ({s.planned_exercises.length} exercices)</span>
+            <ConfirmButton size="sm" confirmLabel="Confirmer : la faire aujourd'hui" disabled={redo.isPending} onClick={() => redo.mutate(s.id)}>
+              {redo.isPending ? '…' : 'La faire aujourd\'hui'}
+            </ConfirmButton>
+          </div>
+        ))}
+        {redo.isError && <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">{(redo.error as { message?: string } | null)?.message?.match(/(séance|tu as)[^.]*/)?.[0] ?? 'Impossible de reprendre la séance, réessaie.'}</p>}
       </Card>
     )
   }

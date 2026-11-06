@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(153);
+select plan(158);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -63,6 +63,11 @@ insert into public.planned_exercises (id, planned_session_id, exercise_id, posit
   ('00000000-0000-0000-0000-0000000000fb', '00000000-0000-0000-0000-0000000000a9', '00000000-0000-0000-0000-0000000000e1', 2);
 insert into public.exercise_feedback (player_id, planned_exercise_id, status, rpe) values
   ('00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-0000000000fa', 'fait', 7);
+
+-- Muscu manquée de B ce lundi (0033) ; un lundi, c'est aujourd'hui : rien à reprendre
+insert into public.planned_sessions (id, session_date, title, player_id, activity_type_id) values
+  ('00000000-0000-0000-0000-0000000000b8', date_trunc('week', public.paris_today())::date, 'Muscu B lundi', '00000000-0000-0000-0000-00000000000b', (select id from public.activity_types where name = 'Musculation'))
+on conflict do nothing;
 
 -- Duplication (étape 8) : semaine source du lundi 2030-01-07, cibles S90 (normale) et S91 (OFF)
 insert into public.season_weeks (group_id, code, start_date, week_type_code, is_off) values
@@ -524,6 +529,25 @@ select is((select rpe::text || ' x ' || duration_min || ' ' || source from publi
           '7.0 x 50 auto', 'RPE moyen des exercices × durée prévue, origine « auto »');
 select is((select status from public.exercise_feedback where planned_exercise_id = '00000000-0000-0000-0000-0000000000fb'), 'non fait', 'exercice sans réponse noté « non fait »');
 select is(public.auto_validate_muscu('2030-03-04'), 0, 'deuxième passage : rien à refaire');
+
+-- Muscu manquée (0033) : le joueur reprend sa propre séance passée de la semaine, aujourd'hui, s'il n'en a pas déjà une
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}', true);
+set local role authenticated;
+select throws_ok($$select public.redo_muscu_session('00000000-0000-0000-0000-0000000000b8')$$, 'P0001', null, 'B a déjà une séance de muscu aujourd''hui : pas de reprise');
+select throws_ok($$select public.redo_muscu_session('00000000-0000-0000-0000-0000000000a1')$$, 'P0002', null, 'B ne peut pas reprendre la séance de A');
+reset role;
+delete from public.planned_sessions where id = '00000000-0000-0000-0000-0000000000b1';
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}', true);
+set local role authenticated;
+select case when extract(isodow from public.paris_today()) = 1
+  then pass('lundi : aucun jour passé dans la semaine')
+  else lives_ok($$select public.redo_muscu_session('00000000-0000-0000-0000-0000000000b8')$$, 'B reprend aujourd''hui sa séance manquée de lundi') end;
+select case when extract(isodow from public.paris_today()) = 1
+  then pass('lundi : aucun jour passé dans la semaine')
+  else is((select session_date from public.planned_sessions where id = '00000000-0000-0000-0000-0000000000b8'), public.paris_today(), 'la séance reprise est déplacée à aujourd''hui') end;
+select is_empty($$update public.planned_sessions set session_date = public.paris_today() + 1 where id = '00000000-0000-0000-0000-0000000000b8' returning 1$$,
+                'B ne déplace pas lui-même une séance (planning réservé au staff)');
 
 -- ---------- Visiteur non connecté ----------
 reset role;

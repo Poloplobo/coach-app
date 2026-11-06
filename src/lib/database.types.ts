@@ -1282,6 +1282,7 @@ export type Database = {
       }
       can_log_day: { Args: { p_date: string }; Returns: boolean }
       push_enabled_players: { Args: never; Returns: string[] }
+      redo_muscu_session: { Args: { p_session: string }; Returns: undefined }
       can_rate_match: { Args: { p_match: string }; Returns: boolean }
       delete_muscu_session: { Args: { p_session: string }; Returns: undefined }
       duplicate_week: {

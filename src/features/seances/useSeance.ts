@@ -71,6 +71,21 @@ export function useSaveFeedback(playerId: string) {
 }
 
 // « Séance non faite » : tous les exercices passent en « non fait », sans charge déclarée (les autres champs sont gardés)
+// Séance manquée d'un jour passé de la semaine, reprise aujourd'hui (0033 : la base vérifie tout et efface ses retours)
+export function useRedoMuscu(playerId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (sessionId: string) => {
+      const { error } = await supabase.rpc('redo_muscu_session', { p_session: sessionId })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['program', playerId] })
+      queryClient.invalidateQueries({ queryKey: ['sessionLogs', playerId] })
+    },
+  })
+}
+
 export function useMarkNotDone(playerId: string) {
   const queryClient = useQueryClient()
   return useMutation({

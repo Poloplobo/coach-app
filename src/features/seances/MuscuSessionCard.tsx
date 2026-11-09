@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Layers, ListChecks, Timer } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { OfflineNote } from '../../components/ui/OfflineNote'
@@ -94,16 +95,25 @@ export function MuscuSessionCard({ playerId, date, catchUp = false, activity = M
   const sessionEffort = computed?.rpe ?? rpe
 
   return (
-    <Card title={catchUp ? `Ma séance d'hier : ${label} (relance du staff)` : `Ma séance de ${label}`}
-      help="Note chaque exercice (fait, partiel ou non fait, et ton RPE), puis termine la séance."
-      aside={plannedMinutes ? <span className="text-sm tabular-nums text-ink/60">{plannedMinutes} min prévues</span> : undefined}>
-      {strip}
-      <div className="flex items-center gap-3" aria-label={`${c.done} exercices faits sur ${c.total}`}>
-        <div className="h-2 flex-1 rounded-full bg-field" aria-hidden="true">
-          <div className="h-2 rounded-full bg-ok transition-[width] duration-500" style={{ width: `${c.pct}%` }} />
+    // En-tête façon « séance du jour » : titre, pastilles (durée, exercices, blocs), semaine et progression ; la fiche suit
+    <section aria-label={catchUp ? `Ma séance d'hier : ${label}` : `Ma séance de ${label}`} className="flex flex-col gap-4">
+      <div className={`flex flex-col gap-3 rounded-3xl bg-surface p-5 ${catchUp ? 'ring-2 ring-gold' : 'ring-1 ring-line/60'}`}>
+        <p className="text-xs font-semibold uppercase tracking-wide text-ink/55 first-letter:uppercase">{catchUp ? "Relance du staff · séance d'hier" : `${formatDay(date)}`}</p>
+        <h2 className="font-display text-2xl font-semibold leading-tight first-letter:uppercase">{rehab ? activity : 'Ma séance de musculation'}</h2>
+        <ul className="flex flex-wrap gap-1.5 text-sm">
+          {plannedMinutes ? <li className="flex items-center gap-1 rounded-full bg-field px-2.5 py-1"><Timer size={14} aria-hidden="true" />{plannedMinutes} min</li> : null}
+          <li className="flex items-center gap-1 rounded-full bg-field px-2.5 py-1"><ListChecks size={14} aria-hidden="true" />{exercises.length} exercices</li>
+          <li className="flex items-center gap-1 rounded-full bg-field px-2.5 py-1"><Layers size={14} aria-hidden="true" />{blockGroups(exercises).length} blocs</li>
+        </ul>
+        {strip}
+        <div className="flex items-center gap-3" aria-label={`${c.done} exercices faits sur ${c.total}`}>
+          <div className="h-2 flex-1 rounded-full bg-field" aria-hidden="true">
+            <div className="h-2 rounded-full bg-ok transition-[width] duration-500" style={{ width: `${c.pct}%` }} />
+          </div>
+          <span className="text-sm tabular-nums text-ink/70">{c.done}/{c.total} faits</span>
         </div>
-        <span className="text-sm tabular-nums text-ink/70">{c.done}/{c.total} faits</span>
       </div>
+      <p className="px-1 text-sm text-ink/60">Note chaque exercice (fait, partiel ou non fait, et ton RPE), puis termine la séance.</p>
       {/* Blocs de la fiche : les exercices d'un même bloc (A1, A2…) s'enchaînent ; l'en-tête le dit et compte les faits */}
       <div className="flex flex-col gap-3">
         {blockGroups(exercises).map(g => {
@@ -178,6 +188,6 @@ export function MuscuSessionCard({ playerId, date, catchUp = false, activity = M
         </div>
         )
       )}
-    </Card>
+    </section>
   )
 }

@@ -38,18 +38,15 @@ export function MyWeek({ playerId, date, footer }: { playerId: string; date: str
     const score = wellness.data.find(w => w.entry_date === d)?.score
     return { d, load: dayLogs.reduce((s, l) => s + Number(l.srpe ?? 0), 0), fatigue: score != null ? fatiguePercent(score) : null }
   })
-  const load = days.reduce((s, x) => s + x.load, 0)
-  const minutes = logs.data.filter(l => l.session_date >= start).reduce((s, l) => s + l.duration_min, 0)
   const max = Math.max(300, ...days.map(x => x.load))
 
   return (
     <Card title="Ma semaine"
       help="Barre : charge du jour · point : fatigue (vert ça va, jaune moyen, rouge à surveiller).">
-      {/* Trois chiffres depuis lundi, comme les cartes du staff : déclarées, charge, fatigue moyenne (tendance vs semaine dernière) */}
-      <dl className="grid grid-cols-3 gap-2">
+      {/* Deux chiffres depuis lundi : déclarées et fatigue moyenne (tendance) ; la charge est dans les anneaux du tableau du jour */}
+      <dl className="grid grid-cols-2 gap-2">
         {([
           ['Déclarées', String(declared), planned > 0 ? `pour ${planned} prévue${planned > 1 ? 's' : ''}` : 'depuis lundi', ''], // pas de fraction : les ajouts hors planning la feraient dépasser (« 4/3 »)
-          ['Charge', `${load.toLocaleString('fr-FR')}`, `UA · ${minutes} min`, ''],
           ['Fatigue moy.', fatigue === null ? '—' : `${fatigue} %`, trend ? (trend === 'en hausse' ? '↑ en hausse' : trend === 'en baisse' ? '↓ en baisse' : 'stable') : 'cette semaine', trend === 'en hausse' ? 'text-gold' : trend === 'en baisse' ? 'text-ok' : ''],
         ] as const).map(([label, value, sub, tone]) => (
           <div key={label} className="flex flex-col rounded-xl bg-field px-3 py-2">

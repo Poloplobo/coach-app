@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { addDays, isoWeekStart } from '../../lib/week'
 import { Check, ChevronRight } from 'lucide-react'
 import { TabLink } from '../../components/ui/TabLink'
@@ -7,8 +8,7 @@ import { completion } from '../seances/program'
 import { useWeekProgram } from '../seances/useSeance'
 import { SeasonProfileCard } from '../tests/SeasonProfileCard'
 import { WeekendSummary } from '../performance/WeekendSummary'
-import { FatigueBody } from '../wellness/FatigueBody'
-import { fatiguePercent } from '../wellness/fatigue'
+import { fatiguePercent, postureOf } from '../wellness/fatigue'
 import { useWellnessDay } from '../wellness/useWellness'
 import { useLogsRange } from '../rpe/useRpe'
 import { MyWeek } from './MyWeek'
@@ -16,6 +16,7 @@ import { ReturnPlanCard } from './ReturnPlanCard'
 import { usePlayerDay } from './playerDay'
 import { Loading } from '../../components/ui/Loading'
 
+const done = (n: number, total: number) => `${n}/${total} fait${n > 1 ? 's' : ''}`
 const shortDay = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', timeZone: 'UTC' })
 
 // Accueil, du plus urgent au plus calme : ce qu'il reste à faire, le plan de retour (blessé), le tableau du jour (fatigue,
@@ -58,6 +59,26 @@ function TodoToday({ playerId, today, title }: { playerId: string; today: string
     return isMuscu(a) ? !l?.validated_at : !l
   })
   if (!pending.length) return title ? null : <p className="flex items-center gap-2 rounded-2xl bg-ok/10 px-4 py-3 text-sm font-semibold text-ok ring-1 ring-ok/30"><Check size={18} aria-hidden="true" />Tout est déclaré pour aujourd'hui.</p>
+  const label = (a: (typeof acts)[number]) => (isMuscu(a) ? 'séance à remplir' : a.requiresRpe ? 'effort à déclarer' : 'présence à confirmer')
+  // Carte du jour mise en avant (rouge club) : ce qu'il reste à faire, un raccourci par activité
+  if (!title) return (
+    <section aria-label="À faire aujourd'hui" className="relative flex flex-col gap-3 overflow-hidden rounded-3xl bg-rnr p-5 text-white">
+      <span aria-hidden="true" className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-white/10" />
+      <p className="relative text-xs font-semibold uppercase tracking-wide text-white/75">Ta journée · {done(acts.length - pending.length, acts.length)}</p>
+      <h2 className="relative font-display text-2xl font-semibold leading-tight">{pending.length} chose{pending.length > 1 ? 's' : ''} à faire</h2>
+      <ul className="relative flex flex-col gap-2">
+        {pending.map(a => (
+          <li key={a.activityTypeId}>
+            <TabLink to={isMuscu(a) ? '/joueur/seance' : '/joueur/rugby'}
+              className="flex min-h-12 items-center justify-between gap-3 rounded-2xl bg-white/15 px-4 py-2.5 active:bg-white/25">
+              <span><span className="font-semibold">{a.name}</span> <span className="text-sm text-white/75">{label(a)}</span></span>
+              <ChevronRight size={18} aria-hidden="true" />
+            </TabLink>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
   return (
     <section aria-label={title ?? 'À faire aujourd\'hui'} className={`flex flex-col gap-3 rounded-2xl bg-surface p-5 ${title ? 'ring-2 ring-gold' : 'ring-1 ring-line/60'}`}>
       <h2 className="font-display text-xl font-semibold leading-tight">{title ?? 'À faire aujourd\'hui'}</h2>
@@ -67,7 +88,7 @@ function TodoToday({ playerId, today, title }: { playerId: string; today: string
             <TabLink to={isMuscu(a) ? '/joueur/seance' : '/joueur/rugby'}
               className="flex items-center justify-between gap-3 rounded-lg bg-field px-3 py-2.5 active:bg-ink/10">
               <span><span className="font-semibold">{a.name}</span>{' '}
-                <span className="text-sm text-ink/60">{isMuscu(a) ? 'séance à remplir' : a.requiresRpe ? 'effort à déclarer' : 'présence à confirmer'}</span></span>
+                <span className="text-sm text-ink/60">{label(a)}</span></span>
               <ChevronRight size={18} aria-hidden="true" className="text-ink/50" />
             </TabLink>
           </li>
@@ -77,57 +98,69 @@ function TodoToday({ playerId, today, title }: { playerId: string; today: string
   )
 }
 
-// Le tableau d'affichage : fatigue du jour et charge de la semaine, lisibles d'un coup d'œil, puis la charge dans sa plage
+// Le tableau du jour en anneaux, comme les apps d'entraînement : fatigue du jour, charge de la semaine face à sa plage,
+// exercices de muscu faits ; sous les anneaux, le type de semaine et où en est la charge
+const TONE = ['stroke-ok', 'stroke-gold', 'stroke-rnr'] // fatigue faible, moyenne, à surveiller
 function Scoreboard({ playerId, today }: { playerId: string; today: string }) {
   const wellness = useWellnessDay(playerId, today)
   const week = isoWeekStart(today)
   const logs = useLogsRange(playerId, [week, addDays(today, -6)].sort()[0], today) // même requête que « Ma semaine » : servie par le cache
   const target = useWeekTarget(week).data
+  const program = useWeekProgram(playerId, week, addDays(week, 6))
   const w = wellness.data
   const load = logs.data?.filter(l => l.session_date >= week).reduce((sum, l) => sum + Number(l.srpe ?? 0), 0)
+  const pct = w?.score != null ? fatiguePercent(w.score) : null
+  const muscu = program.data?.length ? completion(program.data.filter(s => s.session_date <= today).flatMap(s => s.planned_exercises)) : null
+  const where = !target || load === undefined ? null : load < (target.srpe_min ?? 0) ? 'below' : target.srpe_max !== null && load > target.srpe_max ? 'above' : 'in'
 
   return (
-    <section aria-label="Mon tableau du jour" className="flex flex-col gap-4 rounded-2xl bg-surface p-5 ring-1 ring-line/60">
-      <div className="flex items-center gap-4">
-        {w && w.score !== null && <FatigueBody wellness={w} score={w.score} figureOnly compact />}
-        <dl className="grid flex-1 grid-cols-2 divide-x divide-line">
-          <div className="pr-3 flex flex-col-reverse">
-            <dt className="mt-1 text-sm text-ink/60">Fatigue du jour</dt>
-            <dd className="font-display text-5xl font-semibold leading-none tabular-nums">{w?.score != null ? fatiguePercent(w.score) : '–'}<span className="text-2xl text-ink/60">%</span></dd>
-          </div>
-          <div className="pl-3 flex flex-col-reverse">
-            <dt className="mt-1 text-sm text-ink/60">UA cette semaine</dt>
-            <dd className="font-display text-5xl font-semibold leading-none tabular-nums">{load ?? '–'}</dd>
-          </div>
-        </dl>
+    <section aria-label="Mon tableau du jour" className="flex flex-col gap-3">
+      <div className={`grid gap-2 ${muscu ? 'grid-cols-3' : 'grid-cols-2'}`}>
+        <Ring label="Fatigue du jour" fill={pct ?? 0} tone={pct === null ? 'stroke-line' : TONE[postureOf(pct)]}>
+          {pct ?? '–'}<span className="text-xs text-ink/60">%</span>
+        </Ring>
+        <Ring label="UA cette semaine" fill={target && load !== undefined ? (100 * load) / (target.srpe_max ?? target.target_srpe ?? load) : 0}
+          tone={where === 'in' ? 'stroke-ok' : where === 'above' ? 'stroke-rnr' : 'stroke-ink/50'}>
+          <span className="text-base">{load ?? '–'}</span>
+        </Ring>
+        {muscu && <Ring label="Muscu faite" fill={muscu.pct} tone="stroke-ok">{muscu.pct}<span className="text-xs text-ink/60">%</span></Ring>}
       </div>
       {target && load !== undefined && <WeekGauge load={load} target={target} daysLeft={6 - Math.round((Date.parse(today) - Date.parse(week)) / 864e5)} />}
     </section>
   )
 }
 
-// Charge de la semaine face à la plage de son type (REG 500-1500, COMP 1500-2500, DEV au-delà de 2500) : bande verte = plage
+// Anneau de progression (0 à 100 %, plein au-delà) avec sa valeur au centre
+function Ring({ label, fill, tone, children }: { label: string; fill: number; tone: string; children: ReactNode }) {
+  const c = 2 * Math.PI * 26
+  return (
+    <div className="flex flex-col items-center gap-1.5 rounded-2xl bg-surface px-2 py-3 ring-1 ring-line/60">
+      <div className="relative h-16 w-16">
+        <svg viewBox="0 0 64 64" aria-hidden="true" className="h-16 w-16 -rotate-90">
+          <circle cx="32" cy="32" r="26" strokeWidth="7" className="fill-none stroke-field" />
+          <circle cx="32" cy="32" r="26" strokeWidth="7" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - Math.min(1, Math.max(0, fill) / 100))}
+            className={`fill-none transition-[stroke-dashoffset] duration-700 ${tone}`} />
+        </svg>
+        <span className="absolute inset-0 flex items-center justify-center font-display text-xl font-semibold tabular-nums">{children}</span>
+      </div>
+      <p className="text-center text-xs leading-tight text-ink/60">{label}</p>
+    </div>
+  )
+}
+
+// Type de semaine et plage de charge (REG 500-1500, COMP 1500-2500, DEV au-delà de 2500), et où en est la charge
 function WeekGauge({ load, target, daysLeft }: {
   load: number; daysLeft: number; target: { week: string; code: string; name: string; srpe_min: number | null; srpe_max: number | null }
 }) {
   const min = target.srpe_min ?? 0
-  const top = Math.max(target.srpe_max ?? min * 1.4, load) * 1.15
-  const end = target.srpe_max ?? top
   const where = load < min ? 'below' : target.srpe_max !== null && load > target.srpe_max ? 'above' : 'in'
-  const pos = (v: number) => `${(100 * v) / top}%`
   return (
-    <div className="flex flex-col gap-1.5 border-t border-line pt-3">
-      <p className="flex items-baseline justify-between gap-3 text-xs">
-        <span><span className="font-semibold">{target.week} · {target.name}</span> <span className="text-ink/60">plage {min.toLocaleString('fr-FR')}{target.srpe_max !== null ? `–${target.srpe_max.toLocaleString('fr-FR')}` : ' et +'} UA</span></span>
-        <span className={`shrink-0 font-semibold ${where === 'in' ? 'text-ok' : where === 'above' ? 'text-rnr' : 'text-ink/60'}`}>
-          {where === 'in' ? 'dans la plage' : where === 'above' ? 'au-dessus' : daysLeft > 0 ? `encore ${daysLeft} j` : 'sous la plage'}
-        </span>
-      </p>
-      <div className="relative h-2.5 rounded-full bg-field" aria-hidden="true">
-        <span className="absolute inset-y-0 rounded-full bg-ok/25" style={{ left: pos(min), width: pos(end - min) }} />
-        <span className={`absolute inset-y-0 left-0 rounded-full ${where === 'in' ? 'bg-ok' : where === 'above' ? 'bg-rnr' : 'bg-ink/60'}`} style={{ width: pos(Math.max(load, top * 0.02)) }} />
-      </div>
-    </div>
+    <p className="flex items-baseline justify-between gap-3 px-1 text-xs">
+      <span><span className="font-semibold">{target.week} · {target.name}</span> <span className="text-ink/60">plage {min.toLocaleString('fr-FR')}{target.srpe_max !== null ? `–${target.srpe_max.toLocaleString('fr-FR')}` : ' et +'} UA</span></span>
+      <span className={`shrink-0 font-semibold ${where === 'in' ? 'text-ok' : where === 'above' ? 'text-rnr' : 'text-ink/60'}`}>
+        {where === 'in' ? 'dans la plage' : where === 'above' ? 'au-dessus' : daysLeft > 0 ? `encore ${daysLeft} j` : 'sous la plage'}
+      </span>
+    </p>
   )
 }
 

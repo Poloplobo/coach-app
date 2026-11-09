@@ -28,7 +28,7 @@ export function PlayerLayout() {
   if (locked && !wellness.isPending) return <Navigate to="/joueur/forme" replace />
 
   return (
-    <div className="min-h-dvh pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
+    <div className="min-h-dvh pb-[calc(5.5rem+env(safe-area-inset-bottom))]">
       {/* En-tête compact et collant : le nom, la date et les réglages restent à portée sans manger l'écran */}
       <header className="sticky top-0 z-20 border-b border-line/60 bg-app/90 pt-[env(safe-area-inset-top)] backdrop-blur [view-transition-name:player-header]">
         <div className="mx-auto flex max-w-md items-center gap-3 px-4 py-2">
@@ -62,11 +62,12 @@ export function PlayerLayout() {
         </div>
       </main>
 
-      <nav aria-label="Navigation" className="[view-transition-name:player-nav] fixed inset-x-0 bottom-0 border-t border-line bg-surface/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
-        <ul className="mx-auto max-w-md grid grid-cols-5">
+      {/* Barre d'onglets flottante : pilule détachée du bord, l'onglet actif rempli */}
+      <nav aria-label="Navigation" className="[view-transition-name:player-nav] fixed inset-x-0 bottom-0 px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
+        <ul className="mx-auto grid max-w-md grid-cols-5 gap-1 rounded-3xl bg-surface/95 p-1.5 shadow-lg shadow-black/30 ring-1 ring-line/60 backdrop-blur">
           {TABS.filter(t => t.to !== '/joueur/reglages').map(t => {
             const Icon = ICON[t.to]
-            const tab = 'relative flex h-[4.5rem] flex-col items-center justify-center gap-1 font-display text-sm font-semibold tracking-wide'
+            const tab = 'relative flex h-14 flex-col items-center justify-center gap-0.5 rounded-2xl font-display text-xs font-semibold tracking-wide'
             return (
               <li key={t.to}>
                 {mustFillForm && t.locked ? (
@@ -76,15 +77,15 @@ export function PlayerLayout() {
                 ) : (
                   // onglet actif : trait rouge en haut, comme une ligne d'en-but
                   <TabLink to={t.to} end
-                    className={({ isActive }) => `${tab} ${isActive ? 'text-ink' : 'text-ink/55 hover:text-ink/80'}`}>
+                    className={({ isActive }) => `${tab} ${isActive ? 'text-white' : 'text-ink/55 hover:text-ink/80'}`}>
                     {({ isActive }) => <>
                     {/* un seul trait porte ce nom à la fois : le navigateur le fait glisser d'un onglet à l'autre */}
-                    {isActive && <span aria-hidden="true" className="absolute inset-x-3 top-0 h-[3px] bg-rnr [view-transition-name:tab-bar]" />}
+                    {isActive && <span aria-hidden="true" className="absolute inset-0 rounded-2xl bg-rnr [view-transition-name:tab-bar]" />}
                     <span className="relative">
                       <Icon size={22} aria-hidden="true" />
                       {t.to === '/joueur/forme' && mustFillForm && <span className="absolute -right-1 -top-0.5 h-2.5 w-2.5 rounded-full bg-rnr ring-2 ring-surface" aria-label="à remplir" />}
                     </span>
-                    {t.label}
+                    <span className="relative">{t.label}</span>
                     </>}
                   </TabLink>
                 )}

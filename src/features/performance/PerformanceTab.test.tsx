@@ -58,8 +58,11 @@ describe('PerformanceTab', () => {
     render(<PerformanceTab />)
     fireEvent.click(screen.getByRole('radio', { name: COLOR_LABEL.jaune }))
     expect(h.mutate).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'Valider ma note' }))
-    expect(h.mutate).toHaveBeenCalledWith({ match_id: 'm1', player_id: 'p1', rater: 'player', color: 'jaune' })
+    const valider = screen.getByRole('button', { name: 'Valider ma note' }) as HTMLButtonElement
+    expect(valider.disabled).toBe(true) // commentaire obligatoire
+    fireEvent.change(screen.getByLabelText(/Pourquoi cette note/), { target: { value: 'Solide en défense, trop de fautes' } })
+    fireEvent.click(valider)
+    expect(h.mutate).toHaveBeenCalledWith({ match_id: 'm1', player_id: 'p1', rater: 'player', color: 'jaune', comment: 'Solide en défense, trop de fautes' })
   })
   it('la consigne du coach s\'affiche sous le coq correspondant', () => {
     render(<PerformanceTab />)

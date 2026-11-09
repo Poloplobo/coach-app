@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(192);
+select plan(193);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -440,12 +440,15 @@ select throws_ok($$insert into public.match_ratings (match_id, player_id, rater,
 select throws_ok($$insert into public.match_ratings (match_id, player_id, rater, color)
                    values ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-00000000000b', 'staff', 'bleu')$$,
                  '42501', null, 'B ne peut pas écrire une note staff');
-select throws_ok($$insert into public.match_ratings (match_id, player_id, rater, color, minutes)
-                   values ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-00000000000b', 'player', 'jaune', 70)$$,
+select throws_ok($$insert into public.match_ratings (match_id, player_id, rater, color, comment, minutes)
+                   values ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-00000000000b', 'player', 'jaune', 'Bon en mêlée, raté deux plaquages', 70)$$,
                  '23514', null, 'B ne saisit pas son temps de jeu (réservé au coach)');
-select lives_ok($$insert into public.match_ratings (match_id, player_id, rater, color)
-                  values ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-00000000000b', 'player', 'jaune')$$,
-                'B note son match');
+select throws_ok($$insert into public.match_ratings (match_id, player_id, rater, color, comment)
+                   values ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-00000000000b', 'player', 'jaune', ' ok ')$$,
+                 '23514', null, 'B doit justifier sa note par un commentaire');
+select lives_ok($$insert into public.match_ratings (match_id, player_id, rater, color, comment)
+                  values ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-00000000000b', 'player', 'jaune', 'Bon en mêlée, raté deux plaquages')$$,
+                'B note son match avec un commentaire');
 select is((select color from public.match_ratings where rater = 'staff'), 'vert', 'une fois noté, B découvre la note du staff');
 select is_empty($$update public.match_ratings set color = 'vert' where player_id = '00000000-0000-0000-0000-00000000000b' and rater = 'player' returning 1$$,
                 'note figée : B ne peut plus changer sa couleur après avoir vu la note du staff');

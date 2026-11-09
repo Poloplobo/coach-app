@@ -124,6 +124,7 @@ function PlayerRating({ matchId, player, name, ariaName, own, staff }: { matchId
       <div className="min-w-0">
         <p className="truncate font-semibold">{name}</p>
         <p className="text-xs text-ink/60">Sa note : {own ? <MatchColor color={own.color} label={RATING_LABEL[own.color]} /> : 'pas encore notée'}</p>
+        {own?.comment && <p className="text-xs italic text-ink/70">« {own.comment} »</p>}
       </div>
       <div className="flex items-center gap-2">
         <div role="radiogroup" aria-label={`Note du coach : ${ariaName}`} className="flex gap-1">

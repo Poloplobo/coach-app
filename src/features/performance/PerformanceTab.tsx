@@ -23,7 +23,9 @@ export function PerformanceTab() {
   const guidelines = useGuidelines()
   // Choix en cours, pas encore validé (lié au match : changer de match l'efface)
   const [choice, setChoice] = useState<{ match: string; color: RatingColor } | null>(null)
+  const [comment, setComment] = useState('')
 
+  const commentOk = choice?.color === 'gris' || comment.trim().length >= 10
   const loading = matches.isPending || gps.isPending || ratings.isPending || reference.isPending
   const failed = matches.isError || gps.isError || ratings.isError || reference.isError
   const match = matches.data?.[0] // match du week-end : le dernier joué (la note reste ouverte jusqu'au suivant)
@@ -57,6 +59,7 @@ export function PerformanceTab() {
                   <Verdict who="Ma note" color={own.color} />
                   <Verdict who="Le coach" color={staff?.color ?? null} />
                 </div>
+                {own.comment && <p className="text-sm text-ink/70"><span className="font-semibold text-ink">Mon commentaire : </span>{own.comment}</p>}
                 {staff && staff.color === own.color && <p className="text-center text-sm font-semibold text-ok">Même lecture que le coach</p>}
                 {staff?.comment && <p className="border-l-2 border-gold pl-3 text-sm italic">« {staff.comment} »</p>}
                 <p className="text-xs text-ink/50">Note validée : elle ne peut plus être modifiée.</p>
@@ -79,8 +82,17 @@ export function PerformanceTab() {
                     )
                   })}
                 </div>
-                <Button disabled={choice?.match !== match.id || rate.isPending}
-                  onClick={() => choice && rate.mutate({ match_id: match.id, player_id: playerId, rater: 'player', color: choice.color })}>
+                {/* Commentaire obligatoire pour justifier sa note (0042), sauf « gris » : n'a pas joué */}
+                {choice?.match === match.id && choice.color !== 'gris' && (
+                  <label className="flex flex-col gap-1 text-sm font-semibold">Pourquoi cette note ?
+                    <textarea rows={3} maxLength={500} value={comment} onChange={e => setComment(e.target.value)}
+                      placeholder="Ce que tu as bien fait, ce que tu dois corriger…"
+                      className="rounded-lg border border-line bg-field px-3 py-2 text-base font-normal" />
+                    <span className="text-xs font-normal text-ink/60">{commentOk ? 'Merci, ton commentaire est complet.' : 'Obligatoire : au moins une phrase (10 caractères).'}</span>
+                  </label>
+                )}
+                <Button disabled={choice?.match !== match.id || rate.isPending || !commentOk}
+                  onClick={() => choice && rate.mutate({ match_id: match.id, player_id: playerId, rater: 'player', color: choice.color, comment: choice.color === 'gris' ? (comment.trim() || null) : comment.trim() })}>
                   {rate.isPending ? 'Enregistrement…' : 'Valider ma note'}
                 </Button>
                 <OfflineNote shown={rate.isPaused} />

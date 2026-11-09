@@ -408,7 +408,7 @@ function RpeTable({ data, logs, types, weekStart, target }: {
                     <td className="font-semibold">{button(r.week, 'semaine')}</td>
                   </tr>
                   {open?.player === id && (
-                    <tr><td colSpan={9} className="bg-field/60 px-3 py-2">
+                    <tr><td colSpan={9} className="bg-field px-3 py-2">
                       <RpeDetail logs={logs.filter(l => l.player_id === id && (open.day === 'semaine' || l.session_date === addDays(weekStart, open.day)))} types={types} target={target} />
                     </td></tr>
                   )}

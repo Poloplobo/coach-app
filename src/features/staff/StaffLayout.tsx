@@ -23,26 +23,26 @@ const GROUPS: { title: string; tabs: Tab[] }[] = [
   { title: 'Santé', tabs: [{ to: '/staff/medical', label: 'Médical', icon: Stethoscope }] },
 ]
 
-// Écrans staff (desktop first) : barre latérale à gauche ; 768-1024 px : icônes seules (tablette) ;
-// téléphone : barre du haut et menu qui s'ouvre par-dessus (open)
+// Écrans staff (desktop first) : barre latérale réduite aux icônes, qui s'agrandit par-dessus la page au survol de la souris
+// (ou au clavier : focus visible, pas après un clic) ; téléphone : barre du haut et menu qui s'ouvre par-dessus (open)
 export function StaffLayout() {
   const profile = useProfile(useUserId())
   const [open, setOpen] = useState(false)
-  const label = open ? 'inline' : 'hidden lg:inline', block = open ? 'block' : 'hidden lg:block'
+  const label = open ? 'inline' : 'hidden group-hover:inline group-has-[:focus-visible]:inline', block = open ? 'block' : 'hidden group-hover:block group-has-[:focus-visible]:block'
   const injured = useRoster().data?.filter(p => p.injured).length ?? 0
   const name = [profile.data?.first_name, profile.data?.last_name].filter(Boolean).join(' ')
   const initials = `${profile.data?.first_name?.[0] ?? ''}${profile.data?.last_name?.[0] ?? ''}`.toUpperCase()
 
   const link = (t: Tab, count?: number) => (
     <TabLink key={t.to} to={t.to} end={t.to === '/staff'} title={t.label} onClick={() => setOpen(false)}
-      className={({ isActive }) => `relative flex h-11 items-center gap-3 rounded-xl px-3 font-display text-lg font-semibold tracking-wide ${open ? '' : 'justify-center lg:justify-start'} ${
-        isActive ? 'bg-field text-ink' : 'text-ink/60 hover:bg-field/60 hover:text-ink'}`}>
+      className={({ isActive }) => `relative flex h-11 items-center gap-3 rounded-xl px-3 font-display text-lg font-semibold tracking-wide ${open ? '' : 'justify-center group-hover:justify-start group-has-[:focus-visible]:justify-start'} ${
+        isActive ? 'bg-field text-ink' : 'text-ink/60 hover:bg-field hover:text-ink'}`}>
       {({ isActive }) => <>
         {/* repère de l'onglet actif : glisse d'un onglet à l'autre (index.css) */}
         {isActive && <span aria-hidden="true" className="absolute inset-y-2 left-0 w-[3px] rounded-full bg-rnr [view-transition-name:tab-bar]" />}
         <t.icon size={19} aria-hidden="true" className="shrink-0" />
         <span className={`${label} flex-1 truncate`}>{t.label}</span>
-        {count ? <span className={`rounded-full bg-gold/20 px-1.5 text-xs tabular-nums text-gold ${open ? '' : 'absolute right-1 top-1 lg:static'}`} aria-label={`${count} blessé${count > 1 ? 's' : ''}`}>{count}</span> : null}
+        {count ? <span className={`rounded-full bg-gold/20 px-1.5 text-xs tabular-nums text-gold ${open ? '' : 'absolute right-1 top-1 group-hover:static group-has-[:focus-visible]:static'}`} aria-label={`${count} blessé${count > 1 ? 's' : ''}`}>{count}</span> : null}
       </>}
     </TabLink>
   )
@@ -57,8 +57,8 @@ export function StaffLayout() {
           className="flex h-11 w-11 items-center justify-center rounded-full bg-field"><Menu size={20} aria-hidden="true" /></button>
       </header>
       {open && <button type="button" aria-label="Fermer le menu" onClick={() => setOpen(false)} className="fixed inset-0 z-20 bg-app/70 md:hidden" />}
-      <aside className={`[view-transition-name:staff-header] fixed inset-y-0 left-0 z-30 p-2 lg:w-64 lg:p-3 ${open ? 'block w-64' : 'hidden w-[4.75rem] md:block'}`}>
-        <div className="flex h-full flex-col gap-5 rounded-2xl bg-surface p-2 ring-1 ring-line/60 lg:p-3">
+      <aside className={`group [view-transition-name:staff-header] fixed inset-y-0 left-0 z-30 p-2 transition-[width] duration-200 ${open ? 'block w-64' : 'hidden w-[4.75rem] md:block md:hover:w-64 md:has-[:focus-visible]:w-64'}`}>
+        <div className="flex h-full flex-col gap-5 overflow-hidden whitespace-nowrap rounded-2xl bg-surface p-2 ring-1 ring-line/60 group-hover:shadow-2xl group-hover:shadow-black/40 group-has-[:focus-visible]:shadow-2xl">
           <div className="flex items-center gap-3 px-1 pt-1">
             <img src="/logo-rnr.svg" alt="" className="h-10 shrink-0" />
             <div className={`${block} min-w-0 flex-1`}>
@@ -87,7 +87,7 @@ export function StaffLayout() {
           </div>
         </div>
       </aside>
-      <main className="flex flex-col gap-5 px-4 py-6 md:pl-[5.5rem] lg:pl-72 lg:pr-6">
+      <main className="flex flex-col gap-5 px-4 py-6 md:pl-[5.5rem] lg:pr-6">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 [view-transition-name:page]">
           <Suspense fallback={<Loading />}><Outlet /></Suspense>
         </div>

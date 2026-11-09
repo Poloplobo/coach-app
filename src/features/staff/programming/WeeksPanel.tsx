@@ -6,10 +6,10 @@ import { Loading } from '../../../components/ui/Loading'
 import { ViewSelect } from '../../../components/ui/ViewSelect'
 import { ConfirmButton } from '../../../components/ui/ConfirmButton'
 import { addDays, parisDate } from '../../../lib/week'
-import { rangeLabel } from '../load'
-import { useReference, useStaffMuscu } from '../useStaff'
+import { plannedLoad, rangeLabel, type RpeRange } from '../load'
+import { useReference, useStaffMuscu, useTargetRpes } from '../useStaff'
 import { nextWeek, progressedLoads, weekErrors } from './programming'
-import { useClearGroupWeek, useDuplicateWeek, useGroup, useSaveWeek, useWeeksFull, type WeekForm } from './useProgramming'
+import { useClearGroupWeek, useDuplicateWeek, useGroup, useGroupPlan, useSaveWeek, useWeeksFull, type WeekForm } from './useProgramming'
 
 const field = 'rounded-lg bg-field border border-line px-3 py-2 text-base'
 
@@ -116,7 +116,7 @@ function WeekEditor({ groupId, weeks, form: initial, previousCode, weekTypes, on
 }
 
 // Copie le planning du groupe et les séances individuelles d'une semaine sur la suivante, charges ajustées selon les retours
-function DuplicateWeek({ groupId, weeks, today }: { groupId: string; weeks: { code: string; start_date: string; is_off: boolean }[]; today: string }) {
+function DuplicateWeek({ groupId, weeks, today }: { groupId: string; weeks: { code: string; start_date: string; is_off: boolean; week_type_code: string }[]; today: string }) {
   // Sources possibles : les semaines suivies d'une semaine du calendrier qui n'est pas encore terminée
   const pairs = weeks.flatMap(w => {
     const next = weeks.find(n => n.start_date === addDays(w.start_date, 7))
@@ -126,13 +126,27 @@ function DuplicateWeek({ groupId, weeks, today }: { groupId: string; weeks: { co
   const pair = pairs.find(p => p.from.code === fromCode) ?? pairs[0]
   const muscu = useStaffMuscu(pair?.from.start_date ?? '', pair ? addDays(pair.from.start_date, 6) : '')
   const duplicate = useDuplicateWeek()
+  const ref = useReference()
+  const targets = useTargetRpes()
+  const sourcePlan = useGroupPlan(groupId, pair?.from.start_date ?? '', pair ? addDays(pair.from.start_date, 6) : '')
+  // Charges identiques : aucune progression (copie conforme des kg / %RM)
+  const [sameLoads, setSameLoads] = useState(false)
   // Musculation seulement : le planning rugby de la semaine cible est souvent déjà construit, ne pas y ajouter celui de la source
   const [individualOnly, setIndividualOnly] = useState(false)
 
   if (!pair) return (
     <Card title="Dupliquer une semaine" help="Ajoute la semaine suivante au calendrier pour pouvoir y recopier la semaine en cours.">{null}</Card>
   )
-  const loads = muscu.data ? progressedLoads(muscu.data) : {}
+  const loads = muscu.data && !sameLoads ? progressedLoads(muscu.data) : {}
+  // Charge du planning du groupe recopié, avec les RPE visés de la semaine cible (sa plage peut être plus basse : COMP, REG)
+  const toType = ref.data?.weekTypes.find(t => t.code === pair.to.week_type_code)
+  const typeRange = (id: string | null): RpeRange | null => {
+    const t = targets.data?.find(x => x.week_type_code === pair.to.week_type_code && x.activity_type_id === id)
+    return t ? { min: t.rpe_min, max: t.rpe_max } : null
+  }
+  const copiedLoad = sourcePlan.data && !individualOnly && !pair.to.is_off ? plannedLoad(sourcePlan.data.map(i => ({ minutes: i.planned_duration_min ?? 0,
+    range: i.planned_rpe != null ? { min: Number(i.planned_rpe), max: Number(i.planned_rpe_max ?? i.planned_rpe) } : typeRange(i.activity_type_id) }))) : null
+  const overTarget = copiedLoad != null && toType?.srpe_max != null && copiedLoad > toType.srpe_max
   const changes = muscu.data?.flatMap(s => s.planned_exercises).filter(e => e.id in loads) ?? []
   const up = changes.filter(e => loads[e.id] > Number(e.load_value)).length
   const noFeedback = muscu.data?.flatMap(s => s.planned_exercises).filter(e => !e.exercise_feedback[0]?.status).length ?? 0
@@ -157,7 +171,18 @@ function DuplicateWeek({ groupId, weeks, today }: { groupId: string; weeks: { co
           <input type="checkbox" checked={individualOnly} onChange={e => { setIndividualOnly(e.target.checked); duplicate.reset() }} className="h-5 w-5" />
           Musculation seulement (séances individuelles, sans le planning du groupe)
         </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={sameLoads} onChange={e => { setSameLoads(e.target.checked); duplicate.reset() }} className="h-5 w-5" />
+          Charges identiques (sans progression)
+        </label>
       </div>
+      {overTarget && (
+        <p role="alert" className="rounded-lg border border-gold bg-gold/10 px-3 py-2 text-sm text-gold">
+          Le planning du groupe de {pair.from.code} représente environ <strong>{copiedLoad} UA</strong> (RPE visés de {pair.to.week_type_code}, hors musculation) :
+          au-dessus de la plage de {pair.to.code} ({toType!.srpe_min ?? 0}-{toType!.srpe_max} UA). Allège le planning de {pair.to.code} après la copie,
+          ou coche « Musculation seulement ».
+        </p>
+      )}
       {muscu.isPending && <Loading />}
       {muscu.isError && <p role="alert" className="text-sm text-rnr">Impossible de lire les séances de {pair.from.code}.</p>}
       {muscu.data && (

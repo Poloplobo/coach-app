@@ -5,6 +5,7 @@ import { Loading } from '../../../components/ui/Loading'
 import { ViewSelect } from '../../../components/ui/ViewSelect'
 import { formatDay, isoWeekStart, parisDate } from '../../../lib/week'
 import type { ProgramPreview } from './importProgram'
+import { useRoster } from '../useStaff'
 import { useExerciseLibrary, useGroup, useImportPlayers, useImportProgram, useTestDefinitions, useWeeksFull, type ImportResult } from './useProgramming'
 
 // Début de cycle : une fiche « Prénom NOM_PER MUSCULATION.xlsx » par joueur, lue dans le navigateur, aperçu puis import
@@ -14,6 +15,7 @@ export function ImportPanel() {
   const players = useImportPlayers()
   const tests = useTestDefinitions()
   const library = useExerciseLibrary()
+  const roster = useRoster()
   const [files, setFiles] = useState<{ key: string; name: string; preview: ProgramPreview }[]>([])
   const [reading, setReading] = useState(false)
   const [readError, setReadError] = useState(false)
@@ -83,12 +85,13 @@ export function ImportPanel() {
       </label>
       {reading && <Loading />}
       {readError && <p role="alert" className="text-sm text-rnr">Lecture impossible : recharge la page et réessaie.</p>}
-      {files.map(f => <FilePreview key={f.key} file={f.name} preview={f.preview} season={group.data.season} />)}
+      {files.map(f => <FilePreview key={f.key} file={f.name} preview={f.preview} season={group.data.season}
+        injured={!!roster.data?.some(r => r.id === f.preview.player?.id && r.injured)} />)}
     </Card>
   )
 }
 
-function FilePreview({ file, preview: p, season }: { file: string; preview: ProgramPreview; season: string }) {
+function FilePreview({ file, preview: p, season, injured }: { file: string; preview: ProgramPreview; season: string; injured: boolean }) {
   const save = useImportProgram()
   const [result, setResult] = useState<ImportResult | null>(null)
   const exercises = p.sessions.reduce((n, s) => n + s.exercises.length, 0)
@@ -97,6 +100,14 @@ function FilePreview({ file, preview: p, season }: { file: string; preview: Prog
   return (
     <section aria-label={file} className="flex flex-col gap-2 border-t border-line pt-3 text-sm">
       <p className="font-semibold">{file}{p.player && <span className="font-normal text-ink/70"> · {p.player.first_name} {p.player.last_name}</span>}</p>
+      {/* Joueur blessé : un jour sans « RÉHAB » / « MEMBRES SAINS » dans son titre part en Musculation (ni douleur EVA, ni suivi réhab) */}
+      {injured && p.sessions.some(s => !s.activity) && (
+        <p role="alert" className="rounded-lg border border-gold bg-gold/10 px-3 py-2 text-gold">
+          Joueur déclaré blessé : {p.sessions.filter(s => !s.activity).length} séance(s) seront importées en <strong>Musculation</strong>, car
+          le titre du jour ne contient ni « RÉHAB » ni « MEMBRES SAINS ». Si c'est de la réhab, renomme les jours dans la fiche
+          (« Lundi RÉHAB : ») avant d'importer : sinon, pas de douleur EVA ni de suivi dans l'onglet Médical.
+        </p>
+      )}
       {p.warnings.length > 0 && <ul className="list-disc pl-5 text-gold">{p.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>}
       {p.errors.length > 0
         ? <ul role="alert" className="list-disc pl-5 text-rnr">{p.errors.map((e, i) => <li key={i}>{e}</li>)}</ul>

@@ -7,6 +7,7 @@ import { useSavedFlash } from '../../components/ui/useSavedFlash'
 import { RpePicker } from '../rpe/RpePicker'
 import { ScalePicker } from '../../components/ui/ScalePicker'
 import { STATUSES, estimatedKg, prescriptionParts, type PastLoad, type ReferenceMax, type FeedbackStatus, type PlannedExercise } from './program'
+import { MovementFigure } from './MovementFigure'
 import { RestTimer } from './RestTimer'
 import { useSaveFeedback } from './useSeance'
 
@@ -29,8 +30,10 @@ const shortDate = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('
 
 // maxes / last : repères facultatifs (charge indicative d'un %RM, charge réalisée la dernière fois sur cet exercice)
 // pain : séance d'un blessé (réhab, membres sains) : douleur EVA de 0 à 10 sur l'exercice
-export function ExerciseRow({ playerId, exercise, editable, maxes = [], last, pain: askPain = false }: {
-  playerId: string; exercise: PlannedExercise; editable: boolean; maxes?: ReferenceMax[]; last?: PastLoad; pain?: boolean
+// cue : repère de l'enchaînement, « En cours » (premier exercice sans réponse) ou « Ensuite » (le suivant) ;
+// restInFlow : exercice d'un enchaînement, son repos est déjà dans la bande d'ordre du bloc
+export function ExerciseRow({ playerId, exercise, editable, maxes = [], last, pain: askPain = false, cue, restInFlow = false }: {
+  playerId: string; exercise: PlannedExercise; editable: boolean; maxes?: ReferenceMax[]; last?: PastLoad; pain?: boolean; cue?: 'current' | 'next'; restInFlow?: boolean
 }) {
   const saved = exercise.exercise_feedback[0]
   const save = useSaveFeedback(playerId)
@@ -59,6 +62,7 @@ export function ExerciseRow({ playerId, exercise, editable, maxes = [], last, pa
     <div className="flex gap-3">
       <StatusMark status={saved?.status} />
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        {cue && <span className={`self-start rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${cue === 'current' ? 'bg-gold/15 text-gold' : 'bg-field text-ink/60'}`}>{cue === 'current' ? 'En cours' : 'Ensuite'}</span>}
         <p className="font-semibold leading-snug">
           {exercise.block_label && <span className="mr-1.5 font-display text-sm font-semibold text-ink/50">{exercise.block_label}</span>}
           {exercise.exercises.name}
@@ -67,7 +71,7 @@ export function ExerciseRow({ playerId, exercise, editable, maxes = [], last, pa
           {p.volume && <span className="mr-1 font-display text-xl font-semibold leading-none tabular-nums">{p.volume}</span>}
           {p.load && <span className="rounded-md bg-gold/15 px-2 py-0.5 font-semibold text-gold">{p.load}{est && ` ≈ ${est.kg.toLocaleString('fr-FR')} kg`}</span>}
           {p.tempo && <span className="rounded-md bg-field px-2 py-0.5 tabular-nums text-ink/80">tempo {p.tempo}</span>}
-          {p.rest && <RestTimer rest={p.rest} />}
+          {p.rest && !restInFlow && <RestTimer rest={p.rest} />}
         </div>
         {p.note && <p className="text-sm text-ink/60">{p.note}</p>}
         {(est || last) && (
@@ -78,6 +82,7 @@ export function ExerciseRow({ playerId, exercise, editable, maxes = [], last, pa
           </p>
         )}
       </div>
+      <MovementFigure name={exercise.exercises.name} />
     </div>
   )
 
@@ -108,7 +113,7 @@ export function ExerciseRow({ playerId, exercise, editable, maxes = [], last, pa
   )
 
   return (
-    <li className="flex flex-col gap-3 py-3">
+    <li className={`flex flex-col gap-3 py-3 ${cue === 'current' ? '-mx-3 bg-gold/[0.06] px-3' : ''}`}>
       {header}
       <div className="flex flex-col gap-3 pl-9">
         <div role="radiogroup" aria-label="Statut" className="grid grid-cols-3 gap-1.5">

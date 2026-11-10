@@ -43,7 +43,15 @@ table { font-variant-numeric: tabular-nums; }
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
 .rise { animation: rise 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 
+/* Bonhomme des exercices (MovementFigure) : deux positions qui se relaient en fondu, comme un mime */
+@keyframes mv-a { 0%, 38% { opacity: 1 } 50%, 88% { opacity: 0 } 100% { opacity: 1 } }
+@keyframes mv-b { 0%, 38% { opacity: 0 } 50%, 88% { opacity: 1 } 100% { opacity: 0 } }
+.mv-a { animation: mv-a 1.8s ease-in-out infinite; }
+.mv-b { opacity: 0; animation: mv-b 1.8s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
   .rise { animation: none; }
+  .mv-a { animation: none; }
+  .mv-b { animation: none; display: none; }
 }

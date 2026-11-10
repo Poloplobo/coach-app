@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Layers, ListChecks, Timer } from 'lucide-react'
+import { ArrowRight, Layers, ListChecks, Repeat, Timer } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { OfflineNote } from '../../components/ui/OfflineNote'
@@ -9,6 +9,7 @@ import { MUSCULATION } from '../rpe/activities'
 import { RpePicker } from '../rpe/RpePicker'
 import { useActivityTypes, useLogsRange } from '../rpe/useRpe'
 import { ExerciseRow } from './ExerciseRow'
+import { RestTimer } from './RestTimer'
 import { blockGroups, completion, lastLoads, sessionRpe, sortedExercises } from './program'
 import { useMarkNotDone, usePastLoads, useRedoMuscu, useReferenceMaxes, useValidateSession, useWeekProgram } from './useSeance'
 import { Loading } from '../../components/ui/Loading'
@@ -88,6 +89,8 @@ export function MuscuSessionCard({ playerId, date, catchUp = false, activity = M
   const last = lastLoads(past ?? [])
   const log = logs.data.find(l => l.planned_session_id === session.id && l.validated_at)
   const c = completion(exercises)
+  // Les deux premiers exercices sans réponse, dans l'ordre de la fiche : celui en cours et le suivant
+  const upNext = exercises.filter(e => !e.exercise_feedback[0]?.status).slice(0, 2).map(e => e.id)
   const plannedMinutes = session.planned_duration_min ?? muscuType.default_duration_min
   const minutes = duration ? Number(duration) : Number(plannedMinutes ?? 0)
   const validDuration = Number.isInteger(minutes) && minutes > 0 && minutes <= 300
@@ -119,6 +122,7 @@ export function MuscuSessionCard({ playerId, date, catchUp = false, activity = M
       <div className="flex flex-col gap-3">
         {blockGroups(exercises).map(g => {
           const gc = completion(g.items)
+          const superset = g.items.length > 1
           const rounds = new Set(g.items.map(e => e.sets))
           const sets = rounds.size === 1 ? g.items[0].sets : null
           return (
@@ -129,13 +133,26 @@ export function MuscuSessionCard({ playerId, date, catchUp = false, activity = M
                 </span>
                 <div className="min-w-0 flex-1">
                   <h3 className="font-display text-lg font-semibold leading-tight">{g.label}</h3>
-                  {g.items.length > 1 && <p className="text-xs text-ink/60">{g.items.length} exercices à enchaîner{sets ? ` · ${sets} tours` : ''}</p>}
+                  <p className="text-xs text-ink/60">{superset ? `Enchaînement de ${g.items.length} exercices${sets ? ` · ${sets} tours` : ''}` : 'Série simple'}</p>
                 </div>
                 <span className="text-sm tabular-nums text-ink/60" aria-label={`${gc.done} faits sur ${gc.total}`}>{gc.done}/{gc.total}</span>
               </header>
+              {/* Enchaînement : l'ordre d'un tour (A1 → A2 → repos), à recommencer N fois ; chaque repos à sa place, lancé d'un appui */}
+              {superset && (
+                <ol aria-label={`Ordre d'un tour du ${g.label}`} className="flex flex-wrap items-center gap-1.5 border-b border-line/60 px-3 py-2.5 text-sm">
+                  {g.items.map((e, i) => (
+                    <li key={e.id} className="flex items-center gap-1.5">
+                      <span className={`rounded-full px-2.5 py-1 font-display font-semibold ${e.exercise_feedback[0]?.status ? 'bg-ok/15 text-ok' : 'bg-field'}`}>{e.block_label ?? '•'}</span>
+                      {e.rest && <><ArrowRight size={14} aria-hidden="true" className="text-ink/40" /><RestTimer rest={e.rest} /></>}
+                      {i < g.items.length - 1 && <ArrowRight size={14} aria-hidden="true" className="text-ink/40" />}
+                    </li>
+                  ))}
+                  {sets ? <li className="ml-auto flex items-center gap-1 font-display font-semibold text-gold"><Repeat size={14} aria-hidden="true" />× {sets} tours</li> : null}
+                </ol>
+              )}
               <ul className="divide-y divide-line/60 px-3">
                 {g.items.map(e => <ExerciseRow key={e.id} playerId={playerId} exercise={e} editable={!log} maxes={maxes} pain={rehab}
-                  last={e.exercise_id ? last.get(e.exercise_id) : undefined} />)}
+                  last={e.exercise_id ? last.get(e.exercise_id) : undefined} restInFlow={superset} cue={log ? undefined : e.id === upNext[0] ? 'current' : e.id === upNext[1] ? 'next' : undefined} />)}
               </ul>
             </section>
           )

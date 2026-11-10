@@ -15,6 +15,7 @@ import { fullName, weekOf, type Log, type Player } from './load'
 import { useAllLogs, useAllWellness, useInjuries, useInjuryRecords, useInjurySteps, useMedicalSessions, useReference, useRoster } from './useStaff'
 import { EpidemiologyCard, ImportPlan, InjuryForm, PlanOverview, ReturnPlan } from './MedicalParts'
 import { ImportPanel } from './programming/ImportPanel'
+import { Cutout } from '../photos/PlayerPhoto'
 import { useMatches, useRatings } from '../performance/usePerformance'
 
 // Onglet Médical (décision du 06/11/2026) : les joueurs déclarés blessés sortent de la semaine du groupe ; ici, pour chacun,
@@ -182,7 +183,8 @@ function InjuredPlayer({ player, from, to, start, today, since, sessions: all, l
     <Card title={fullName(player)}
       help={<>Blessé depuis le {formatDay(start)} (J+{Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 864e5)}){since?.note && <> · {since.note}</>}</>}
       aside={<Link to={`/staff/joueur/${player.id}`} className="text-sm text-gold hover:underline">Ouvrir sa fiche</Link>}>
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap items-end gap-3">
+        <Cutout id={player.id} className="h-24 w-24" />
         <Kpi label="Séances faites" value={`${summary.done} / ${summary.planned}`} tone={summary.planned && summary.done < summary.planned ? 'warn' : 'ok'}
           hint={summary.byType.filter(t => t.planned).map(t => `${t.type} ${t.done}/${t.planned}`).join(' · ') || 'Aucune séance prévue'} />
         <Kpi label="Charge de la semaine" value={`${load} UA`} hint={`${logs.length} déclaration${logs.length > 1 ? 's' : ''}`} />

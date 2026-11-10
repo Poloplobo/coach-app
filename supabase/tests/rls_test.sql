@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(198);
+select plan(200);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -480,7 +480,7 @@ select is_empty($$update public.gps_positions set position_group = 'Centre' retu
 select throws_ok($$select public.import_match_gps('00000000-0000-0000-0000-000000000002', public.paris_today() - 2, 'R92', null, '[]')$$,
                  '42501', null, 'un joueur ne peut pas importer de GPS');
 
-select is_empty($$select 1 from storage.objects where bucket_id = 'player-photos'$$, 'un joueur ne voit aucune photo, même la sienne');
+select is((select array_agg(name)::text from storage.objects where bucket_id = 'player-photos'), '{00000000-0000-0000-0000-00000000000b.png}', 'B ne voit que sa propre photo (0045)');
 select throws_ok($$insert into storage.objects (bucket_id, name) values ('player-photos', 'x.png')$$, '42501', null, 'un joueur ne peut pas déposer de photo');
 
 select isnt_empty($$select 1 from public.rating_guidelines where color = 'bleu'$$, 'un joueur lit les consignes de notation');
@@ -672,6 +672,14 @@ select is_empty($$update public.test_reference set blue = 1 returning 1$$, 'le j
 select lives_ok($$select * from public.my_test_medals()$$, 'le joueur lit ses médailles du groupe');
 select is_empty($$select 1 from public.my_test_medals() m where not exists (select 1 from public.test_results r where r.player_id = auth.uid() and r.test_id = m.test_id)$$,
                 'une médaille ne porte que sur un test du joueur lui-même');
+
+-- ---------- Photo du joueur (0045) ----------
+reset role;
+insert into storage.objects (bucket_id, name) values ('player-photos', '00000000-0000-0000-0000-00000000000a.png');
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+set local role authenticated;
+select is((select array_agg(name)::text from storage.objects where bucket_id = 'player-photos'), '{00000000-0000-0000-0000-00000000000a.png}', 'A ne lit que sa propre photo');
+select throws_ok($$insert into storage.objects (bucket_id, name) values ('player-photos', '00000000-0000-0000-0000-00000000000a.png')$$, '42501', null, 'A ne dépose pas de photo');
 
 -- ---------- Visiteur non connecté ----------
 reset role;

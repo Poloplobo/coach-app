@@ -17,6 +17,7 @@ import { TestsPanel } from './programming/TestsPanel'
 import { useAllLogs, useAllPlan, useAllSkips, useAllWellness, useInjuryRecords, useInjurySessions, useIsAdmin, useReference, useRoster, useTargetRpes } from './useStaff'
 import { injurySummary } from './injury'
 import { Loading } from '../../components/ui/Loading'
+import { Cutout } from '../photos/PlayerPhoto'
 import { ViewSelect } from '../../components/ui/ViewSelect'
 
 const SOURCE = { app: 'joueur', staff: 'staff', import_form: 'formulaire', auto: 'validée auto. 23h30' } as Record<string, string>
@@ -89,6 +90,8 @@ export function PlayerView() {
 
       {row && week && (
         <section className="flex flex-col gap-4">
+          <div className="flex items-end gap-4">
+          <Cutout id={player.id} className="h-28 w-28" />
           <p className="max-w-4xl text-lg leading-snug">
             <strong>{fullName(player)}</strong> a déclaré {row.sessions} séance{row.sessions > 1 ? 's' : ''} en {week.code}
             {wt && <> ({wt.name.toLowerCase()})</>} : <strong>{n(row.total)} UA</strong>
@@ -99,6 +102,7 @@ export function PlayerView() {
             {' '}{row.vsGroupPct === 0 ? 'Comme la moyenne du groupe.' : `${pct(Math.abs(row.vsGroupPct))} ${row.vsGroupPct > 0 ? 'au-dessus' : 'en dessous'} de la moyenne du groupe.`}
             {isAdmin && ratio.zone && <> Ratio aigu/chronique {ratio.ratio?.toLocaleString('fr-FR')} : <strong className={STATUS_TEXT[ZONE_TONE[ratio.zone]]}>{ZONE_LABEL[ratio.zone]}</strong>.</>}
           </p>
+          </div>
           <div className="flex flex-wrap gap-3">
             <Kpi label="Séances déclarées" value={String(row.sessions)} hint={`${n(row.minutes)} min au total`} />
             <Kpi label={`Charge ${week.code}`} value={`${n(row.total)} UA`} hint={wt ? `Visée ${n(wt.target_srpe)} UA` : 'Hors calendrier'} />

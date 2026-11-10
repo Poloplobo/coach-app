@@ -10,6 +10,7 @@ import { MyGoals } from '../tests/MyGoals'
 import { RATING_LABEL as COLOR_LABEL, RATING_COLORS, gpsAnalysis, MIN_MINUTES, positionGroup, vmaxTimeline, type RatingColor } from './gps'
 import { ClubLogo, Coq } from './MatchColor'
 import { playerReport } from './report'
+import { Cutout } from '../photos/PlayerPhoto'
 import { useGpsRecords, useGpsReference, useGuidelines, useMatches, useRateMatch, useRatings } from './usePerformance'
 
 // Onglet joueur en trois volets séparés, qu'on change au sélecteur ou en glissant le doigt sur le côté :
@@ -74,6 +75,8 @@ export function PerformanceTab() {
       <div id="perf-pane" role="tabpanel" aria-labelledby={`perf-${pane}`} key={pane} className="rise flex touch-pan-y flex-col gap-6"
         onTouchStart={e => { touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY } }}
         onTouchEnd={e => swipe(e.changedTouches[0].clientX, e.changedTouches[0].clientY)}>
+      {/* Carte de joueur : le joueur détouré en tête de ses GPS et de ses tests */}
+      {pane !== 'notes' && <Cutout id={playerId} className="mx-auto -mb-4 h-40 w-40" />}
       {loading && pane !== 'tests' && <Loading />}
       {failed && pane !== 'tests' && <p role="alert">Impossible de charger tes matchs.</p>}
       {pane !== 'tests' && noMatch}

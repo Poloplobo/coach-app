@@ -14,6 +14,7 @@ import { useLogsRange } from '../rpe/useRpe'
 import { MyWeek } from './MyWeek'
 import { ReturnPlanCard } from './ReturnPlanCard'
 import { usePlayerDay } from './playerDay'
+import { Cutout } from '../photos/PlayerPhoto'
 import { Loading } from '../../components/ui/Loading'
 
 const done = (n: number, total: number) => `${n}/${total} fait${n > 1 ? 's' : ''}`
@@ -115,7 +116,10 @@ function Scoreboard({ playerId, today }: { playerId: string; today: string }) {
 
   return (
     <section aria-label="Mon tableau du jour" className="flex flex-col gap-3">
-      <div className={`grid gap-2 ${muscu ? 'grid-cols-3' : 'grid-cols-2'}`}>
+      {/* Le joueur détouré à côté de ses anneaux (rien s'il n'a pas de photo) */}
+      <div className="flex items-end gap-2">
+      <Cutout id={playerId} className="h-32 w-24 -mb-1" />
+      <div className={`grid flex-1 gap-2 ${muscu ? 'grid-cols-3' : 'grid-cols-2'}`}>
         <Ring label="Fatigue du jour" fill={pct ?? 0} tone={pct === null ? 'stroke-line' : TONE[postureOf(pct)]}>
           {pct ?? '–'}<span className="text-xs text-ink/60">%</span>
         </Ring>
@@ -124,6 +128,7 @@ function Scoreboard({ playerId, today }: { playerId: string; today: string }) {
           <span className="text-base">{load ?? '–'}</span>
         </Ring>
         {muscu && <Ring label="Muscu faite" fill={muscu.pct} tone="stroke-ok">{muscu.pct}<span className="text-xs text-ink/60">%</span></Ring>}
+      </div>
       </div>
       {target && load !== undefined && <WeekGauge load={load} target={target} daysLeft={6 - Math.round((Date.parse(today) - Date.parse(week)) / 864e5)} />}
     </section>

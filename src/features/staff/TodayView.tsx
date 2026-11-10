@@ -16,6 +16,7 @@ import { fatiguePercent, postureOf } from '../wellness/fatigue'
 import { WELLNESS_ITEMS } from '../wellness/items'
 import { WELLNESS_ALERT_SCORE, fullName, itemValue, latecomers, missingRpe, overLoad, reminderMessage, rpeGap, rpeVsTarget, sessionTarget, weekOf, weekPace, wellnessAlerts, type Heat, type Player } from './load'
 import { SKIP_REASONS, type SkipReason } from '../rpe/activities'
+import { Avatar } from '../photos/PlayerPhoto'
 import { useAllLogs, useAllPlan, useAllSkips, useAllWellness, usePushEnabled, useReference, useRemind, useReminders, useRoster, useTargetRpes } from './useStaff'
 
 // Seules les réponses moyennes ou mauvaises ressortent ; le rouge est gardé pour le 1 (déclencheur d'alerte)
@@ -156,7 +157,7 @@ export function TodayView() {
                     // Alerte : ligne teintée, motif en infobulle ; la réponse à 1 est déjà en rouge dans sa colonne, le score sous 16 aussi
                     <tr key={player.id} className={`border-t border-line ${alerts.length ? 'bg-rnr/[0.07]' : ''}`} title={alerts.length ? `Alerte : ${alerts.join(', ')}` : undefined}>
                       <td className="whitespace-nowrap py-1.5 pr-3">
-                        <Link to={`/staff/joueur/${player.id}`} className="font-semibold underline-offset-4 hover:underline">{fullName(player)}</Link>
+                        <Link to={`/staff/joueur/${player.id}`} className="flex items-center gap-2 font-semibold underline-offset-4 hover:underline"><Avatar id={player.id} name={fullName(player)} className="h-7 w-7" />{fullName(player)}</Link>
                         <span className="ml-2 text-xs text-ink/50">{player.position}</span>
                         {player.injured && <span className="ml-2"><Badge tone="warn">blessé</Badge></span>}
                         {alerts.length > 0 && <span className="sr-only">Alerte : {alerts.join(', ')}</span>}
@@ -309,7 +310,7 @@ export function MissingRpeCard({ data, skips, title = 'RPE non déclarés (7 der
               <li key={player.id} className="border-t border-line/60 py-1.5 text-sm">
                 <button type="button" onClick={() => setOpen(open === player.id ? null : player.id)} aria-expanded={open === player.id}
                   className="flex w-full items-center justify-between gap-2 text-left">
-                  <span className="truncate font-semibold">{fullName(player)}</span>
+                  <span className="flex min-w-0 items-center gap-2 font-semibold"><Avatar id={player.id} name={fullName(player)} className="h-6 w-6" /><span className="truncate">{fullName(player)}</span></span>
                   <Badge tone={missed / planned >= 0.25 ? 'bad' : 'warn'}>{missed} oubli{missed > 1 ? 's' : ''} sur {planned}</Badge>
                 </button>
                 {open === player.id && (

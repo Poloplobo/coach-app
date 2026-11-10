@@ -111,9 +111,22 @@ const plan = [
 ].map(([title, planned_days, v, phase, objectives, prepa_actions], i) => ({ occurred_on: occurred, id: `st${i}`, step: i + 1, title, planned_days,
   validated_on: v === null ? null : addDays(TODAY, v), criteria: i === 2 ? 'Course, appuis et changements de direction sans douleur' : null,
   phase, phase_days: null, objectives, prepa_actions, is_test: i === 4, in_progress: false }))
+// Photo fictive des bancs d'essai : une silhouette dessinée, jamais une vraie photo de joueur
+const SILHOUETTE = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600"><g fill="#9aa4b2"><circle cx="300" cy="170" r="85"/><path d="M140 600c0-150 70-250 160-250s160 100 160 250z"/></g></svg>'
+const photoRoute = (route, url, req, ids) => {
+  if (url.pathname.endsWith('/object/list/player-photos')) return route.fulfill({ json: ids.map(id => ({ name: `${id}.png` })) })
+  if (url.pathname.endsWith('/object/sign/player-photos')) {
+    const { paths } = JSON.parse(req.postData() ?? '{}')
+    return route.fulfill({ json: paths.map(p => ({ path: p, signedURL: `/object/sign/player-photos/${p}?token=mock`, error: null })) })
+  }
+  if (url.pathname.includes('/object/sign/player-photos/')) return route.fulfill({ contentType: 'image/svg+xml', body: SILHOUETTE })
+  return null
+}
 const blocked = []
 await ctx.route(/supabase\.co\//, async route => {
   const req = route.request(); const url = new URL(req.url())
+  const photo = photoRoute(route, url, req, [PLAYER]) // un joueur sur quatre sans photo : initiales
+  if (photo) return photo
   const m = url.pathname.match(/\/rest\/v1\/([a-z_]+)$/)
   if (url.pathname.endsWith('/rpc/my_test_medals')) return route.fulfill({ json: MEDALS })
   if (url.pathname.endsWith('/rpc/my_return_plan')) return route.fulfill({ json: scenario === 'blesse' ? plan : [] })

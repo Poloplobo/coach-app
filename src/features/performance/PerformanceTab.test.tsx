@@ -11,6 +11,7 @@ const h = vi.hoisted(() => ({
   mutate: vi.fn(),
 }))
 const ok = (data: unknown) => ({ isPending: false, isError: false, data })
+vi.mock('../photos/PlayerPhoto', () => ({ Cutout: () => null, Avatar: () => null })) // photos : stockage hors test
 vi.mock('../player/playerDay', () => ({ usePlayerDay: () => ({ playerId: 'p1', today: '2026-10-31' }) }))
 vi.mock('../tests/MyGoals', () => ({ MyGoals: () => null }))
 vi.mock('./usePerformance', () => ({

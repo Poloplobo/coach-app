@@ -178,9 +178,22 @@ await ctx.addInitScript(([ref, t, id]) => {
     user: { id, aud: 'authenticated', role: 'authenticated', email: 'paul.coach@rnr.test', app_metadata: {}, user_metadata: {}, created_at: '2026-01-01T00:00:00Z' },
   }))
 }, [REF, theme, STAFF])
+// Photo fictive des bancs d'essai : une silhouette dessinée, jamais une vraie photo de joueur
+const SILHOUETTE = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600"><g fill="#9aa4b2"><circle cx="300" cy="170" r="85"/><path d="M140 600c0-150 70-250 160-250s160 100 160 250z"/></g></svg>'
+const photoRoute = (route, url, req, ids) => {
+  if (url.pathname.endsWith('/object/list/player-photos')) return route.fulfill({ json: ids.map(id => ({ name: `${id}.png` })) })
+  if (url.pathname.endsWith('/object/sign/player-photos')) {
+    const { paths } = JSON.parse(req.postData() ?? '{}')
+    return route.fulfill({ json: paths.map(p => ({ path: p, signedURL: `/object/sign/player-photos/${p}?token=mock`, error: null })) })
+  }
+  if (url.pathname.includes('/object/sign/player-photos/')) return route.fulfill({ contentType: 'image/svg+xml', body: SILHOUETTE })
+  return null
+}
 const blocked = []
 await ctx.route(/supabase\.co\//, async route => {
   const req = route.request(); const url = new URL(req.url())
+  const photo = photoRoute(route, url, req, roster.map(r => r.id).filter((_, i) => i % 4 !== 3)) // un joueur sur quatre sans photo : initiales
+  if (photo) return photo
   const m = url.pathname.match(/\/rest\/v1\/([a-z_]+)$/)
   if (req.method() !== 'GET' || !m) { blocked.push(`${req.method()} ${url.pathname}`); return route.abort() }
   const all = filtered(table(m[1], url), url.searchParams)

@@ -12,6 +12,7 @@ import { Check } from 'lucide-react'
 import { StatCard } from '../staff/StatCard'
 import { BRAND } from '../../lib/brand'
 import { ClubLogo, Coq, MatchColor } from './MatchColor'
+import { Avatar } from '../photos/PlayerPhoto'
 import { playerPhoto, useGpsRecords, useGpsReference, useMatches } from './usePerformance'
 
 // Espace GPS (staff) : GPS d'un match et couleur GPS de chaque joueur, rapports PowerPoint. Les notes de match sont dans
@@ -130,7 +131,7 @@ export function MatchBoard() {
                 <tbody>
                   {sorted.map(({ player, record, analysis, vmax }) => (
                     <tr key={player.id} className="border-t border-line">
-                      <td className="whitespace-nowrap py-1.5 pr-3"><span className="font-semibold">{fullName(player)}</span> <span className="text-xs text-ink/50">{record!.position.toLowerCase()}</span></td>
+                      <td className="whitespace-nowrap py-1.5 pr-3"><span className="flex items-center gap-2"><Avatar id={player.id} name={fullName(player)} className="h-7 w-7" /><span className="font-semibold">{fullName(player)}</span> <span className="text-xs text-ink/50">{record!.position.toLowerCase()}</span></span></td>
                       <td className="pr-3 tabular-nums">{record!.minutes}</td>
                       <td className="pr-3"><Metric value={record!.distance_m} max={best.distance} pct={analysis?.pct.distance} /></td>
                       <td className="pr-3"><Metric value={record!.hi_distance_m} max={best.hi} pct={analysis?.pct.hi} /></td>
@@ -180,7 +181,7 @@ export function MatchBoard() {
                 {topVmax.map((r, i) => (
                   <li key={r.player.id} className="flex items-center gap-3 border-t border-line py-1.5 text-sm first:border-t-0">
                     <span className="w-4 font-display font-semibold text-ink/50">{i + 1}</span>
-                    <span className="flex-1 truncate font-semibold">{fullName(r.player)}</span>
+                    <Avatar id={r.player.id} name={fullName(r.player)} className="h-7 w-7" /><span className="flex-1 truncate font-semibold">{fullName(r.player)}</span>
                     <span className="tabular-nums">{r.record!.vmax!.toLocaleString('fr-FR')} km/h{r.vmax?.record && <span className="ml-1 text-gold" title="Record personnel">★</span>}</span>
                   </li>
                 ))}

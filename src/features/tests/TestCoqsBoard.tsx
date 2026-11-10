@@ -7,6 +7,7 @@ import { fullName } from '../staff/load'
 import { useRoster } from '../staff/useStaff'
 import { COQ_LABEL, groupPodium, scaleOf, testCoq } from './coqs'
 import { latestByTest } from './progress'
+import { Avatar } from '../photos/PlayerPhoto'
 import { useGroupTestResults, useTestReference } from './useTests'
 
 const number = (v: number) => v.toLocaleString('fr-FR', { maximumFractionDigits: 2 })
@@ -93,7 +94,7 @@ export function TestCoqsBoard() {
             {rows.map(p => (
               <tr key={p.id} className="border-t border-line/60">
                 <td className="sticky left-0 whitespace-nowrap bg-surface px-4 py-2">
-                  <span className="font-semibold">{fullName(p)}</span><span className="block text-xs text-ink/55">{p.position ?? 'poste ?'}</span>
+                  <span className="flex items-center gap-2"><Avatar id={p.id} name={fullName(p)} className="h-8 w-8" /><span><span className="font-semibold">{fullName(p)}</span><span className="block text-xs text-ink/55">{p.position ?? 'poste ?'}</span></span></span>
                 </td>
                 {tests.map(([id]) => {
                   const c = cells.find(x => x.player.id === p.id && x.r.test_id === id)

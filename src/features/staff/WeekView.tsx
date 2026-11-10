@@ -17,6 +17,7 @@ import {
 } from './load'
 import { useAllLogs, useAllPlan, useAllSkips, useReference, useRoster, useTargetRpes } from './useStaff'
 import { EXERCISE_SESSIONS } from '../rpe/activities'
+import { Avatar } from '../photos/PlayerPhoto'
 import { Loading } from '../../components/ui/Loading'
 
 // Un tableau à la fois : le résumé du coach d'abord, le détail sur demande
@@ -252,7 +253,7 @@ function WatchCard({ rows, code, inProgress, counts }: {
       <li key={player.id} className="border-t border-line/60 first:border-0">
         <button type="button" onClick={() => setOpen(expanded ? null : player.id)} aria-expanded={expanded}
           className="flex w-full flex-wrap items-center gap-x-1.5 gap-y-1 py-2 text-left text-sm">
-          <span className="mr-1 font-semibold">{fullName(player)}</span>
+          <span className="mr-1 flex items-center gap-2 font-semibold"><Avatar id={player.id} name={fullName(player)} className="h-6 w-6" />{fullName(player)}</span>
           {issues.map(i => <Badge key={i.label} tone={i.tone}>{i.label}</Badge>)}
           <span aria-hidden="true" className="ml-auto text-xs text-ink/50">{expanded ? 'Masquer' : 'Détails'}</span>
         </button>
@@ -309,7 +310,7 @@ function LoadTable({ m, alerts, weekStart }: { m: ReturnType<typeof weekMatrix>;
           <tbody>
             {m.rows.map(r => (
               <tr key={r.player.id} className="border-t border-line">
-                <td className="py-2 pr-3"><Link to={`/staff/joueur/${r.player.id}`} className="font-semibold hover:underline">{fullName(r.player)}</Link></td>
+                <td className="py-2 pr-3"><Link to={`/staff/joueur/${r.player.id}`} className="flex items-center gap-2 font-semibold hover:underline"><Avatar id={r.player.id} name={fullName(r.player)} className="h-7 w-7" />{fullName(r.player)}</Link></td>
                 <td className="pr-3">{r.sessions}</td>
                 {r.byDay.map((v, i) => {
                   const day = (alerts.get(r.player.id)?.hot ?? []).filter(h => h.date === addDays(weekStart, i))
@@ -403,7 +404,7 @@ function RpeTable({ data, logs, types, weekStart, target }: {
               return (
                 <Fragment key={id}>
                   <tr className="border-t border-line">
-                    <td className="py-2 pr-3"><Link to={`/staff/joueur/${id}`} className="font-semibold hover:underline">{fullName(r.player)}</Link></td>
+                    <td className="py-2 pr-3"><Link to={`/staff/joueur/${id}`} className="flex items-center gap-2 font-semibold hover:underline"><Avatar id={id} name={fullName(r.player)} className="h-7 w-7" />{fullName(r.player)}</Link></td>
                     {r.byDay.map((v, i) => <td key={i} className="pr-3">{button(v, i)}</td>)}
                     <td className="font-semibold">{button(r.week, 'semaine')}</td>
                   </tr>

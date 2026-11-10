@@ -11,6 +11,7 @@ import { fullName, weekOf } from './load'
 import { loadProgression, muscuSummary, respected, trackedExercises, type Respect, type StaffMuscuSession } from './muscu'
 import { useAllLogs, useReference, useRoster, useStaffMuscu } from './useStaff'
 import { Loading } from '../../components/ui/Loading'
+import { Avatar } from '../photos/PlayerPhoto'
 import { CycleReport } from './CycleReport'
 
 const RESPECT: Record<Exclude<Respect, null>, { tone: 'ok' | 'warn' | 'bad'; label: string }> = {
@@ -60,7 +61,7 @@ export function MuscuView() {
                 {rows.map(({ player, own, summary: s }) => (
                   <Fragment key={player.id}>
                     <tr className="border-t border-line">
-                      <td className="py-2 pr-3 font-semibold">{fullName(player)}</td>
+                      <td className="py-2 pr-3 font-semibold"><span className="flex items-center gap-2"><Avatar id={player.id} name={fullName(player)} className="h-7 w-7" />{fullName(player)}</span></td>
                       <td className="pr-3">{s.sessions}</td>
                       <td className="pr-3"><Badge tone={s.completionPct >= 80 ? 'ok' : s.completionPct >= 50 ? 'warn' : 'bad'}>{s.done}/{s.exercises} · {s.completionPct} %</Badge></td>
                       <td className="pr-3">{s.sessionRpe ?? '—'}</td>

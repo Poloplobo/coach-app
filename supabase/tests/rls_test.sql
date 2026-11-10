@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(194);
+select plan(198);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -662,6 +662,16 @@ select lives_ok($$insert into public.session_logs (player_id, session_date, acti
                   values ('00000000-0000-0000-0000-00000000000a', public.paris_today(), (select id from public.activity_types where name = 'Collectif Total'), 60, 5)$$, 'A saisit finalement son RPE');
 select is((select count(*)::int from public.session_skips where player_id = '00000000-0000-0000-0000-00000000000a'), 1, 'le RPE saisi efface le « pas fait » correspondant');
 select isnt_empty($$delete from public.session_skips where player_id = '00000000-0000-0000-0000-00000000000a' returning 1$$, 'A annule sa déclaration du jour');
+
+-- ---------- Référentiel coqs FFR (0044) ----------
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+set local role authenticated;
+select is((select count(*)::int from public.test_reference), 63, 'le joueur lit le barème FFR (7 tests × 9 postes)');
+select is_empty($$update public.test_reference set blue = 1 returning 1$$, 'le joueur ne modifie pas le barème');
+select lives_ok($$select * from public.my_test_medals()$$, 'le joueur lit ses médailles du groupe');
+select is_empty($$select 1 from public.my_test_medals() m where not exists (select 1 from public.test_results r where r.player_id = auth.uid() and r.test_id = m.test_id)$$,
+                'une médaille ne porte que sur un test du joueur lui-même');
 
 -- ---------- Visiteur non connecté ----------
 reset role;

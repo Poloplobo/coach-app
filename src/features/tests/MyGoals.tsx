@@ -3,7 +3,9 @@ import { Card } from '../../components/ui/Card'
 import { Loading } from '../../components/ui/Loading'
 import { movementIcon } from './movementIcon'
 import { goalProgress, latestByTest, seasonOf } from './progress'
-import { useTargets, useTestResults } from './useTests'
+import { useMyMedals, usePlayerPosition, useTargets, useTestReference, useTestResults, type Medal } from './useTests'
+import { COQ_LABEL, ffrPosition, testCoq } from './coqs'
+import { Coq } from '../performance/MatchColor'
 
 const number = (v: number) => v.toLocaleString('fr-FR', { maximumFractionDigits: 2 })
 const month = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-FR', { month: 'long', timeZone: 'UTC' })
@@ -12,9 +14,13 @@ const signed = (v: number, unit: string) => `${v > 0 ? '+' : v < 0 ? '−' : ''}
 
 // Objectifs de la saison et tests : ce qu'il reste à gagner pour chaque objectif, d'où il part, l'objectif le plus proche.
 // title : « Mes objectifs » côté joueur, un titre neutre côté staff
-export function MyGoals({ playerId, date, title = 'Mes objectifs' }: { playerId: string; date: string; title?: string }) {
+// medals : côté joueur, ses médailles du podium du groupe (le staff voit le podium dans Performance › Test)
+export function MyGoals({ playerId, date, title = 'Mes objectifs', medals = false }: { playerId: string; date: string; title?: string; medals?: boolean }) {
   const results = useTestResults(playerId)
   const targets = useTargets(playerId, seasonOf(date))
+  const reference = useTestReference()
+  const position = usePlayerPosition(playerId)
+  const myMedals = useMyMedals(medals)
 
   if (results.isPending || targets.isPending) return <Card title={title}><Loading /></Card>
   if (results.isError || targets.isError) return <Card title={title}><p>Impossible de charger tes tests.</p></Card>
@@ -27,6 +33,16 @@ export function MyGoals({ playerId, date, title = 'Mes objectifs' }: { playerId:
   const closest = goals.find(x => x.g && !x.g.reached)
   const targeted = new Set(targets.data.map(t => t.test_id))
   const others = [...latestByTest(results.data).values()].filter(r => !targeted.has(r.test_id))
+
+  // Coq FFR (barème au poste du joueur) et médaille du groupe d'un test ; rien sans barème, sans poste ou en chargement
+  const level = (testId: string, name: string, value: number | undefined, higherIsBetter: boolean) => {
+    const coq = value != null && reference.data ? testCoq({ testName: name, value, higherIsBetter, position: position.data ?? null }, reference.data.refs, reference.data.defs) : null
+    const medal = myMedals.data?.get(testId)
+    if (!coq && !medal) return null
+    return <Level coq={coq} medal={medal} />
+  }
+  const anyCoq = !!reference.data && !!position.data && results.data.some(r => testCoq({ testName: r.test_definitions.name, value: Number(r.value),
+    higherIsBetter: r.test_definitions.higher_is_better, position: position.data ?? null }, reference.data!.refs, reference.data!.defs))
 
   if (!goals.length && !others.length) return <Card title={title}><p className="text-sm text-ink/70">Pas encore de test ni d'objectif enregistré.</p></Card>
 
@@ -57,7 +73,7 @@ export function MyGoals({ playerId, date, title = 'Mes objectifs' }: { playerId:
                   {g?.reached ? <Trophy size={20} /> : <Icon size={20} />}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">{t.test_definitions.name}</p>
+                  <p className="flex items-center gap-1.5 font-semibold"><span className="truncate">{t.test_definitions.name}</span>{level(t.test_id, t.test_definitions.name, g?.last.value, t.test_definitions.higher_is_better)}</p>
                   <p className="text-xs text-ink/60">Objectif : {t.label ?? `${number(Number(t.target_value))} ${unit}`}</p>
                 </div>
                 {g?.reached
@@ -86,6 +102,12 @@ export function MyGoals({ playerId, date, title = 'Mes objectifs' }: { playerId:
         })}
       </ul>
 
+      {anyCoq && (
+        <p className="text-xs text-ink/55">
+          Coqs : référentiel FFR filière jeune, barème {ffrPosition(position.data ?? null)}. Bleu premium, vert très bon, jaune bon, rouge à améliorer.
+          {' '}<span aria-hidden="true">*</span> estimé (développé couché et squat convertis en 1RM).{medals && ' Médailles : podium du groupe sur le dernier test.'}
+        </p>
+      )}
       {others.length > 0 && (
         // Tests sans objectif : dernier résultat et évolution, en plus discret
         <div className="flex flex-col gap-1.5">
@@ -95,7 +117,7 @@ export function MyGoals({ playerId, date, title = 'Mes objectifs' }: { playerId:
               const g = goalProgress(history(r.test_id), Number(r.value), r.test_definitions.higher_is_better)
               return (
                 <li key={r.test_id} className="flex items-center justify-between gap-3 py-2.5">
-                  <span className="truncate">{r.test_definitions.name}</span>
+                  <span className="flex min-w-0 items-center gap-1.5"><span className="truncate">{r.test_definitions.name}</span>{level(r.test_id, r.test_definitions.name, Number(r.value), r.test_definitions.higher_is_better)}</span>
                   <span className="shrink-0 tabular-nums">
                     <strong>{number(Number(r.value))} {r.test_definitions.unit}</strong>
                     {g?.gained != null && g.gained !== 0 && <span className={`ml-2 text-xs ${g.gained > 0 ? 'text-ok' : 'text-ink/55'}`}>{signed(g.last.value - g.first.value, r.test_definitions.unit)}</span>}
@@ -120,6 +142,24 @@ function Ring({ done, total }: { done: number; total: number }) {
         <circle cx="32" cy="32" r="26" strokeWidth="7" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - done / total)} className="fill-none stroke-ok" />
       </svg>
       <span className="font-display text-xl font-semibold tabular-nums">{done}<span className="text-sm text-ink/50">/{total}</span></span>
+    </span>
+  )
+}
+
+const MEDAL: Record<Medal, string> = { or: '🥇', argent: '🥈', bronze: '🥉' }
+
+// Coq FFR du dernier résultat (* si estimé depuis un 3RM ou un front squat) et médaille du podium du groupe
+function Level({ coq, medal }: { coq: ReturnType<typeof testCoq>; medal?: Medal }) {
+  return (
+    <span className="flex shrink-0 items-center gap-0.5">
+      {coq && (
+        <span className="flex items-center" title={coq.note ?? undefined}>
+          <Coq color={coq.color} className="h-5 w-5" />
+          <span className="sr-only">Coq {COQ_LABEL[coq.color]}{coq.note ? ` (${coq.note})` : ''}</span>
+          {coq.estimated && <span aria-hidden="true" className="text-xs text-ink/50">*</span>}
+        </span>
+      )}
+      {medal && <span role="img" aria-label={`Médaille ${medal === 'or' ? "d'or" : medal === 'argent' ? "d'argent" : 'de bronze'} du groupe`} className="text-base leading-none">{MEDAL[medal]}</span>}
     </span>
   )
 }

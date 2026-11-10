@@ -38,3 +38,58 @@ export function useSeasonProfile(playerId: string, season: string) {
     },
   })
 }
+
+// Barème FFR des coqs (0044) et noms des tests, pour retrouver le barème 1RM d'un test 3RM
+export function useTestReference() {
+  return useQuery({
+    queryKey: ['testReference'],
+    staleTime: Infinity,
+    queryFn: async () => {
+      const [refs, defs] = await Promise.all([supabase.from('test_reference').select('test_id, position_group, blue, green, yellow'),
+        supabase.from('test_definitions').select('id, name')])
+      if (refs.error) throw refs.error
+      if (defs.error) throw defs.error
+      return { refs: refs.data, defs: defs.data }
+    },
+  })
+}
+
+// Poste du joueur (fiche) : choisit la colonne du barème
+export function usePlayerPosition(playerId: string) {
+  return useQuery({
+    queryKey: ['position', playerId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('profiles').select('position').eq('id', playerId).maybeSingle()
+      if (error) throw error
+      return data?.position ?? null
+    },
+  })
+}
+
+// Médailles du joueur connecté : podium du groupe sur chaque test (0044), sans les valeurs des autres
+export function useMyMedals(enabled: boolean) {
+  return useQuery({
+    enabled,
+    queryKey: ['myMedals'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('my_test_medals')
+      if (error) throw error
+      return new Map(data.map(m => [m.test_id, m.medal as Medal]))
+    },
+  })
+}
+export type Medal = 'or' | 'argent' | 'bronze'
+
+// Staff : derniers tests de tout l'effectif (RLS : le staff lit tout), joueur de test exclu
+export function useGroupTestResults() {
+  return useQuery({
+    queryKey: ['staff', 'testResults'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('test_results')
+        .select('player_id, test_id, test_date, value, test_definitions(name, unit, higher_is_better), profiles!inner(is_test)')
+        .eq('profiles.is_test', false).order('test_date')
+      if (error) throw error
+      return data
+    },
+  })
+}

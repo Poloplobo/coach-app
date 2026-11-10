@@ -171,7 +171,7 @@ export function PerformanceTab() {
           )}
         </>
       )}
-      {pane === 'tests' && <MyGoals playerId={playerId} date={today} title="Mes maxi et objectifs" />}
+      {pane === 'tests' && <MyGoals playerId={playerId} date={today} title="Mes maxi et objectifs" medals />}
       </div>
     </div>
   )

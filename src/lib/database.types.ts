@@ -1094,6 +1094,20 @@ export type Database = {
           },
         ]
       }
+      test_reference: {
+        Row: { blue: number; green: number; position_group: string; test_id: string; yellow: number }
+        Insert: { blue: number; green: number; position_group: string; test_id: string; yellow: number }
+        Update: { blue?: number; green?: number; position_group?: string; test_id?: string; yellow?: number }
+        Relationships: [
+          {
+            foreignKeyName: "test_reference_test_id_fkey"
+            columns: ["test_id"]
+            isOneToOne: false
+            referencedRelation: "test_definitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       test_results: {
         Row: {
           id: string
@@ -1346,6 +1360,7 @@ export type Database = {
       can_log_day: { Args: { p_date: string }; Returns: boolean }
       push_enabled_players: { Args: never; Returns: string[] }
       redo_muscu_session: { Args: { p_session: string }; Returns: undefined }
+      my_test_medals: { Args: never; Returns: { medal: string; test_id: string }[] }
       my_return_plan: { Args: never; Returns: { occurred_on: string; id: string; step: number; title: string; criteria: string | null; planned_days: number; validated_on: string | null; phase: string | null; phase_days: number | null; objectives: string | null; prepa_actions: string | null; is_test: boolean; in_progress: boolean }[] }
       import_injury_plan: { Args: { p_injury: string; p_steps: Json }; Returns: number }
       can_rate_match: { Args: { p_match: string }; Returns: boolean }

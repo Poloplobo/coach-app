@@ -74,6 +74,13 @@ export function useAddGroupActivity() {
   })
 }
 
+// Intitulé d'une séance (« Puissance BDC ») : vide = pas d'intitulé
+export function useSetFocus() {
+  return useStaffMutation(async ({ id, focus }: { id: string; focus: string }) => {
+    check(await supabase.from('planned_sessions').update({ focus: focus.trim().slice(0, 80) || null }).eq('id', id).select())
+  })
+}
+
 export function useSetDuration() {
   return useStaffMutation(async ({ id, minutes }: { id: string; minutes: number }) => {
     check(await supabase.from('planned_sessions').update({ planned_duration_min: minutes }).eq('id', id).select())
@@ -106,8 +113,8 @@ export function useMuscuSession(playerId: string, date: string) {
   return useQuery({
     enabled: !!playerId && !!date,
     queryKey: ['staff', 'muscu-session', playerId, date],
-    queryFn: async (): Promise<(StaffMuscuSession & { planned_exercises: (StaffMuscuSession["planned_exercises"][number] & { exercise_id: string })[] }) | null> => check(await supabase.from('planned_sessions')
-      .select(`id, session_date, player_id, activity_types!inner(name),
+    queryFn: async (): Promise<(StaffMuscuSession & { focus: string | null; planned_exercises: (StaffMuscuSession["planned_exercises"][number] & { exercise_id: string })[] }) | null> => check(await supabase.from('planned_sessions')
+      .select(`id, session_date, player_id, focus, activity_types!inner(name),
         planned_exercises(id, exercise_id, position, block_label, sets, reps, load_value, load_unit, tempo, rest, instructions,
           exercises(name), exercise_feedback(player_id, rpe, done_load, status, comment))`)
       .eq('player_id', playerId).eq('session_date', date).eq('activity_types.name', MUSCULATION).maybeSingle()),
@@ -189,7 +196,7 @@ export type ImportResult = { created: number; replaced: number; kept: number; pa
 export function useImportProgram() {
   return useStaffMutation(async (v: {
     playerId: string; season: string
-    sessions: { date: string; activity?: string; exercises: ImportExercise[] }[]; targets: { test_id: string; value: number; label: string | null }[]
+    sessions: { date: string; activity?: string; focus?: string; exercises: ImportExercise[] }[]; targets: { test_id: string; value: number; label: string | null }[]
   }) =>
     check(await supabase.rpc('import_muscu_program', {
       p_player: v.playerId, p_season: v.season, p_sessions: v.sessions as unknown as Json, p_targets: v.targets as unknown as Json,

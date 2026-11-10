@@ -8,7 +8,7 @@ import { MUSCULATION } from '../../rpe/activities'
 import { fullName } from '../load'
 import { useReference, useRoster } from '../useStaff'
 import { moveRow, newRow, rowsErrors, rowsFromSession, toPayload, type EditRow } from './programming'
-import { useCreateExercise, useCreateMuscuSession, useDeleteMuscuSession, useExerciseLibrary, useMuscuSession, useSaveMuscuExercises } from './useProgramming'
+import { useCreateExercise, useCreateMuscuSession, useDeleteMuscuSession, useExerciseLibrary, useMuscuSession, useSaveMuscuExercises, useSetFocus } from './useProgramming'
 
 const field = 'rounded-lg bg-field border border-line px-2 py-1.5 text-sm'
 const UNITS = [{ v: 'pct_rm', l: '%RM' }, { v: 'kg', l: 'kg' }, { v: 'bw', l: '% PDC' }, { v: 'free', l: 'libre' }]
@@ -98,6 +98,7 @@ function SessionEditor({ playerId, date, past, session }: {
 
   return (
     <Card title={title}>
+      <FocusInput key={session.focus ?? ''} id={session.id} focus={session.focus} />
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="text-left text-ink/60">
@@ -173,5 +174,20 @@ function SessionEditor({ playerId, date, past, session }: {
       {current.some(r => r.hasFeedback) && <p className="text-xs text-ink/60">Le joueur a déjà répondu à cette séance : elle ne peut pas être supprimée.</p>}
       {remove.isError && <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">{(remove.error as { message?: string }).message ?? 'Suppression impossible.'}</p>}
     </Card>
+  )
+}
+
+// Intitulé vu par le joueur en titre de sa séance (« Puissance BDC »), enregistré en quittant le champ
+function FocusInput({ id, focus }: { id: string; focus: string | null }) {
+  const save = useSetFocus()
+  const [text, setText] = useState(focus ?? '')
+  return (
+    <label className="flex flex-wrap items-center gap-2 text-sm">
+      Intitulé
+      <input value={text} maxLength={80} placeholder="ex. Puissance BDC" onChange={e => setText(e.target.value)}
+        onBlur={() => text.trim() !== (focus ?? '') && save.mutate({ id, focus: text })}
+        className="w-64 rounded-lg border border-line bg-field px-3 py-1.5 text-base" />
+      {save.isError && <span role="alert" className="text-xs text-rnr">Non enregistré</span>}
+    </label>
   )
 }

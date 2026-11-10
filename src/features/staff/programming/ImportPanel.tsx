@@ -115,7 +115,7 @@ function FilePreview({ file, preview: p, season, injured }: { file: string; prev
           <>
             <ul className="flex flex-col gap-0.5">
               {p.sessions.map(s => (
-                <li key={`${s.date}-${s.activity ?? ''}`}>{s.week} · {formatDay(s.date)}{s.activity ? ` · ${s.activity}` : ''} : {s.exercises.map(e => `${e.block_label} ${e.name}`).join(', ')}</li>
+                <li key={`${s.date}-${s.activity ?? ''}`}>{s.week} · {formatDay(s.date)}{s.activity ? ` · ${s.activity}` : ''}{s.focus ? ` · « ${s.focus} »` : ''} : {s.exercises.map(e => `${e.block_label} ${e.name}`).join(', ')}</li>
               ))}
             </ul>
             <p className="text-ink/70">
@@ -136,7 +136,7 @@ function FilePreview({ file, preview: p, season, injured }: { file: string; prev
               : (
                 <div>
                   <Button size="sm" aria-label={`Importer la fiche de ${p.player!.first_name} ${p.player!.last_name}`} disabled={save.isPending} onClick={() => save.mutate(
-                    { playerId: p.player!.id, season, sessions: p.sessions.map(({ date, activity, exercises }) => ({ date, activity, exercises })), targets: p.targets.map(({ test_id, value, label }) => ({ test_id, value, label })) },
+                    { playerId: p.player!.id, season, sessions: p.sessions.map(({ date, activity, focus, exercises }) => ({ date, activity, focus, exercises })), targets: p.targets.map(({ test_id, value, label }) => ({ test_id, value, label })) },
                     { onSuccess: setResult },
                   )}>{save.isPending ? 'Import…' : 'Importer'}</Button>
                 </div>

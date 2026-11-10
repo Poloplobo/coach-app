@@ -25,7 +25,7 @@ const logs = [0, 1, 2, 3, 4, 5, 6].map(i => addDays(monday, i)).filter(d => d < 
   .map((d, i) => ({ id: `l${i}`, session_date: d, activity_type_id: 't-ct', planned_session_id: null, duration_min: 90, rpe: 5 + (i % 3), srpe: 90 * (5 + (i % 3)), validated_at: null }))
 const ex = (id, position, block_label, name, sets, reps, load_value, load_unit, feedback = []) =>
   ({ id, exercise_id: `x-${name}`, position, block_label, sets, reps, load_value, load_unit, tempo: null, rest: "2'", instructions: null, exercises: { name }, exercise_feedback: feedback })
-const muscu = { id: 'mock-muscu', session_date: TODAY, planned_duration_min: 60, activity_types: { name: 'Musculation' }, planned_exercises: [
+const muscu = { id: 'mock-muscu', session_date: TODAY, planned_duration_min: 60, focus: 'Puissance BDC', activity_types: { name: 'Musculation' }, planned_exercises: [
   ex('e1', 1, 'A1', 'Squat arrière', 5, '5', 80, 'pct_rm', [{ rpe: 7, done_load: '2x125 1x120', status: 'fait', comment: null }]),
   ex('e2', 2, 'A2', 'Box jump', 5, '3', null, 'bw'),
   ex('e3', 3, 'B1', 'Développé couché', 4, '6', 85, 'kg'),

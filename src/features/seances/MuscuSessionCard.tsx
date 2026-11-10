@@ -99,7 +99,8 @@ export function MuscuSessionCard({ playerId, date, catchUp = false, activity = M
     <section aria-label={catchUp ? `Ma séance d'hier : ${label}` : `Ma séance de ${label}`} className="flex flex-col gap-4">
       <div className={`flex flex-col gap-3 rounded-3xl bg-surface p-5 ${catchUp ? 'ring-2 ring-gold' : 'ring-1 ring-line/60'}`}>
         <p className="text-xs font-semibold uppercase tracking-wide text-ink/55 first-letter:uppercase">{catchUp ? "Relance du staff · séance d'hier" : `${formatDay(date)}`}</p>
-        <h2 className="font-display text-2xl font-semibold leading-tight first-letter:uppercase">{rehab ? activity : 'Ma séance de musculation'}</h2>
+        <h2 className="font-display text-2xl font-semibold leading-tight first-letter:uppercase">{session.focus ?? (rehab ? activity : 'Ma séance de musculation')}
+          {session.focus && <span className="block text-sm font-normal text-ink/60">{rehab ? activity : 'Musculation'}</span>}</h2>
         <ul className="flex flex-wrap gap-1.5 text-sm">
           {plannedMinutes ? <li className="flex items-center gap-1 rounded-full bg-field px-2.5 py-1"><Timer size={14} aria-hidden="true" />{plannedMinutes} min</li> : null}
           <li className="flex items-center gap-1 rounded-full bg-field px-2.5 py-1"><ListChecks size={14} aria-hidden="true" />{exercises.length} exercices</li>

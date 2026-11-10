@@ -4,7 +4,7 @@ import { EXERCISE_SESSIONS } from '../rpe/activities'
 import { addDays } from '../../lib/week'
 import type { FeedbackStatus, PastLoad, PlannedExercise, ReferenceMax } from './program'
 
-export type MuscuSession = { id: string; session_date: string; planned_duration_min: number | null; activity_types: { name: string }; planned_exercises: PlannedExercise[] }
+export type MuscuSession = { id: string; session_date: string; planned_duration_min: number | null; focus: string | null; activity_types: { name: string }; planned_exercises: PlannedExercise[] }
 
 // Séances de musculation du joueur sur la semaine ; la RLS ne renvoie que ses propres retours
 export function useWeekProgram(playerId: string, from: string, to: string) {
@@ -12,7 +12,7 @@ export function useWeekProgram(playerId: string, from: string, to: string) {
     queryKey: ['program', playerId, from, to],
     queryFn: async (): Promise<MuscuSession[]> => {
       const { data, error } = await supabase.from('planned_sessions')
-        .select(`id, session_date, planned_duration_min, activity_types!inner(name),
+        .select(`id, session_date, planned_duration_min, focus, activity_types!inner(name),
           planned_exercises(id, exercise_id, position, block_label, sets, reps, load_value, load_unit, tempo, rest, instructions,
             exercises(name), exercise_feedback(rpe, done_load, status, comment, pain))`)
         .eq('player_id', playerId).in('activity_types.name', EXERCISE_SESSIONS)

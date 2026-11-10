@@ -23,11 +23,17 @@ export type MuscuExercise = {
   tempo: string | null; rest: string | null; feedback: Feedback | null
 }
 // activity : séance d'un joueur blessé, d'après l'en-tête du jour (« Lundi RÉHAB : », « Lundi MEMBRES SAINS : ») ; sinon Musculation
-export type MuscuSession = { date: string; activity?: 'Réhabilitation' | 'Membres sains'; exercises: MuscuExercise[] }
+export type MuscuSession = { date: string; activity?: 'Réhabilitation' | 'Membres sains'; focus?: string; exercises: MuscuExercise[] }
 export const sessionActivity = (header: string): MuscuSession['activity'] =>
   /r[ée]hab/i.test(header) ? 'Réhabilitation' : /membres?\s*sains?/i.test(header) ? 'Membres sains' : undefined
 
 const DAYS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
+// Intitulé écrit sur la ligne du jour : « Lundi - Puissance BDC », « Mardi : Force HDC », « Lundi (Force & Squat) »,
+// « Lundi RÉHAB : Genou » ; sans texte après le jour (« Lundi : ») : pas d'intitulé
+export const dayFocus = (header: string) => header.trim()
+  .replace(new RegExp(`^(${DAYS.join('|')})\\b`, 'i'), '')
+  .replace(/r[ée]hab(ilitation)?|membres?\s*sains?/gi, '')
+  .replace(/^[\s:\-–—()]+|[\s:\-–—()]+$/g, '').replace(/\s+/g, ' ').trim() || undefined
 const BLOCK = /^(MOB|F|[A-Z]\d+)$/
 const text = (v: string | undefined) => v?.replace(/\s+/g, ' ').trim() || null
 // Onglet semaine : « C2S1 », « C1S4 », « CYCLE 2 S1 » ; le numéro de semaine compte depuis la semaine 1 donnée au lecteur
@@ -108,7 +114,7 @@ export function parseMuscuSheet(
   const sessions: MuscuSession[] = []
   for (const r of rows) {
     const day = DAYS.findIndex(d => new RegExp(`^${d}\\b`, 'i').test(r[0]?.trim() ?? ''))
-    if (day >= 0) { sessions.push({ date: addDays(monday, day), activity: sessionActivity(r[0]), exercises: [] }); continue }
+    if (day >= 0) { sessions.push({ date: addDays(monday, day), activity: sessionActivity(r[0]), focus: dayFocus(r[0]), exercises: [] }); continue }
     const block = r[0]?.trim() ?? ''
     const name = text(r[1])
     if (!BLOCK.test(block) || !name || !sessions.length) continue

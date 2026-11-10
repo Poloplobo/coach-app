@@ -17,7 +17,7 @@ export type ImportExercise = {
 }
 export type ProgramPreview = {
   playerName: string | null; player: Player | null
-  sessions: { date: string; activity?: string; week: string; exercises: ImportExercise[] }[]
+  sessions: { date: string; activity?: string; focus?: string; week: string; exercises: ImportExercise[] }[]
   targets: { test: string; test_id: string; value: number; label: string | null }[]
   newExercises: string[]; errors: string[]
   warnings: string[] // à vérifier, non bloquant
@@ -66,7 +66,7 @@ export function readProgram(
         // restent bloqués plus haut.
         const sameDay = preview.sessions.find(x => x.date === s.date && x.activity === s.activity)
         if (sameDay) sameDay.exercises.push(...exercises)
-        else preview.sessions.push({ date: s.date, activity: s.activity, week: `S${n} du cycle · ${code}`, exercises })
+        else preview.sessions.push({ date: s.date, activity: s.activity, focus: s.focus, week: `S${n} du cycle · ${code}`, exercises })
       }
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))

@@ -86,11 +86,18 @@ for (const wk of weeks) for (const p of roster.slice(0, 10)) for (const dayOffse
   ] })
 }
 const def = (name, unit, higher_is_better = true) => ({ name, unit, higher_is_better })
-const tests = [{ test_id: 'dc', test_date: '2026-09-20', value: 92, test_definitions: def('Développé couché 1RM', 'kg') },
-  { test_id: 's10', test_date: '2026-09-22', value: 1.82, test_definitions: def('Sprint 10 m', 's', false) },
-  { test_id: 'cmj', test_date: '2026-09-22', value: 41.5, test_definitions: def('CMJ', 'cm') }]
-const targets = [{ test_id: 'dc', target_value: 100, label: null, test_definitions: def('Développé couché 1RM', 'kg') },
-  { test_id: 's10', target_value: 1.75, label: null, test_definitions: def('Sprint 10 m', 's', false) }]
+// Tests du groupe (2 dates) et barème FFR fictif, mêmes seuils pour tous les postes : [test, unité, plus haut = mieux, base, bleu, vert, jaune]
+const TESTDEFS = [['CMJ', 'cm', true, 38, 45, 40, 35], ['Sprint 10m', 's', false, 1.86, 1.75, 1.82, 1.9], ['Développé Couché 3RM', 'kg', true, 85, null],
+  ['Yo-Yo Test', 'm', true, 2100, 2400, 2100, 1800], ['Broad Jump', 'cm', true, 240, 260, 245, 230]]
+const REFS = [['CMJ', 45, 40, 35], ['Sprint 10m', 1.75, 1.82, 1.9], ['Yo-Yo Test', 2400, 2100, 1800], ['Broad Jump', 260, 245, 230], ['Développé Couché 1RM', 110, 95, 85]]
+const FFR_POS = ['Pilier', 'Talonneur', '2e ligne', '3e ligne', 'Demi de mêlée', "Demi d'ouverture", 'Centre', 'Ailier', 'Arrière']
+const tests = roster.flatMap((p, i) => TESTDEFS.flatMap(([name, unit, hib, base]) => ['2026-09-15', '2026-11-03'].map((test_date, k) => {
+  const spread = ((i * 7 + name.length * 3) % 11 - 5) / 50 // ±10 % selon le joueur
+  const v = base * (1 + (hib ? spread : -spread / 2) + (hib ? k * 0.03 : -k * 0.015))
+  return { player_id: p.id, test_id: name, test_date, value: Math.round(v * (unit === 's' ? 100 : 1)) / (unit === 's' ? 100 : 1), test_definitions: def(name, unit, hib), profiles: { is_test: false } }
+})))
+const targets = [{ test_id: 'Développé Couché 3RM', target_value: 100, label: null, test_definitions: def('Développé Couché 3RM', 'kg') },
+  { test_id: 'Sprint 10m', target_value: 1.75, label: null, test_definitions: def('Sprint 10m', 's', false) }]
 
 // Performance : 6 matchs passés, GPS de 20 joueurs, référentiel des postes, notes du coach et des joueurs
 import { readdirSync } from 'node:fs'
@@ -151,7 +158,8 @@ function table(name, url) {
     case 'player_targets': return targets
     case 'groups': return [{ id: 'g1', name: 'Pôle Espoir' }, { id: 'g2', name: 'Crabos' }]
     case 'exercises': return ['Squat arrière', 'Développé couché', 'Gainage latéral', 'Tirage vertical'].map((name, i) => ({ id: `x${i}`, name }))
-    case 'test_definitions': return tests.map(t => ({ id: t.test_id, ...t.test_definitions }))
+    case 'test_definitions': return [...TESTDEFS.map(([name, unit, hib]) => ({ id: name, ...def(name, unit, hib) })), { id: 'Développé Couché 1RM', ...def('Développé Couché 1RM', 'kg') }]
+    case 'test_reference': return REFS.flatMap(([test_id, blue, green, yellow]) => FFR_POS.map(position_group => ({ test_id, position_group, blue, green, yellow })))
     case 'matches': return matches.slice().reverse()
     case 'gps_records': return gpsRecs
     case 'gps_reference': return gpsRef
@@ -196,6 +204,7 @@ if (only === 'perf') {
   await page.getByRole('tab', { name: 'Match' }).click(); await cap('perf-saison')
   await page.getByLabel('Afficher').selectOption('notes'); await cap('perf-matchs')
   await page.getByRole('button', { name: /Voir et modifier|Noter/ }).first().click(); await cap('perf-noter')
+  await page.getByRole('tab', { name: 'Test' }).click(); await cap('perf-tests')
 } else if (only === 'prog') {
   await open('/staff/programmation')
   for (const v of ['semaines', 'planning', 'muscu', 'import']) {

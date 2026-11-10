@@ -13,11 +13,16 @@ const number = (v: number) => v.toLocaleString('fr-FR', { maximumFractionDigits:
 const MEDAL = { or: '🥇', argent: '🥈', bronze: '🥉' } as const
 const POSITIONS = ['Pilier', 'Talonneur', '2e ligne', '3e ligne', 'Demi de mêlée', "Demi d'ouverture", 'Centre', 'Ailier', 'Arrière']
 
-// Tests et coqs (staff) : dernier résultat de chaque joueur, coq FFR à son poste, podium du groupe (décision du 10/11/2026)
+const TINT = { bleu: 'bg-blue/15', vert: 'bg-ok/15', jaune: 'bg-gold/15', rouge: 'bg-rnr/15' } as const
+const COLORS = ['bleu', 'vert', 'jaune', 'rouge'] as const
+
+// Tests et coqs (staff), comme le tableau GPS : la répartition des coqs du groupe, puis un joueur par ligne, chaque case
+// teintée de son coq (dernier résultat, barème FFR à son poste), médaille du podium ; tri par nom ou par test
 export function TestCoqsBoard() {
   const roster = useRoster()
   const results = useGroupTestResults()
   const reference = useTestReference()
+  const [sort, setSort] = useState('nom')
   if (roster.isPending || results.isPending || reference.isPending) return <Loading />
   if (roster.isError || results.isError || reference.isError) return <p role="alert">Impossible de charger les tests.</p>
 
@@ -30,36 +35,78 @@ export function TestCoqsBoard() {
   const latest = roster.data.flatMap(p => [...latestByTest(results.data.filter(r => r.player_id === p.id)).values()]
     .map(r => ({ player: p, r, value: Number(r.value) })))
   const podium = groupPodium(latest.map(l => ({ player_id: l.player.id, test_id: l.r.test_id, value: l.value, higherIsBetter: l.r.test_definitions.higher_is_better })))
-  const count = (color: string) => latest.filter(l => testCoq({ testName: l.r.test_definitions.name, value: l.value,
-    higherIsBetter: l.r.test_definitions.higher_is_better, position: l.player.position }, refs, defs)?.color === color).length
+  const coqOfCell = (l: (typeof latest)[number]) => testCoq({ testName: l.r.test_definitions.name, value: l.value,
+    higherIsBetter: l.r.test_definitions.higher_is_better, position: l.player.position }, refs, defs)
+  const cells = latest.filter(l => tests.some(([id]) => id === l.r.test_id)).map(l => ({ ...l, coq: coqOfCell(l) }))
+  const total = cells.filter(c => c.coq).length
+  const count = (color: string) => cells.filter(c => c.coq?.color === color).length
+  // Tri par test : meilleur résultat d'abord (selon le sens du test), sans résultat à la fin
+  const sortTest = tests.find(([id]) => id === sort)
+  const rows = [...roster.data].sort((a, b) => {
+    if (!sortTest) return 0
+    const va = latest.find(x => x.player.id === a.id && x.r.test_id === sortTest[0])?.value
+    const vb = latest.find(x => x.player.id === b.id && x.r.test_id === sortTest[0])?.value
+    if (va == null || vb == null) return va == null ? 1 : -1
+    return sortTest[1].higher_is_better ? vb - va : va - vb
+  })
 
   return (
-    <Card title="Tests et coqs FFR" help="Dernier test de chaque joueur, coq du référentiel FFR filière jeune à son poste (charnière : barème demi de mêlée). * : développé couché et squat convertis en 1RM estimé (3RM × 36/34 ; front squat ≈ 85 % du back squat). Médailles : podium du groupe sur le dernier test.">
-      <p className="flex flex-wrap gap-3 text-sm">
-        {(['bleu', 'vert', 'jaune', 'rouge'] as const).map(c => (
-          <span key={c} className="flex items-center gap-1"><Coq color={c} className="h-5 w-5" /><strong className="tabular-nums">{count(c)}</strong> <span className="text-ink/60">{COQ_LABEL[c]}</span></span>
+    <section className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="font-display text-xl font-semibold">Tests et coqs FFR</h2>
+          <p className="max-w-prose text-sm text-ink/60">Dernier test de chaque joueur, coq du référentiel FFR filière jeune à son poste. Médailles : podium du groupe.</p>
+        </div>
+        <ViewSelect label="Trier par" value={sort} onChange={setSort}>
+          <option value="nom">Nom</option>
+          {tests.map(([id, d]) => <option key={id} value={id}>{d.name}</option>)}
+        </ViewSelect>
+      </div>
+
+      {/* Répartition des coqs du groupe, tous tests confondus */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {COLORS.map(c => (
+          <div key={c} className="flex items-center gap-4 rounded-2xl bg-surface p-4 ring-1 ring-line/60">
+            <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${TINT[c]}`}><Coq color={c} className="h-8 w-8" /></span>
+            <div>
+              <p className="font-display text-3xl font-semibold leading-none tabular-nums">{count(c)}<span className="ml-1 text-base text-ink/50">{total ? `${Math.round((100 * count(c)) / total)} %` : ''}</span></p>
+              <p className="text-sm text-ink/60">coq {COQ_LABEL[c]}</p>
+            </div>
+          </div>
         ))}
-      </p>
-      <div className="overflow-x-auto">
+      </div>
+
+      <div className="overflow-x-auto rounded-2xl bg-surface ring-1 ring-line/60">
         <table className="w-full text-sm">
           <thead className="text-left text-xs text-ink/55">
-            <tr><th className="py-1 pr-3 font-normal">Joueur</th>{tests.map(([id, d]) => <th key={id} className="pr-3 font-normal">{d.name}<span className="block">{d.unit}</span></th>)}</tr>
+            <tr>
+              <th className="sticky left-0 bg-surface px-4 py-3 font-normal">Joueur</th>
+              {tests.map(([id, d]) => (
+                <th key={id} className={`px-2 py-3 font-normal ${sort === id ? 'text-ink' : ''}`}>
+                  <span className="font-semibold">{d.name}</span>
+                  <span className="block">{d.unit}{scaleOf(d.name).factor !== 1 && ' · 1RM estimé *'}{d.higher_is_better ? '' : ' · plus bas = mieux'}</span>
+                </th>
+              ))}
+            </tr>
           </thead>
           <tbody>
-            {roster.data.map(p => (
-              <tr key={p.id} className="border-t border-line">
-                <td className="py-1.5 pr-3 font-semibold">{fullName(p)}<span className="block text-xs font-normal text-ink/55">{p.position ?? 'poste ?'}</span></td>
-                {tests.map(([id, d]) => {
-                  const l = latest.find(x => x.player.id === p.id && x.r.test_id === id)
-                  if (!l) return <td key={id} className="pr-3 text-ink/40">—</td>
-                  const coq = testCoq({ testName: d.name, value: l.value, higherIsBetter: d.higher_is_better, position: p.position }, refs, defs)
+            {rows.map(p => (
+              <tr key={p.id} className="border-t border-line/60">
+                <td className="sticky left-0 whitespace-nowrap bg-surface px-4 py-2">
+                  <span className="font-semibold">{fullName(p)}</span><span className="block text-xs text-ink/55">{p.position ?? 'poste ?'}</span>
+                </td>
+                {tests.map(([id]) => {
+                  const c = cells.find(x => x.player.id === p.id && x.r.test_id === id)
+                  if (!c) return <td key={id} className="px-2 text-ink/35">—</td>
                   const medal = podium.get(`${p.id}|${id}`)
                   return (
-                    <td key={id} className="pr-3">
-                      <span className="flex items-center gap-1 tabular-nums" title={coq?.note ?? undefined}>
-                        {coq && <><Coq color={coq.color} className="h-5 w-5" /><span className="sr-only">coq {COQ_LABEL[coq.color]}</span></>}
-                        {number(l.value)}{coq?.estimated && <span aria-hidden="true" className="text-ink/50">*</span>}
-                        {medal && <span role="img" aria-label={`médaille ${medal}`}>{MEDAL[medal]}</span>}
+                    <td key={id} className="px-1.5 py-1.5">
+                      <span className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 tabular-nums ${c.coq ? TINT[c.coq.color] : 'bg-field'}`}
+                        title={[c.coq && `coq ${COQ_LABEL[c.coq.color]}`, c.coq?.note].filter(Boolean).join(' · ') || 'pas de barème pour ce poste'}>
+                        {c.coq ? <Coq color={c.coq.color} className="h-5 w-5" /> : <span className="h-5 w-5" aria-hidden="true" />}
+                        {c.coq && <span className="sr-only">coq {COQ_LABEL[c.coq.color]}</span>}
+                        <span className="font-semibold">{number(c.value)}</span>{c.coq?.estimated && <span aria-hidden="true" className="text-ink/50">*</span>}
+                        {medal && <span role="img" aria-label={`médaille ${medal}`} className="ml-auto">{MEDAL[medal]}</span>}
                       </span>
                     </td>
                   )
@@ -69,7 +116,8 @@ export function TestCoqsBoard() {
           </tbody>
         </table>
       </div>
-    </Card>
+      <p className="text-xs text-ink/55">Charnière : barème demi de mêlée. * Développé couché et squat convertis en 1RM estimé (3RM × 36/34 ; front squat ≈ 85 % du back squat). Case grise : poste sans barème.</p>
+    </section>
   )
 }
 

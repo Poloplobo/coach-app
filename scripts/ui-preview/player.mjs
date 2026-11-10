@@ -50,14 +50,18 @@ const guidelines = [['rouge', 'Engagement insuffisant'], ['jaune', 'Quelques bon
 // Tests : [nom, unité, plus haut = mieux, 1er test, 2e test, exercice lié, objectif, libellé] (jeu équivalent au compte joueur.test)
 const TESTS = [
   ['CMJ', 'cm', true, 36, 39, null, 45], ['Sprint 10m', 's', false, 1.95, 1.89, null, 1.8], ['Tractions', 'rép.', true, 8, 11, null, 15],
-  ['Développé couché 3RM', 'kg', true, 80, 87.5, null, 100, '100 kg 3RM'], ['Front squat 3RM', 'kg', true, 95, 105, 'x-Squat arrière', 120],
-  ['Yo-Yo', 'm', true, 1960, 2240, null, 2400], ['Développé militaire 3RM', 'kg', true, 55, 60, null, 60],
+  ['Développé Couché 3RM', 'kg', true, 80, 87.5, null, 100, '100 kg 3RM'], ['Front Squat 3RM', 'kg', true, 95, 105, 'x-Squat arrière', 120],
+  ['Yo-Yo Test', 'm', true, 1960, 2240, null, 2400], ['Développé militaire 3RM', 'kg', true, 55, 60, null, 60],
   ['Sprint 50m', 's', false, 7.1, 6.95], ['Broad Jump', 'cm', true, 238, 245],
 ]
+// Barème FFR fictif (3e ligne) : [test, bleu, vert, jaune] ; médailles du groupe du joueur fictif
+const REFS = [['CMJ', 45, 40, 35], ['Sprint 10m', 1.75, 1.82, 1.9], ['Sprint 50m', 6.4, 6.7, 7.0], ['Broad Jump', 260, 245, 230],
+  ['Yo-Yo Test', 2400, 2100, 1800], ['Développé Couché 1RM', 110, 95, 85], ['Back Squat 1RM', 160, 140, 120]]
+const MEDALS = [{ test_id: 'Yo-Yo Test', medal: 'or' }, { test_id: 'CMJ', medal: 'bronze' }, { test_id: 'Broad Jump', medal: 'argent' }]
 function table(name, url) {
   const p = url.searchParams
   switch (name) {
-    case 'profiles': return [{ id: PLAYER, role: 'player', first_name: 'Léo', last_name: 'FICTIF' }]
+    case 'profiles': return [{ id: PLAYER, role: 'player', first_name: 'Léo', last_name: 'FICTIF', position: '3ème Ligne' }]
     case 'wellness_entries': return p.get('entry_date')?.startsWith('eq.') ? wellness.filter(w => `eq.${w.entry_date}` === p.get('entry_date')) : wellness
     case 'player_availability': return [{ status: scenario === 'blesse' ? 'blessé' : 'apte' }]
     case 'activity_types': return types
@@ -69,6 +73,8 @@ function table(name, url) {
     ]
     case 'test_results': return TESTS.flatMap(([name, unit, hib, v1, v2, exercise_id]) => [[addDays(TODAY, -56), v1], [addDays(TODAY, -7), v2]]
       .map(([test_date, value]) => ({ test_id: name, test_date, value, test_definitions: { name, unit, higher_is_better: hib, exercise_id } })))
+    case 'test_reference': return REFS.map(([test_id, blue, green, yellow]) => ({ test_id, position_group: '3e ligne', blue, green, yellow }))
+    case 'test_definitions': return [...new Set([...TESTS.map(t => t[0]), ...REFS.map(x => x[0])])].map(n => ({ id: n, name: n }))
     case 'player_targets': return TESTS.filter(t => t[6] != null).map(([name, unit, hib, , , , target_value, label]) =>
       ({ test_id: name, target_value, label: label ?? null, test_definitions: { name, unit, higher_is_better: hib } }))
     case 'exercise_feedback': return [['Squat arrière', '2x120 1x115', -5], ['Développé couché', '4x80', -5], ['Développé couché', '4x77,5', -12]]
@@ -109,6 +115,7 @@ const blocked = []
 await ctx.route(/supabase\.co\//, async route => {
   const req = route.request(); const url = new URL(req.url())
   const m = url.pathname.match(/\/rest\/v1\/([a-z_]+)$/)
+  if (url.pathname.endsWith('/rpc/my_test_medals')) return route.fulfill({ json: MEDALS })
   if (url.pathname.endsWith('/rpc/my_return_plan')) return route.fulfill({ json: scenario === 'blesse' ? plan : [] })
   if (req.method() !== 'GET' || !m) { blocked.push(`${req.method()} ${url.pathname}`); return route.abort() }
   const rows = table(m[1], url)

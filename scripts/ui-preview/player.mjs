@@ -115,10 +115,11 @@ await ctx.route(/supabase\.co\//, async route => {
   return route.fulfill({ json: (req.headers()['accept'] ?? '').includes('vnd.pgrst.object') ? (rows[0] ?? null) : rows })
 })
 const page = await ctx.newPage()
-const pages = scenario === 'vide' ? ['forme'] : scenario === 'blesse' ? ['accueil'] : ['accueil', 'seance', 'rugby', 'performance', 'forme', 'reglages']
+const pages = scenario === 'vide' ? ['forme'] : scenario === 'blesse' ? ['accueil'] : ['accueil', 'seance', 'rugby', 'performance', 'performance-tests', 'forme', 'reglages']
 for (const p of pages) {
-  await page.goto(`http://localhost:5199${p === 'accueil' ? '/joueur' : `/joueur/${p}`}`)
+  await page.goto(`http://localhost:5199${p === 'accueil' ? '/joueur' : `/joueur/${p.replace('-tests', '')}`}`)
   await page.waitForLoadState('networkidle'); await page.waitForTimeout(1500)
+  if (p === 'performance-tests') { await page.getByRole('tab', { name: /tests/i }).click(); await page.waitForTimeout(600) } // volet TESTS
   // fenêtre à la hauteur de la page : la barre d'onglets (fixe) reste en bas au lieu de couvrir le milieu de la capture
   await page.setViewportSize({ width: 390, height: Math.max(844, await page.evaluate(() => document.documentElement.scrollHeight)) })
   await page.waitForTimeout(300)

@@ -47,6 +47,13 @@ const ratings = [
 const guidelines = [['rouge', 'Engagement insuffisant'], ['jaune', 'Quelques bonnes actions'], ['vert', 'Rôle tenu'], ['bleu', 'Au-dessus du niveau attendu']]
   .map(([color, guideline]) => ({ color, guideline }))
 
+// Tests : [nom, unité, plus haut = mieux, 1er test, 2e test, exercice lié, objectif, libellé] (jeu équivalent au compte joueur.test)
+const TESTS = [
+  ['CMJ', 'cm', true, 36, 39, null, 45], ['Sprint 10m', 's', false, 1.95, 1.89, null, 1.8], ['Tractions', 'rép.', true, 8, 11, null, 15],
+  ['Développé couché 3RM', 'kg', true, 80, 87.5, null, 100, '100 kg 3RM'], ['Front squat 3RM', 'kg', true, 95, 105, 'x-Squat arrière', 120],
+  ['Yo-Yo', 'm', true, 1960, 2240, null, 2400], ['Développé militaire 3RM', 'kg', true, 55, 60, null, 60],
+  ['Sprint 50m', 's', false, 7.1, 6.95], ['Broad Jump', 'cm', true, 238, 245],
+]
 function table(name, url) {
   const p = url.searchParams
   switch (name) {
@@ -60,7 +67,10 @@ function table(name, url) {
       { id: 'p2', session_date: TODAY, player_id: null, planned_duration_min: 25, activity_types: types[1] },
       { id: 'mock-muscu', session_date: TODAY, player_id: PLAYER, planned_duration_min: 60, activity_types: types[2] },
     ]
-    case 'test_results': return [{ test_id: 't1', test_date: addDays(TODAY, -22), value: 126, test_definitions: { name: 'Back Squat 3RM', unit: 'kg', higher_is_better: true, exercise_id: 'x-Squat arrière' } }]
+    case 'test_results': return TESTS.flatMap(([name, unit, hib, v1, v2, exercise_id]) => [[addDays(TODAY, -56), v1], [addDays(TODAY, -7), v2]]
+      .map(([test_date, value]) => ({ test_id: name, test_date, value, test_definitions: { name, unit, higher_is_better: hib, exercise_id } })))
+    case 'player_targets': return TESTS.filter(t => t[6] != null).map(([name, unit, hib, , , , target_value, label]) =>
+      ({ test_id: name, target_value, label: label ?? null, test_definitions: { name, unit, higher_is_better: hib } }))
     case 'exercise_feedback': return [['Squat arrière', '2x120 1x115', -5], ['Développé couché', '4x80', -5], ['Développé couché', '4x77,5', -12]]
       .map(([n, done_load, d]) => ({ done_load, planned_exercises: { exercise_id: `x-${n}`, planned_sessions: { session_date: addDays(TODAY, d) } } }))
     case 'season_weeks': return [{ code: 'S9', week_types: { code: 'COMP', name: 'Compétition', srpe_min: 1500, srpe_max: 2500, target_srpe: 2000 } }]

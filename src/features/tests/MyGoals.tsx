@@ -1,74 +1,125 @@
-import { useState } from 'react'
+import { Check, Trophy } from 'lucide-react'
 import { Card } from '../../components/ui/Card'
-import { ViewSelect } from '../../components/ui/ViewSelect'
-import { movementIcon } from './movementIcon'
-import { latestByTest, progressPct, seasonOf } from './progress'
-import { useTargets, useTestResults } from './useTests'
 import { Loading } from '../../components/ui/Loading'
+import { movementIcon } from './movementIcon'
+import { goalProgress, latestByTest, seasonOf } from './progress'
+import { useTargets, useTestResults } from './useTests'
 
 const number = (v: number) => v.toLocaleString('fr-FR', { maximumFractionDigits: 2 })
+const month = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-FR', { month: 'long', timeZone: 'UTC' })
+// Écart réel avec son signe (« +3 cm », « −0,06 s ») ; la couleur verte dit si c'est un progrès, selon le sens du test
+const signed = (v: number, unit: string) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${number(Math.abs(v))} ${unit}`
 
+// Objectifs de la saison et tests : ce qu'il reste à gagner pour chaque objectif, d'où il part, l'objectif le plus proche.
 // title : « Mes objectifs » côté joueur, un titre neutre côté staff
 export function MyGoals({ playerId, date, title = 'Mes objectifs' }: { playerId: string; date: string; title?: string }) {
-  const [view, setView] = useState<'objectifs' | 'tests'>('objectifs')
   const results = useTestResults(playerId)
   const targets = useTargets(playerId, seasonOf(date))
 
   if (results.isPending || targets.isPending) return <Card title={title}><Loading /></Card>
   if (results.isError || targets.isError) return <Card title={title}><p>Impossible de charger tes tests.</p></Card>
 
-  const latest = latestByTest(results.data)
+  const history = (testId: string) => results.data.filter(r => r.test_id === testId).map(r => ({ test_date: r.test_date, value: Number(r.value) }))
+  const goals = targets.data.map(t => ({ t, g: goalProgress(history(t.test_id), Number(t.target_value), t.test_definitions.higher_is_better) }))
+  // Les plus proches d'abord, ceux atteints en fin de liste (avec leur coche) ; sans résultat tout à la fin
+  goals.sort((a, b) => Number(a.g?.reached ?? 2) - Number(b.g?.reached ?? 2) || (b.g?.pct ?? -1) - (a.g?.pct ?? -1))
+  const reached = goals.filter(x => x.g?.reached).length
+  const closest = goals.find(x => x.g && !x.g.reached)
   const targeted = new Set(targets.data.map(t => t.test_id))
-  const otherTests = [...latest.values()].filter(r => !targeted.has(r.test_id))
+  const others = [...latestByTest(results.data).values()].filter(r => !targeted.has(r.test_id))
 
-  if (!targets.data.length && !otherTests.length) {
-    return <Card title={title}><p className="text-sm text-ink/70">Pas encore de test ni d'objectif enregistré.</p></Card>
-  }
+  if (!goals.length && !others.length) return <Card title={title}><p className="text-sm text-ink/70">Pas encore de test ni d'objectif enregistré.</p></Card>
 
-  // objectifs chiffrés d'abord ; les autres tests sur demande (menu) pour garder le bloc court
-  const shown = targets.data.length ? view : 'tests'
   return (
-    <Card title={title}
-      help={shown === 'objectifs' ? 'Barre : dernier test comparé à l\'objectif de la saison.' : undefined}
-      aside={targets.data.length > 0 && otherTests.length > 0 && (
-        <ViewSelect label="Voir" value={view} onChange={setView}>
-          <option value="objectifs">Objectifs</option>
-          <option value="tests">Autres tests</option>
-        </ViewSelect>
-      )}>
-      {shown === 'objectifs' && <ul className="flex flex-col gap-3">
-        {targets.data.map(t => {
-          const last = latest.get(t.test_id)
-          const pct = last ? progressPct(Number(last.value), Number(t.target_value), t.test_definitions.higher_is_better) : 0
+    <section aria-label={title} className="flex flex-col gap-4">
+      <h2 className="font-display text-xl font-semibold leading-tight">{title}</h2>
+      {goals.length > 0 && (
+        // Résumé : objectifs atteints sur la saison et le prochain à aller chercher
+        <div className="flex items-center gap-4 rounded-2xl bg-surface p-5 ring-1 ring-line/60">
+          <Ring done={reached} total={goals.length} />
+          <div className="min-w-0">
+            <p className="font-display text-2xl font-semibold leading-tight">{reached} objectif{reached > 1 ? 's' : ''} atteint{reached > 1 ? 's' : ''} <span className="text-ink/50">sur {goals.length}</span></p>
+            {closest?.g
+              ? <p className="text-sm text-ink/70">Le plus proche : <strong className="text-ink">{closest.t.test_definitions.name}</strong>, encore {number(closest.g.remaining)} {closest.t.test_definitions.unit}</p>
+              : <p className="text-sm font-semibold text-ok">Tous tes objectifs sont atteints, bravo !</p>}
+          </div>
+        </div>
+      )}
+
+      <ul className="flex flex-col gap-2">
+        {goals.map(({ t, g }) => {
+          const unit = t.test_definitions.unit
           const Icon = movementIcon(t.test_definitions.name)
           return (
-            <li key={t.test_id} className="flex flex-col gap-1">
-              <div className="flex justify-between gap-2 text-sm">
-                <span className="flex items-center gap-2 font-semibold"><Icon size={18} aria-hidden="true" className="shrink-0 text-gold" />{t.test_definitions.name}</span>
-                <span className="text-ink/70">
-                  {last ? `${number(Number(last.value))} ${t.test_definitions.unit}` : '—'} / {t.label ?? `${number(Number(t.target_value))} ${t.test_definitions.unit}`}
+            <li key={t.test_id} className={`flex flex-col gap-2.5 rounded-2xl p-4 ring-1 ${g?.reached ? 'bg-ok/10 ring-ok/40' : 'bg-surface ring-line/60'}`}>
+              <div className="flex items-center gap-3">
+                <span aria-hidden="true" className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${g?.reached ? 'bg-ok text-app' : 'bg-gold/15 text-gold'}`}>
+                  {g?.reached ? <Trophy size={20} /> : <Icon size={20} />}
                 </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold">{t.test_definitions.name}</p>
+                  <p className="text-xs text-ink/60">Objectif : {t.label ?? `${number(Number(t.target_value))} ${unit}`}</p>
+                </div>
+                {g?.reached
+                  ? <span className="flex shrink-0 items-center gap-1 rounded-full bg-ok px-2.5 py-1 text-xs font-semibold text-app"><Check size={14} strokeWidth={3} aria-hidden="true" />Atteint</span>
+                  : g && <span className="shrink-0 text-right"><span className="block text-xs text-ink/55">encore</span><span className="font-display text-xl font-semibold tabular-nums text-gold">{number(g.remaining)} {unit}</span></span>}
               </div>
-              <div className="h-2 rounded-full bg-field" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}
-                aria-label={`${t.test_definitions.name} : ${pct} % de l'objectif`}>
-                <div className={`h-2 rounded-full ${pct >= 100 ? 'bg-ok' : 'bg-gold'}`} style={{ width: `${pct}%` }} />
-              </div>
+              {g ? (
+                <>
+                  {/* Jauge du premier test à l'objectif : où il en est sur le chemin */}
+                  <div className="h-2.5 rounded-full bg-field" role="progressbar" aria-valuenow={g.pct} aria-valuemin={0} aria-valuemax={100}
+                    aria-label={`${t.test_definitions.name} : ${g.pct} % du chemin vers l'objectif`}>
+                    <div className={`h-full rounded-full ${g.reached ? 'bg-ok' : 'bg-gold'}`} style={{ width: `${Math.max(3, g.pct)}%` }} />
+                  </div>
+                  <p className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
+                    <span><span className="text-ink/60">Dernier test </span><strong className="tabular-nums">{number(g.last.value)} {unit}</strong></span>
+                    {g.gained !== null && (
+                      <span className={`tabular-nums ${g.gained > 0 ? 'font-semibold text-ok' : 'text-ink/60'}`}>
+                        {g.gained === 0 ? `stable depuis ${month(g.first.test_date)}` : `${signed(g.last.value - g.first.value, unit)} depuis ${month(g.first.test_date)}`}
+                      </span>
+                    )}
+                  </p>
+                </>
+              ) : <p className="text-sm text-ink/55">Pas encore testé cette saison.</p>}
             </li>
           )
         })}
-      </ul>}
-      {shown === 'tests' && (
-        <>
-          <ul className="text-sm grid gap-x-6 gap-y-1 sm:grid-cols-2">
-            {otherTests.map(r => (
-              <li key={r.test_id} className="flex justify-between">
-                <span>{r.test_definitions.name}</span>
-                <span className="text-ink/70">{number(Number(r.value))} {r.test_definitions.unit}</span>
-              </li>
-            ))}
+      </ul>
+
+      {others.length > 0 && (
+        // Tests sans objectif : dernier résultat et évolution, en plus discret
+        <div className="flex flex-col gap-1.5">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-ink/50">Autres tests</h3>
+          <ul className="flex flex-col divide-y divide-line/60 rounded-2xl bg-surface px-4 ring-1 ring-line/60 text-sm">
+            {others.map(r => {
+              const g = goalProgress(history(r.test_id), Number(r.value), r.test_definitions.higher_is_better)
+              return (
+                <li key={r.test_id} className="flex items-center justify-between gap-3 py-2.5">
+                  <span className="truncate">{r.test_definitions.name}</span>
+                  <span className="shrink-0 tabular-nums">
+                    <strong>{number(Number(r.value))} {r.test_definitions.unit}</strong>
+                    {g?.gained != null && g.gained !== 0 && <span className={`ml-2 text-xs ${g.gained > 0 ? 'text-ok' : 'text-ink/55'}`}>{signed(g.last.value - g.first.value, r.test_definitions.unit)}</span>}
+                  </span>
+                </li>
+              )
+            })}
           </ul>
-        </>
+        </div>
       )}
-    </Card>
+    </section>
+  )
+}
+
+// Anneau des objectifs atteints sur la saison
+function Ring({ done, total }: { done: number; total: number }) {
+  const c = 2 * Math.PI * 26
+  return (
+    <span className="relative flex h-16 w-16 shrink-0 items-center justify-center">
+      <svg viewBox="0 0 64 64" aria-hidden="true" className="absolute inset-0 -rotate-90">
+        <circle cx="32" cy="32" r="26" strokeWidth="7" className="fill-none stroke-field" />
+        <circle cx="32" cy="32" r="26" strokeWidth="7" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - done / total)} className="fill-none stroke-ok" />
+      </svg>
+      <span className="font-display text-xl font-semibold tabular-nums">{done}<span className="text-sm text-ink/50">/{total}</span></span>
+    </span>
   )
 }

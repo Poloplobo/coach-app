@@ -1,16 +1,18 @@
 // Photos des joueurs (mineurs) → stockage privé « player-photos » (staff seulement), une par joueur : « <id>.png ».
-// Source : data/photos-joueurs/« Prénom NOM_Photo.png » (jamais dans public/). Recadrées au carré (centre) et réduites
-// à 400 px avec sips (macOS). Mac de l'admin uniquement : clé secrète.
+// Source : data/photos-joueurs/« Prénom NOM_Photo.png » ou « Prénom NOM - photo.JPG » (jamais dans public/). Version
+// détourée prise en priorité (data/photos-joueurs-detourees, swift scripts/cutout-photos.swift : carré 600 px, fond
+// transparent) ; sinon recadrée au carré (centre) et réduite à 400 px avec sips (macOS). Mac de l'admin uniquement : clé secrète.
 // Usage : npm run photos:prod                          (simulation : joueurs reconnus, rien n'est envoyé)
 //         npm run photos:prod -- --confirm=<ref projet> (envoi)
 import { createClient } from '@supabase/supabase-js'
 import { execFileSync } from 'node:child_process'
-import { copyFileSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { nameKey } from '../src/lib/names'
 
 const DIR = 'data/photos-joueurs'
+const CUT = 'data/photos-joueurs-detourees'
 const url = process.env.VITE_SUPABASE_URL ?? ''
 const ref = new URL(url).hostname.split('.')[0]
 const confirm = process.argv.find(a => a.startsWith('--confirm='))?.split('=')[1]
@@ -22,18 +24,22 @@ if (error) throw error
 const tmp = mkdtempSync(join(tmpdir(), 'photos-'))
 try {
   for (const file of readdirSync(DIR).filter(f => /\.(png|jpe?g)$/i.test(f))) {
-    const name = file.replace(/_Photo\.\w+$/i, '').replace(/\.\w+$/, '')
+    const name = file.replace(/\.\w+$/, '').replace(/[\s_-]*photo$/i, '')
+    const cut = join(CUT, `${file.replace(/\.\w+$/, '')}.png`)
     const match = players.filter(p => [p.import_name ?? '', `${p.first_name} ${p.last_name}`].some(n => n && nameKey(n) === nameKey(name)))
     if (match.length !== 1) { console.log(`IGNORÉE    ${file} : ${match.length ? 'plusieurs joueurs' : 'joueur introuvable'}`); continue }
     const p = match[0]
-    if (!confirm) { console.log(`à envoyer  ${file} → ${p.last_name} ${p.first_name}`); continue }
+    if (!confirm) { console.log(`à envoyer  ${file}${existsSync(cut) ? ' (détourée)' : ''} → ${p.last_name} ${p.first_name}`); continue }
     // Carré centré puis 400 px : le PowerPoint l'affiche en rond, sans déformation
     const out = join(tmp, `${p.id}.png`)
+    if (existsSync(cut)) copyFileSync(cut, out) // déjà carrée et détourée
+    else {
     copyFileSync(join(DIR, file), out)
     const dims = execFileSync('sips', ['-g', 'pixelWidth', '-g', 'pixelHeight', out]).toString().match(/\d+/g)!.slice(-2).map(Number)
     const side = Math.min(...dims)
     execFileSync('sips', ['-s', 'format', 'png', '-c', String(side), String(side), out])
     execFileSync('sips', ['-Z', '400', out])
+    }
     const { error: e } = await db.storage.from('player-photos').upload(`${p.id}.png`, readFileSync(out), { contentType: 'image/png', upsert: true })
     if (e) throw new Error(`${file} : ${e.message}`)
     console.log(`envoyée    ${file} → ${p.last_name} ${p.first_name}`)

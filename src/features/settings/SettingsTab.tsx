@@ -4,6 +4,7 @@ import { ChevronRight } from 'lucide-react'
 import { Card } from '../../components/ui/Card'
 import { MIN_PASSWORD_LENGTH, isWrongCredentials, useChangePassword, useProfile, useSession, useSignOut } from '../auth/useAuth'
 import { PRIVACY_CONTACT, PRIVACY_SECTIONS } from './privacy'
+import { PLAYER_GUIDE, STAFF_GUIDE } from './guide'
 import { useTheme } from './theme'
 import { usePushState, useTogglePush } from './usePush'
 
@@ -34,6 +35,19 @@ export function SettingsTab() {
           </button>
         </label>
         {profile.data?.role === 'player' && <MorningReminder className={row} />}
+        {profile.data && (
+          <details className={fold}>
+            <summary className="flex items-center justify-between">Mode d'emploi <Chevron /></summary>
+            <div className="mt-3 flex flex-col gap-4 text-sm">
+              {(profile.data.role === 'player' ? PLAYER_GUIDE : STAFF_GUIDE).map(s => (
+                <section key={s.title}>
+                  <h3 className="font-semibold">{s.title}</h3>
+                  <ul className="mt-1 flex list-disc flex-col gap-1 pl-5 text-ink/80">{s.items.map(i => <li key={i}>{i}</li>)}</ul>
+                </section>
+              ))}
+            </div>
+          </details>
+        )}
         <details className={fold}>
           <summary className="flex items-center justify-between">Changer mon mot de passe <Chevron /></summary>
           <div className="mt-3"><ChangePassword /></div>

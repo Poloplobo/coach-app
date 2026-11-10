@@ -10,8 +10,8 @@ const refs = [
 
 describe('coqs FFR', () => {
   it('poste de la fiche → colonne du barème', () => {
-    expect(['Pilier', 'Talon', '2ème Ligne', '3ème Ligne', 'Charnière', 'Centre', 'Ailier', null].map(ffrPosition))
-      .toEqual(['Pilier', 'Talonneur', '2e ligne', '3e ligne', 'Demi de mêlée', 'Centre', 'Ailier', null])
+    expect(['Pilier', 'Talon', '2ème Ligne', '3ème Ligne', 'Charnière', 'Ouvreur', 'Centre', 'Ailier', 'Arrière', null].map(ffrPosition))
+      .toEqual(['Pilier', 'Talonneur', '2e ligne', '3e ligne', 'Demi de mêlée', "Demi d'ouverture", 'Centre', 'Ailier', 'Arrière', null])
   })
   it('échelon inférieur entre deux seuils ; temps : plus bas = mieux', () => {
     expect(coqOf(135, { blue: 125.5, green: 115, yellow: 105 }, true)).toBe('bleu') // exemple FFR : pilier 135 kg

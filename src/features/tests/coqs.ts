@@ -12,7 +12,7 @@ export function ffrPosition(position: string | null): string | null {
   if (/2(e|eme)?\s*ligne/.test(p)) return '2e ligne'
   if (/3(e|eme)?\s*ligne/.test(p)) return '3e ligne'
   if (/charniere|melee/.test(p)) return 'Demi de mêlée'
-  if (/ouverture/.test(p)) return "Demi d'ouverture"
+  if (/ouverture|ouvreur/.test(p)) return "Demi d'ouverture"
   if (/centre/.test(p)) return 'Centre'
   if (/ailier/.test(p)) return 'Ailier'
   if (/arriere/.test(p)) return 'Arrière'

@@ -46,9 +46,12 @@ describe('PerformanceTab', () => {
     expect(screen.queryAllByRole('radio')).toHaveLength(0)
   })
 
-  it('sans GPS sur le match : message grisé, la note reste possible', () => {
+  it('sans GPS sur le match : message grisé dans le volet GPS, la note reste possible dans le volet Notes', () => {
     render(<PerformanceTab />)
+    expect(screen.getByRole('tab', { name: /Notes/ }).getAttribute('aria-selected')).toBe('true') // Notes ouvert par défaut
+    fireEvent.click(screen.getByRole('tab', { name: /GPS/ }))
     expect(screen.getByText('Pas de GPS pour toi sur ce match.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('tab', { name: /Notes/ }))
     const radios = screen.getAllByRole('radio') as HTMLButtonElement[]
     expect(radios).toHaveLength(5) // 4 coqs + gris « pas évaluable »
     expect(radios.every(r => !r.disabled)).toBe(true)
@@ -73,5 +76,19 @@ describe('PerformanceTab', () => {
     render(<PerformanceTab />)
     expect(screen.queryByRole('combobox', { name: /match/i })).toBeNull()
     expect(screen.getByText('« Gros match en mêlée »')).toBeTruthy()
+  })
+  it('glisser le doigt vers la gauche passe au volet suivant, un geste vertical ne change rien', () => {
+    render(<PerformanceTab />)
+    const pane = () => screen.getByRole('tabpanel')
+    const selected = () => screen.getAllByRole('tab').find(t => t.getAttribute('aria-selected') === 'true')?.textContent
+    fireEvent.touchStart(pane(), { touches: [{ clientX: 300, clientY: 100 }] })
+    fireEvent.touchEnd(pane(), { changedTouches: [{ clientX: 300, clientY: 400 }] }) // défilement vertical
+    expect(selected()).toMatch(/Notes/)
+    fireEvent.touchStart(pane(), { touches: [{ clientX: 300, clientY: 100 }] })
+    fireEvent.touchEnd(pane(), { changedTouches: [{ clientX: 120, clientY: 110 }] })
+    expect(selected()).toMatch(/GPS/)
+    fireEvent.touchStart(pane(), { touches: [{ clientX: 100, clientY: 100 }] })
+    fireEvent.touchEnd(pane(), { changedTouches: [{ clientX: 300, clientY: 100 }] })
+    expect(selected()).toMatch(/Notes/)
   })
 })

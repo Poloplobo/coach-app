@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { Dumbbell, Satellite, Star } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { OfflineNote } from '../../components/ui/OfflineNote'
 import { Card } from '../../components/ui/Card'
@@ -11,8 +12,15 @@ import { ClubLogo, Coq } from './MatchColor'
 import { playerReport } from './report'
 import { useGpsRecords, useGpsReference, useGuidelines, useMatches, useRateMatch, useRatings } from './usePerformance'
 
-// Onglet joueur : d'abord la note de son match du week-end (pas de choix : le dernier match joué), puis la note et le
-// commentaire du coach, ensuite ses GPS (8 boîtiers : pas toujours) et ses maxi. Note et GPS sont indépendants.
+// Onglet joueur en trois volets séparés, qu'on change au sélecteur ou en glissant le doigt sur le côté :
+// NOTES (sa note du match du week-end, le dernier joué, puis l'avis du coach), GPS (8 boîtiers : pas toujours), TESTS (maxi
+// et objectifs). Note et GPS sont indépendants.
+const PANES = [
+  { id: 'notes', label: 'Notes', icon: Star },
+  { id: 'gps', label: 'GPS', icon: Satellite },
+  { id: 'tests', label: 'Tests', icon: Dumbbell },
+] as const
+type Pane = (typeof PANES)[number]['id']
 export function PerformanceTab() {
   const { playerId, today } = usePlayerDay()
   const matches = useMatches()
@@ -24,6 +32,16 @@ export function PerformanceTab() {
   // Choix en cours, pas encore validé (lié au match : changer de match l'efface)
   const [choice, setChoice] = useState<{ match: string; color: RatingColor } | null>(null)
   const [comment, setComment] = useState('')
+  const [pane, setPane] = useState<Pane>('notes')
+  const touch = useRef<{ x: number; y: number } | null>(null)
+  // Glisser horizontal franc (60 px, plus large que haut) : volet suivant ou précédent ; le défilement vertical reste libre
+  const swipe = (x: number, y: number) => {
+    const t = touch.current
+    touch.current = null
+    if (!t || Math.abs(x - t.x) < 60 || Math.abs(x - t.x) < Math.abs(y - t.y)) return
+    const i = PANES.findIndex(p => p.id === pane) + (x < t.x ? 1 : -1)
+    if (PANES[i]) setPane(PANES[i].id)
+  }
 
   const commentOk = choice?.color === 'gris' || comment.trim().length >= 10
   const loading = matches.isPending || gps.isPending || ratings.isPending || reference.isPending
@@ -39,13 +57,27 @@ export function PerformanceTab() {
   const ref = record && reference.data ? reference.data.refs.get(positionGroup(record.position, reference.data.positions) ?? '') ?? null : null
   const analysis = record ? gpsAnalysis(record, ref) : null
 
+  const noMatch = !loading && !failed && !match && <Card title="Mes matchs"><p className="text-sm text-ink/70">Aucun match enregistré pour l'instant.</p></Card>
   return (
-    <div className="flex flex-col gap-6">
-      {loading && <Loading />}
-      {failed && <p role="alert">Impossible de charger tes matchs.</p>}
-      {!loading && !failed && !match && <Card title="Mes matchs"><p className="text-sm text-ink/70">Aucun match enregistré pour l'instant.</p></Card>}
-      {match && (
-        <>
+    <div className="flex flex-col gap-4">
+      {/* Sélecteur des volets ; pastille sur Notes tant que le match du week-end n'est pas noté */}
+      <div role="tablist" aria-label="Mes performances" className="grid grid-cols-3 gap-1 rounded-2xl bg-field p-1">
+        {PANES.map(p => (
+          <button key={p.id} id={`perf-${p.id}`} type="button" role="tab" aria-selected={pane === p.id} aria-controls="perf-pane" onClick={() => setPane(p.id)}
+            className={`relative flex h-11 items-center justify-center gap-1.5 rounded-xl font-display text-sm font-semibold uppercase tracking-wider transition-colors ${
+              pane === p.id ? 'bg-surface text-ink shadow-sm ring-1 ring-line/60' : 'text-ink/55'}`}>
+            <p.icon size={15} aria-hidden="true" />{p.label}
+            {p.id === 'notes' && match && !own && !loading && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-rnr" aria-label="match à noter" />}
+          </button>
+        ))}
+      </div>
+      <div id="perf-pane" role="tabpanel" aria-labelledby={`perf-${pane}`} key={pane} className="rise flex touch-pan-y flex-col gap-6"
+        onTouchStart={e => { touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY } }}
+        onTouchEnd={e => swipe(e.changedTouches[0].clientX, e.changedTouches[0].clientY)}>
+      {loading && pane !== 'tests' && <Loading />}
+      {failed && pane !== 'tests' && <p role="alert">Impossible de charger tes matchs.</p>}
+      {pane !== 'tests' && noMatch}
+      {match && pane === 'notes' && (
           <Card boxed title="Mon match du week-end" help={own ? undefined : 'Comment as-tu joué ? Une fois validée, ta note ne change plus et celle du coach s\'affiche.'}>
             <p className="flex items-center gap-3 font-semibold"><ClubLogo match={match} className="h-10 w-10" />
               <span>{match.label ? `${match.label} · ` : ''}{match.opponent}
@@ -101,7 +133,9 @@ export function PerformanceTab() {
               </>
             )}
           </Card>
-
+      )}
+      {match && pane === 'gps' && (
+        <>
           {/* Sans GPS sur ce match (8 boîtiers pour le groupe) : partie grisée, la note et les objectifs restent */}
           <Card title="Mon GPS du week-end" help={record ? `Comparé à l'attendu de ton poste (${record.position.toLowerCase()}), ramené à un match de 70 min. Le trait marque l'attendu.` : undefined}>
             {!record
@@ -137,7 +171,8 @@ export function PerformanceTab() {
           )}
         </>
       )}
-      <MyGoals playerId={playerId} date={today} title="Mes maxi et objectifs" />
+      {pane === 'tests' && <MyGoals playerId={playerId} date={today} title="Mes maxi et objectifs" />}
+      </div>
     </div>
   )
 }

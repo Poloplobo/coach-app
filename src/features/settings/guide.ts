@@ -86,6 +86,7 @@ export const STAFF_GUIDE: GuideSection[] = [
     items: [
       "Relancer : Aujourd'hui › À relancer. Dupliquer : Programmation › Semaines et duplication. Importer un cycle : Programmation › Import d'un cycle.",
       "Déclarer un blessé : fiche Joueur › Gestion (admin) ; une fiche blessure et un plan de retour sont créés. Plan de réhab : Médical › Préparer. Tests : Performance › Test.",
+      "Commotion : Médical › « Déclarer une commotion » (joueur, J0, moins de 18 ans). Le protocole FFR est choisi selon les commotions des 12 derniers mois, le joueur passe blessé ; chaque palier se valide dans Médical › Plan de retour (« Valider l'étape »), jamais le contact avant la date indiquée.",
     ],
   },
 ]

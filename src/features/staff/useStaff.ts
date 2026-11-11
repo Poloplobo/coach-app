@@ -172,6 +172,16 @@ export function useSaveInjury() {
     onSuccess: () => invalidateStaff(qc),
   })
 }
+// Commotion cérébrale (0046) : fiche, plan FFR selon l'âge et le rang sur 12 mois, joueur déclaré blessé ; tout le staff
+export type ConcussionResult = { injury: string; rank: 1 | 2 | 3; contact_day: number; contact_on: string; specialist: boolean }
+export function useDeclareConcussion() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (v: { playerId: string; date: string; minor: boolean }) =>
+      check(await supabase.rpc('declare_concussion', { p_player: v.playerId, p_occurred_on: v.date, p_minor: v.minor })) as unknown as ConcussionResult,
+    onSuccess: () => invalidateStaff(qc),
+  })
+}
 // Étape du plan de retour : ajout, modification, validation (date du jour) ou annulation, suppression
 export function useSaveStep() {
   const qc = useQueryClient()

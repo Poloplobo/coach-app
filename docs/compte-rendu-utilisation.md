@@ -193,6 +193,10 @@ Le staff voit les oublis : liste des RPE non déclarés, taux de déclaration de
 - Déclarer un blessé : fiche Joueur › Gestion (admin). Le joueur sort de la semaine du groupe, une fiche blessure et un plan de retour sont créés.
 - Importer un plan de réhab : Médical › Préparer.
 - Importer des tests : Performance › Test › Importer les maxi et objectifs.
+- Commotion cérébrale : Médical › « Déclarer une commotion » (joueur, jour J0, moins de 18 ans).
+  - L'app applique le protocole FFR selon les commotions des 12 derniers mois. Pour les moins de 18 ans : contact au plus tôt à J23 (1re), J42 (2e, avis spécialisé), 180 jours (3e).
+  - Le joueur passe blessé et voit son plan par paliers.
+  - Le staff valide chaque palier dans Médical › Plan de retour (« Valider l'étape »).
 
 ---
 

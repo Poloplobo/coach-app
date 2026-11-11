@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(200);
+select plan(207);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -680,6 +680,28 @@ select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000
 set local role authenticated;
 select is((select array_agg(name)::text from storage.objects where bucket_id = 'player-photos'), '{00000000-0000-0000-0000-00000000000a.png}', 'A ne lit que sa propre photo');
 select throws_ok($$insert into storage.objects (bucket_id, name) values ('player-photos', '00000000-0000-0000-0000-00000000000a.png')$$, '42501', null, 'A ne dépose pas de photo');
+
+-- ---------- Commotion cérébrale (0046) ----------
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+set local role authenticated;
+select throws_ok($$select public.declare_concussion('00000000-0000-0000-0000-00000000000a', public.paris_today(), true)$$, '42501', null, 'un joueur ne déclare pas de commotion');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000c","role":"authenticated"}', true);
+set local role authenticated;
+select is((public.declare_concussion('00000000-0000-0000-0000-00000000000a', public.paris_today(), true) ->> 'contact_day')::int, 23,
+          'moins de 18 ans, 1re commotion : contact au plus tôt à J23');
+select is((select status::text from public.player_availability where player_id = '00000000-0000-0000-0000-00000000000a'), 'blessé', 'le joueur passe blessé');
+select is((select count(*)::int from public.injury_steps s join public.injuries i on i.id = s.injury_id
+           where i.player_id = '00000000-0000-0000-0000-00000000000a' and i.concussion_rank = 1), 7, 'plan commotion en 7 étapes (paliers, avis médical)');
+select throws_ok($$select public.declare_concussion('00000000-0000-0000-0000-00000000000a', public.paris_today(), true)$$, 'P0001', null, 'pas deux commotions en cours');
+update public.injuries set ended_on = public.paris_today() where player_id = '00000000-0000-0000-0000-00000000000a' and concussion_rank = 1;
+select is((public.declare_concussion('00000000-0000-0000-0000-00000000000a', public.paris_today(), true) ->> 'rank')::int, 2,
+          '2e commotion en 12 mois : rang 2 (42 jours, avis spécialisé)');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+set local role authenticated;
+select is((select title from public.my_return_plan() order by step limit 1), 'Palier 1 · Repos complet', 'le joueur voit son protocole commotion');
 
 -- ---------- Visiteur non connecté ----------
 reset role;

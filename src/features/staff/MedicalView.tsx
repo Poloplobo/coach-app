@@ -13,7 +13,8 @@ import { fatiguePercent } from '../wellness/fatigue'
 import { injuryReport, injurySummary } from './injury'
 import { fullName, weekOf, type Log, type Player } from './load'
 import { useAllLogs, useAllWellness, useInjuries, useInjuryRecords, useInjurySteps, useMedicalSessions, useReference, useRoster } from './useStaff'
-import { EpidemiologyCard, ImportPlan, InjuryForm, PlanOverview, ReturnPlan } from './MedicalParts'
+import { ConcussionCard, EpidemiologyCard, ImportPlan, InjuryForm, PlanOverview, ReturnPlan } from './MedicalParts'
+import { Button } from '../../components/ui/Button'
 import { ImportPanel } from './programming/ImportPanel'
 import { Cutout } from '../photos/PlayerPhoto'
 import { useMatches, useRatings } from '../performance/usePerformance'
@@ -39,6 +40,7 @@ export function MedicalView() {
   const records = useInjuryRecords()
   const steps = useInjurySteps()
   const [view, setView] = useState<ViewId>('suivi')
+  const [concussion, setConcussion] = useState(false)
   const [chosen, setChosen] = useState<string | null>(null)
   const [code, setCode] = useState<string | null>(null)
   const [period, setPeriod] = useState('saison')
@@ -84,7 +86,11 @@ export function MedicalView() {
             {weeks.map(w => <option key={w.code} value={w.code}>{w.code} · {w.label}</option>)}
           </ViewSelect>
         )}
+        <Button size="sm" variant={concussion ? 'ghost' : 'primary'} className="ml-auto" aria-expanded={concussion} onClick={() => setConcussion(!concussion)}>
+          {concussion ? 'Fermer' : 'Déclarer une commotion'}
+        </Button>
       </div>
+      {concussion && <ConcussionCard players={roster.data} today={today} />}
       {view === 'epidemio' ? <Epidemiology today={today} period={period} />
         : !player ? (
           <Card title="Aucun joueur blessé">

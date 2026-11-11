@@ -9,7 +9,8 @@ import { fullName, type Player } from './load'
 import { ACTIVITIES, LOCATIONS, MECHANISMS, ONSETS, TISSUES, byPhase, epidemiology, planProgress, type InjuryRecord, type Step } from './medical'
 import { readRehabPlan, type RehabPlan } from './parseRehabPlan'
 import { PlanTimeline } from './PlanTimeline'
-import { useDeleteStep, useImportPlan, useSaveInjury, useSaveStep } from './useStaff'
+import { useDeclareConcussion, useDeleteStep, useImportPlan, useSaveInjury, useSaveStep } from './useStaff'
+import { addDays } from '../../lib/week'
 
 // Blocs de l'onglet Médical (étape 13) : fiche blessure, plan de retour, rapport d'épidémiologie
 const field = 'rounded-lg bg-field border border-line px-2 py-1.5 text-sm'
@@ -242,9 +243,70 @@ export function PlanOverview({ injury, steps, today }: { injury: Injury; steps: 
         <Kpi label="Restant (théorique)" value={`${p.remainingDays} j`} hint={`${p.done} étape${p.done > 1 ? 's' : ''} validée${p.done > 1 ? 's' : ''}`} />
         <Kpi label="Retour estimé" value={p.returnDate ? shortDay(p.returnDate) : '—'} tone={p.current ? 'neutral' : 'ok'} hint={p.returnDate ? formatDay(p.returnDate) : undefined} />
       </div>
+      {p.current && <ValidateCurrent injury={injury} step={p.current} today={today} />}
       <PlanStrip p={p} />
       <div className="max-w-4xl"><PlanTimeline p={p} occurredOn={injury.occurred_on} today={today} audience="staff" /></div>
     </section>
+  )
+}
+
+// Valider l'étape en cours en un geste (ex. palier de commotion franchi) : l'étape suivante devient l'étape en cours
+function ValidateCurrent({ injury, step, today }: { injury: Injury; step: Step; today: string }) {
+  const save = useSaveStep()
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-xl bg-field px-4 py-3">
+      <span className="text-sm">Étape en cours : <strong>{step.title}</strong>{step.criteria && <span className="block text-xs text-ink/60">{step.criteria}</span>}</span>
+      <ConfirmButton size="sm" className="ml-auto" disabled={save.isPending} confirmLabel="Confirmer : étape franchie"
+        onClick={() => save.mutate({ injury_id: injury.id, player_id: injury.player_id, id: step.id, position: step.position, title: step.title,
+          criteria: step.criteria, planned_days: step.planned_days, validated_on: today })}>
+        Valider l'étape
+      </ConfirmButton>
+      {save.isError && <p role="alert" className="w-full text-xs text-rnr">Validation impossible, réessaie.</p>}
+    </div>
+  )
+}
+
+// Commotion cérébrale (0046) : un joueur, la date, l'âge ; l'app choisit le protocole FFR (rang sur 12 mois), crée la fiche
+// et le plan par paliers et déclare le joueur blessé
+export function ConcussionCard({ players, today }: { players: Player[]; today: string }) {
+  const declare = useDeclareConcussion()
+  const [playerId, setPlayerId] = useState('')
+  const [date, setDate] = useState(today)
+  const [minor, setMinor] = useState(true)
+  const player = players.find(p => p.id === playerId)
+  const r = declare.data
+  const error = declare.error as { code?: string; message?: string } | null
+  return (
+    <Card title="Déclarer une commotion cérébrale"
+      help="Règles FFR secteur amateur. Moins de 18 ans : contact au plus tôt à J23 (1re commotion en 12 mois), J42 (2e, avis spécialisé), 180 jours minimum (3e, spécialiste). 18 ans et plus : J10, J22, J91. L'app compte les commotions des 12 derniers mois et prépare le plan par paliers ; tu valides chaque palier dans « Plan de retour ».">
+      <div className="flex flex-wrap items-end gap-3 text-sm">
+        <label className="flex flex-col gap-1">Joueur
+          <select value={playerId} onChange={e => { setPlayerId(e.target.value); declare.reset() }} className="rounded-lg border border-line bg-field px-3 py-2 text-base">
+            <option value="">Choisir…</option>
+            {players.map(p => <option key={p.id} value={p.id}>{fullName(p)}</option>)}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1">Jour de la commotion (J0)
+          <input type="date" value={date} min={addDays(today, -30)} max={today} onChange={e => { setDate(e.target.value); declare.reset() }}
+            className="rounded-lg border border-line bg-field px-3 py-2 text-base" />
+        </label>
+        <label className="flex items-center gap-2 py-2">
+          <input type="checkbox" checked={minor} onChange={e => { setMinor(e.target.checked); declare.reset() }} className="h-5 w-5" /> Moins de 18 ans
+        </label>
+        <ConfirmButton disabled={!player || !date || declare.isPending} confirmLabel={player ? `Confirmer : ${fullName(player)} en protocole commotion` : 'Confirmer'}
+          onClick={() => player && declare.mutate({ playerId: player.id, date, minor })}>
+          {declare.isPending ? 'Déclaration…' : 'Déclarer la commotion'}
+        </ConfirmButton>
+      </div>
+      {r && (
+        <p role="status" className="rounded-lg border border-ok px-3 py-2 text-sm">
+          {player ? fullName(player) : 'Le joueur'} est déclaré blessé, en protocole commotion ({['1re', '2e', '3e'][r.rank - 1]} commotion en 12 mois).
+          Contact au plus tôt le <strong>{formatDay(r.contact_on)}</strong> (J{r.contact_day}), après {r.specialist ? "l'avis d'un médecin spécialiste en commotion" : 'un avis médical'} et
+          le certificat de non contre-indication. Son plan est dans « Plan de retour », et sur son Accueil. Pense à prévenir sa famille.
+        </p>
+      )}
+      {error && <p role="alert" className="text-sm text-rnr">{error.code === 'P0001' || error.code === '42501' ? `Déclaration impossible : ${error.message}.` : 'Déclaration impossible, réessaie.'}</p>}
+    </Card>
   )
 }
 

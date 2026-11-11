@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(207);
+select plan(211);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -702,6 +702,21 @@ reset role;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
 set local role authenticated;
 select is((select title from public.my_return_plan() order by step limit 1), 'Palier 1 · Repos complet', 'le joueur voit son protocole commotion');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000c","role":"authenticated"}', true);
+set local role authenticated;
+select is(public.concussion_program((select id from public.injuries where player_id = '00000000-0000-0000-0000-00000000000a' and ended_on is null and concussion_rank = 2)), 0,
+          'palier 1 (repos) : aucune séance programmée');
+select isnt_empty($$update public.injury_steps set validated_on = public.paris_today() where position = 1
+                   and injury_id = (select id from public.injuries where player_id = '00000000-0000-0000-0000-00000000000a' and ended_on is null and concussion_rank = 2) returning 1$$,
+                  'le staff valide le palier 1');
+select isnt_empty($$select 1 from public.planned_sessions where player_id = '00000000-0000-0000-0000-00000000000a' and title = 'Protocole commotion' and focus = 'Palier 2 · Aérobie léger'$$,
+                  'palier 2 validé : séances aérobie léger programmées automatiquement');
+select is_empty($$select 1 from public.planned_sessions ps join public.activity_types a on a.id = ps.activity_type_id
+                  where ps.player_id = '00000000-0000-0000-0000-00000000000a' and a.name = 'Musculation' and ps.session_date > public.paris_today()
+                    and not exists (select 1 from public.planned_exercises pe join public.exercise_feedback f on f.planned_exercise_id = pe.id where pe.planned_session_id = ps.id)
+                    and not exists (select 1 from public.session_logs l where l.planned_session_id = ps.id)$$,
+                'plus de musculation habituelle sans réponse à venir pendant le protocole');
 
 -- ---------- Visiteur non connecté ----------
 reset role;

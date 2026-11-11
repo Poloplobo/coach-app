@@ -278,7 +278,7 @@ export function ConcussionCard({ players, today }: { players: Player[]; today: s
   const error = declare.error as { code?: string; message?: string } | null
   return (
     <Card title="Déclarer une commotion cérébrale"
-      help="Règles FFR secteur amateur. Moins de 18 ans : contact au plus tôt à J23 (1re commotion en 12 mois), J42 (2e, avis spécialisé), 180 jours minimum (3e, spécialiste). 18 ans et plus : J10, J22, J91. L'app compte les commotions des 12 derniers mois et prépare le plan par paliers ; tu valides chaque palier dans « Plan de retour ».">
+      help="Règles FFR secteur amateur. Séances : sa musculation à venir est remplacée par celles du palier en cours (aérobie léger, course, musculation progressive et entraînement sans contact, puis contact après la date FFR), reprogrammées à chaque étape validée. Moins de 18 ans : contact au plus tôt à J23 (1re commotion en 12 mois), J42 (2e, avis spécialisé), 180 jours minimum (3e, spécialiste). 18 ans et plus : J10, J22, J91. L'app compte les commotions des 12 derniers mois et prépare le plan par paliers ; tu valides chaque palier dans « Plan de retour ».">
       <div className="flex flex-wrap items-end gap-3 text-sm">
         <label className="flex flex-col gap-1">Joueur
           <select value={playerId} onChange={e => { setPlayerId(e.target.value); declare.reset() }} className="rounded-lg border border-line bg-field px-3 py-2 text-base">
@@ -302,7 +302,7 @@ export function ConcussionCard({ players, today }: { players: Player[]; today: s
         <p role="status" className="rounded-lg border border-ok px-3 py-2 text-sm">
           {player ? fullName(player) : 'Le joueur'} est déclaré blessé, en protocole commotion ({['1re', '2e', '3e'][r.rank - 1]} commotion en 12 mois).
           Contact au plus tôt le <strong>{formatDay(r.contact_on)}</strong> (J{r.contact_day}), après {r.specialist ? "l'avis d'un médecin spécialiste en commotion" : 'un avis médical'} et
-          le certificat de non contre-indication. Son plan est dans « Plan de retour », et sur son Accueil. Pense à prévenir sa famille.
+          le certificat de non contre-indication. Son plan est dans « Plan de retour » et sur son Accueil ; sa musculation est remplacée par les séances de son palier, qui suivent chaque étape validée. Pense à prévenir sa famille.
         </p>
       )}
       {error && <p role="alert" className="text-sm text-rnr">{error.code === 'P0001' || error.code === '42501' ? `Déclaration impossible : ${error.message}.` : 'Déclaration impossible, réessaie.'}</p>}

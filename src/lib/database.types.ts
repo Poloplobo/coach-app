@@ -422,7 +422,7 @@ export type Database = {
         ]
       }
       injuries: {
-        Row: { activity: string | null; alerts: Json; concussion_rank: number | null; created_at: string; created_by: string | null; diagnosis: string | null; ended_on: string | null; id: string; location: string | null; mechanism: string | null; notes: string | null; occurred_on: string; onset: string | null; player_id: string; recurrence: boolean; tissue: string | null }
+        Row: { activity: string | null; alerts: Json; concussion_rank: number | null; contact_on: string | null; created_at: string; created_by: string | null; diagnosis: string | null; ended_on: string | null; id: string; location: string | null; mechanism: string | null; notes: string | null; occurred_on: string; onset: string | null; player_id: string; recurrence: boolean; tissue: string | null }
         Insert: { activity?: string | null; alerts?: Json; concussion_rank?: number | null; created_at?: string; created_by?: string | null; diagnosis?: string | null; ended_on?: string | null; id?: string; location?: string | null; mechanism?: string | null; notes?: string | null; occurred_on: string; onset?: string | null; player_id: string; recurrence?: boolean; tissue?: string | null }
         Update: { activity?: string | null; alerts?: Json; diagnosis?: string | null; ended_on?: string | null; location?: string | null; mechanism?: string | null; notes?: string | null; occurred_on?: string; onset?: string | null; recurrence?: boolean; tissue?: string | null }
         Relationships: []
@@ -1360,6 +1360,8 @@ export type Database = {
       can_log_day: { Args: { p_date: string }; Returns: boolean }
       push_enabled_players: { Args: never; Returns: string[] }
       redo_muscu_session: { Args: { p_session: string }; Returns: undefined }
+      declare_concussion_with_program: { Args: { p_player: string; p_occurred_on: string; p_minor: boolean }; Returns: Json }
+      concussion_program: { Args: { p_injury: string }; Returns: number }
       declare_concussion: { Args: { p_player: string; p_occurred_on: string; p_minor: boolean }; Returns: Json }
       my_test_medals: { Args: never; Returns: { medal: string; test_id: string }[] }
       my_return_plan: { Args: never; Returns: { occurred_on: string; id: string; step: number; title: string; criteria: string | null; planned_days: number; validated_on: string | null; phase: string | null; phase_days: number | null; objectives: string | null; prepa_actions: string | null; is_test: boolean; in_progress: boolean }[] }

@@ -178,7 +178,7 @@ export function useDeclareConcussion() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (v: { playerId: string; date: string; minor: boolean }) =>
-      check(await supabase.rpc('declare_concussion', { p_player: v.playerId, p_occurred_on: v.date, p_minor: v.minor })) as unknown as ConcussionResult,
+      check(await supabase.rpc('declare_concussion_with_program', { p_player: v.playerId, p_occurred_on: v.date, p_minor: v.minor })) as unknown as ConcussionResult,
     onSuccess: () => invalidateStaff(qc),
   })
 }

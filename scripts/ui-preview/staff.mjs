@@ -18,7 +18,16 @@ const NAMES = [['Hugo', 'MARTIN'], ['Lucas', 'BERNARD'], ['Nathan', 'PETIT'], ['
   ['Gabriel', 'LEROY'], ['Arthur', 'MOREAU'], ['Raphaël', 'SIMON'], ['Tom', 'LAURENT'], ['Noah', 'LEFEBVRE'], ['Mathis', 'MICHEL'],
   ['Théo', 'GARCIA'], ['Adam', 'DAVID'], ['Sacha', 'BERTRAND'], ['Maël', 'ROUX']]
 const POS = ['Pilier', 'Talon', '2ème Ligne', '3ème Ligne', 'Demi de mêlée', 'Ouvreur', 'Centre', 'Ailier', 'Arrière']
-const roster = NAMES.map(([first_name, last_name], i) => ({ id: `p${i + 1}`, first_name, last_name, position: POS[i % POS.length], role: 'player' }))
+// Jeux de données (break-ui) : DATA=demo (défaut) | worst (pire cas réaliste) | empty (aucun joueur) | one (un seul joueur).
+// Pire cas : noms composés et longs, homonymes, très court, apostrophe ; poste long ou absent ; effectif de 40 (Crabos) ;
+// forme au plus bas pour un tiers du groupe ; charge à 4 850 UA ; note « pas fait » de 200 caractères. Banc d'essai seulement.
+const DATA = process.env.DATA ?? 'demo'
+const WORST = [['Jean-Baptiste', 'DESCHAMPS-DE LA VILLARDIÈRE'], ['Sitiveni', "WAQANIVALU-FA'ASAVALU"], ['Lo', 'NY'], ['Mathéo-Alexandre', 'BENSAÏD-OULD MOHAMED'],
+  ['Hugo', 'MARTIN'], ['Hugo', 'MARTIN'], ...NAMES, ...NAMES.slice(0, 16).map(([f, l]) => [`${f}-Marie`, `${l}-${l}`]), ['Kylian', "D'ALMEIDA"], ['Ny', 'O']]
+const BASE = DATA === 'worst' ? WORST : DATA === 'empty' ? [] : DATA === 'one' ? NAMES.slice(0, 1) : NAMES
+const LONG_POS = '3ème Ligne Aile Fermée / Numéro 8'
+const roster = BASE.map(([first_name, last_name], i) => ({ id: `p${i + 1}`, first_name, last_name,
+  position: DATA === 'worst' && i === 0 ? LONG_POS : DATA === 'worst' && i === 2 ? null : POS[i % POS.length], role: 'player' }))
 const INJURED = ['p5']
 
 const types = [
@@ -54,12 +63,19 @@ for (let d = weeks[0].start_date; d <= TODAY; d = addDays(d, 1)) {
       logs.push({ player_id: p.id, session_date: d, activity_type_id: a, duration_min: t.default_duration_min, rpe, srpe: rpe === null ? 0 : rpe * t.default_duration_min, source: 'app', created_at: `${d}T18:${String(10 + shape).padStart(2, '0')}:00Z` })
     }
     if ((d === TODAY && shape > 11) || rnd() < 0.08) continue // aujourd'hui : 11 joueurs sur 16 ont rempli
-    const v = () => Math.min(5, Math.max(1, Math.round(2.6 + rnd() * 2.6 - (shape === 3 ? 1.4 : 0))))
+    const worstDay = DATA === 'worst' && d === TODAY && shape % 3 === 1 // un tiers du groupe au plus bas : tout à 1
+    const v = () => worstDay ? 1 : Math.min(5, Math.max(1, Math.round(2.6 + rnd() * 2.6 - (shape === 3 ? 1.4 : 0))))
     const it = { sleep_quality: v(), fatigue: v(), soreness: null, soreness_upper: v(), soreness_lower: shape === 7 && d === TODAY ? 1 : v(), stress: v(), mood: v() }
     const score = it.sleep_quality + it.fatigue + it.soreness_upper + it.soreness_lower + it.stress + it.mood
     wellness.push({ player_id: p.id, entry_date: d, ...it, score, source: 'app' })
   }
 }
+
+// Pire cas : deux joueurs très au-dessus de la plage (double séance longue, RPE 10) cette semaine
+if (DATA === 'worst') for (const id of ['p1', 'p4']) for (const d of [monday, addDays(monday, 1)].filter(x => x <= TODAY))
+  logs.push({ player_id: id, session_date: d, activity_type_id: 't-ct', duration_min: 240, rpe: 10, srpe: 2400, source: 'app', created_at: `${d}T18:00:00Z` })
+const skips = DATA === 'worst' ? [{ player_id: 'p2', session_date: addDays(TODAY, -1), activity_type_id: 't-ct', reason: 'autre', profiles: { is_test: false },
+  note: "Convocation au lycée pour l'épreuve de rattrapage de physique-chimie puis rendez-vous chez l'orthodontiste à Bois-Guillaume, le bus de 17h12 a été supprimé donc je n'ai pas pu rejoindre l'entraînement" }] : []
 
 // Planning du groupe (mêmes activités que les déclarations) avec RPE visé 4-6 : RPE non déclarés, hors fourchette, rythme
 const groupPlan = []
@@ -165,6 +181,7 @@ function table(name, url) {
     case 'gps_reference': return gpsRef
     case 'gps_positions': return gpsPos
     case 'match_ratings': return ratings
+    case 'session_skips': return skips
     default: return []
   }
 }

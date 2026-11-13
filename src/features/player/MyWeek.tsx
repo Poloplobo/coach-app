@@ -41,8 +41,7 @@ export function MyWeek({ playerId, date, footer }: { playerId: string; date: str
   const max = Math.max(300, ...days.map(x => x.load))
 
   return (
-    <Card title="Ma semaine"
-      help="Barre : charge du jour · point : fatigue (vert ça va, jaune moyen, rouge à surveiller).">
+    <Card title="Ma semaine">
       {/* Deux chiffres depuis lundi : déclarées et fatigue moyenne (tendance) ; la charge est dans les anneaux du tableau du jour */}
       <dl className="grid grid-cols-2 gap-2">
         {([
@@ -68,6 +67,10 @@ export function MyWeek({ playerId, date, footer }: { playerId: string; date: str
           </li>
         ))}
       </ol>
+      <p aria-hidden="true" className="-mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-ink/55">
+        <span className="flex items-center gap-1.5"><span className="h-3 w-1.5 rounded-sm bg-ink/70" />charge du jour</span>
+        <span className="flex items-center gap-1.5"><span className="flex gap-0.5"><span className="h-2 w-2 rounded-full bg-ok" /><span className="h-2 w-2 rounded-full bg-gold" /><span className="h-2 w-2 rounded-full bg-rnr" /></span>fatigue</span>
+      </p>
       {footer}
     </Card>
   )

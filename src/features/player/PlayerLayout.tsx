@@ -30,7 +30,7 @@ export function PlayerLayout() {
   return (
     <div className="min-h-dvh pb-[calc(5.5rem+env(safe-area-inset-bottom))]">
       {/* En-tête compact et collant : le nom, la date et les réglages restent à portée sans manger l'écran */}
-      <header className="sticky top-0 z-20 border-b border-line/60 bg-app/90 pt-[env(safe-area-inset-top)] backdrop-blur [view-transition-name:player-header]">
+      <header className="glass sticky top-0 z-20 border-b border-line/40 bg-app/80 pt-[env(safe-area-inset-top)] backdrop-blur-xl backdrop-saturate-150 [view-transition-name:player-header]">
         <div className="mx-auto flex max-w-md items-center gap-3 px-4 py-2">
           <img src="/logo-rnr.svg" alt="" className="h-9 shrink-0" />
           <div className="min-w-0 flex-1">
@@ -64,23 +64,23 @@ export function PlayerLayout() {
 
       {/* Barre d'onglets flottante : pilule détachée du bord, l'onglet actif rempli */}
       <nav aria-label="Navigation" className="[view-transition-name:player-nav] fixed inset-x-0 bottom-0 px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
-        <ul className="mx-auto grid max-w-md grid-cols-5 gap-1 rounded-3xl bg-surface/95 p-1.5 shadow-lg shadow-black/30 ring-1 ring-line/60 backdrop-blur">
+        <ul className="glass mx-auto grid max-w-md grid-cols-5 gap-1 rounded-3xl bg-surface/80 p-1.5 shadow-lg shadow-black/30 ring-1 ring-line/60 backdrop-blur-xl backdrop-saturate-150">
           {TABS.filter(t => t.to !== '/joueur/reglages').map(t => {
             const Icon = ICON[t.to]
-            const tab = 'relative flex h-14 flex-col items-center justify-center gap-0.5 rounded-2xl font-display text-xs font-semibold tracking-wide'
+            const tab = 'relative flex h-14 flex-col items-center justify-center gap-0.5 rounded-2xl font-display text-xs font-semibold tracking-wide transition-transform duration-100 active:scale-[0.94]'
             return (
               <li key={t.to}>
                 {mustFillForm && t.locked ? (
-                  <span aria-disabled="true" className={`${tab} text-ink/30`}>
+                  <TabLink to="/joueur/forme" aria-label={`${t.label} : verrouillé, remplis d'abord ton état de forme`} className={`${tab} text-ink/30`}>
                     <Lock size={20} aria-hidden="true" />{t.label}
-                  </span>
+                  </TabLink>
                 ) : (
                   // onglet actif : trait rouge en haut, comme une ligne d'en-but
                   <TabLink to={t.to} end
-                    className={({ isActive }) => `${tab} ${isActive ? 'text-white' : 'text-ink/55 hover:text-ink/80'}`}>
+                    className={({ isActive }) => `${tab} ${isActive ? 'text-app' : 'text-ink/55 hover:text-ink/80'}`}>
                     {({ isActive }) => <>
                     {/* un seul trait porte ce nom à la fois : le navigateur le fait glisser d'un onglet à l'autre */}
-                    {isActive && <span aria-hidden="true" className="absolute inset-0 rounded-2xl bg-rnr [view-transition-name:tab-bar]" />}
+                    {isActive && <span aria-hidden="true" className="absolute inset-0 rounded-2xl bg-ink [view-transition-name:tab-bar]" />}
                     <span className="relative">
                       <Icon size={22} aria-hidden="true" />
                       {t.to === '/joueur/forme' && mustFillForm && <span className="absolute -right-1 -top-0.5 h-2.5 w-2.5 rounded-full bg-rnr ring-2 ring-surface" aria-label="à remplir" />}

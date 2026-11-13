@@ -22,7 +22,7 @@ function useCountUp(target: number, ms = 700) {
 }
 
 type Props = {
-  label: string; value: number; suffix?: string
+  label: string; value: number | null; suffix?: string // null : aucune donnée, « — »
   // écart avec la veille ; better : le sens qui est une bonne nouvelle (flèche verte), l'autre est rouge
   delta?: number | null; better?: 'up' | 'down'
   trend?: { day: string; value: number | null }[]; color: string; hint?: string; order?: number
@@ -32,7 +32,8 @@ type Props = {
 // Carte de chiffre clé : valeur, écart à la veille, tendance des 7 derniers jours (survol = valeur du jour)
 export function StatCard({ label, value, suffix = '', delta, better = 'up', trend, color, hint, order = 0, deltaLabel = 'vs hier', decimals = 0 }: Props) {
   const k = 10 ** decimals
-  const shown = (useCountUp(Math.round(value * k)) / k).toLocaleString('fr-FR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+  const counted = (useCountUp(Math.round((value ?? 0) * k)) / k).toLocaleString('fr-FR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+  const shown = value === null ? '—' : counted
   const good = delta != null && delta !== 0 && (delta > 0) === (better === 'up')
   const Arrow = (delta ?? 0) >= 0 ? ArrowUpRight : ArrowDownRight
   const gradient = `spark-${label.replace(/\W/g, '')}`
@@ -40,7 +41,7 @@ export function StatCard({ label, value, suffix = '', delta, better = 'up', tren
     <section className="rise flex flex-col gap-1 rounded-2xl bg-surface p-5 ring-1 ring-line/60" style={{ animationDelay: `${order * 70}ms` }}>
       <p className="text-sm text-ink/60">{label}</p>
       <div className="flex items-end justify-between gap-3">
-        <p className="font-display text-4xl font-semibold leading-none tabular-nums">{shown}<span className="text-xl text-ink/60">{suffix}</span></p>
+        <p className="font-display text-4xl font-semibold leading-none tabular-nums">{shown}{value !== null && <span className="text-xl text-ink/60">{suffix}</span>}</p>
         {delta != null && (
           <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${delta === 0 ? 'bg-field text-ink/60' : good ? 'bg-ok/15 text-ok' : 'bg-rnr/15 text-rnr'}`}
             title={`Écart ${deltaLabel}`}>

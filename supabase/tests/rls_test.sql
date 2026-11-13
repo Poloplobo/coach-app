@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(211);
+select plan(212);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -717,6 +717,10 @@ select is_empty($$select 1 from public.planned_sessions ps join public.activity_
                     and not exists (select 1 from public.planned_exercises pe join public.exercise_feedback f on f.planned_exercise_id = pe.id where pe.planned_session_id = ps.id)
                     and not exists (select 1 from public.session_logs l where l.planned_session_id = ps.id)$$,
                 'plus de musculation habituelle sans réponse à venir pendant le protocole');
+
+-- ---------- Longueurs (0048) ----------
+reset role;
+select throws_ok($$update public.profiles set last_name = repeat('X', 61) where id = '00000000-0000-0000-0000-00000000000a'$$, '23514', null, 'nom de plus de 60 caractères refusé');
 
 -- ---------- Visiteur non connecté ----------
 reset role;

@@ -1,4 +1,6 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+
+let homeShown = false // module : vit le temps de la session
 import { addDays, isoWeekStart } from '../../lib/week'
 import { Check, ChevronRight } from 'lucide-react'
 import { TabLink } from '../../components/ui/TabLink'
@@ -24,8 +26,11 @@ const shortDay = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('f
 // charge), la semaine (avec la muscu et les jours à venir), le dernier match, le profil de saison. Maxi et objectifs : onglet Perf.
 export function HomeTab() {
   const { playerId, today } = usePlayerDay()
-  // Les blocs apparaissent l'un après l'autre (une fois ; coupé si l'appareil demande moins d'animations)
-  const rise = (i: number) => ({ className: 'rise empty:hidden', style: { animationDelay: `${i * 70}ms` } })
+  // Les blocs apparaissent l'un après l'autre à la première ouverture seulement (l'Accueil est rouvert plusieurs fois par
+  // jour : rejouer la cascade ralentirait) ; coupé si l'appareil demande moins d'animations
+  const [animate] = useState(() => !homeShown)
+  useEffect(() => { homeShown = true }, [])
+  const rise = (i: number) => (animate ? { className: 'rise empty:hidden', style: { animationDelay: `${i * 50}ms` } } : { className: 'empty:hidden' })
   return (
     <>
       <div {...rise(0)}><CatchUp playerId={playerId} today={today} /></div>
@@ -71,7 +76,7 @@ function TodoToday({ playerId, today, title }: { playerId: string; today: string
         {pending.map(a => (
           <li key={a.activityTypeId}>
             <TabLink to={isMuscu(a) ? '/joueur/seance' : '/joueur/rugby'}
-              className="flex min-h-12 items-center justify-between gap-3 rounded-2xl bg-white/15 px-4 py-2.5 active:bg-white/25">
+              className="flex min-h-12 items-center justify-between gap-3 rounded-2xl bg-white/15 px-4 py-2.5 transition-[transform,background-color] duration-100 active:scale-[0.97] active:bg-white/25">
               <span><span className="font-semibold">{a.name}</span> <span className="text-sm text-white/75">{label(a)}</span></span>
               <ChevronRight size={18} aria-hidden="true" />
             </TabLink>
@@ -87,7 +92,7 @@ function TodoToday({ playerId, today, title }: { playerId: string; today: string
         {pending.map(a => (
           <li key={a.activityTypeId}>
             <TabLink to={isMuscu(a) ? '/joueur/seance' : '/joueur/rugby'}
-              className="flex items-center justify-between gap-3 rounded-lg bg-field px-3 py-2.5 active:bg-ink/10">
+              className="flex items-center justify-between gap-3 rounded-lg bg-field px-3 py-2.5 transition-[transform,background-color] duration-100 active:scale-[0.97] active:bg-ink/10">
               <span><span className="font-semibold">{a.name}</span>{' '}
                 <span className="text-sm text-ink/60">{label(a)}</span></span>
               <ChevronRight size={18} aria-hidden="true" className="text-ink/50" />

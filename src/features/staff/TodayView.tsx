@@ -87,6 +87,8 @@ export function TodayView() {
   rows.sort((a, b) => rank(a) - rank(b) || (a.w?.score ?? 99) - (b.w?.score ?? 99))
   const filled = rows.filter(r => r.w).length
   const alerted = rows.filter(r => r.alerts.length)
+  // Homonymes : le poste départage deux joueurs au même nom dans les listes
+  const label = (p: Player) => roster.data.filter(x => fullName(x) === fullName(p)).length > 1 ? `${fullName(p)} (${p.position ?? 'poste ?'})` : fullName(p)
   const late = latecomers(roster.data, todayW, plan.data, logs.data, today, recentSkips.data ?? [])
   const level = (r: (typeof rows)[number]) => (r.w?.score != null ? LEVELS[postureOf(fatiguePercent(r.w.score))].id : null)
   const shown = rows.filter(r => filter === 'tous' || (filter === 'alertes' ? r.alerts.length > 0 : filter === 'non-remplis' ? !r.w : level(r) === filter))
@@ -111,10 +113,12 @@ export function TodayView() {
         <p className="text-sm text-ink/55 first-letter:uppercase">{formatDay(today)}</p>
         <h1 className="font-display text-3xl font-bold leading-tight">Bonjour {me.data?.first_name}</h1>
         <p className="max-w-4xl text-base leading-snug text-ink/80">
-          <strong className="text-ink">{filled} joueurs sur {rows.length}</strong> ont rempli leur état de forme.{' '}
+          <strong className="text-ink">{filled} joueur{filled > 1 ? 's' : ''} sur {rows.length}</strong> {filled > 1 ? 'ont' : 'a'} rempli {filled > 1 ? 'leur' : 'son'} état de forme.{' '}
+          {/* 3 noms au plus, avec leur premier motif : la phrase reste courte quel que soit le nombre d'alertes (détail : filtre « Alertes ») */}
           {alerted.length === 0 ? 'Aucune alerte.' : <>
             <strong className="text-rnr">{alerted.length} alerte{alerted.length > 1 ? 's' : ''}</strong> :{' '}
-            {alerted.map((r, i) => <span key={r.player.id}>{i > 0 && ', '}<Link to={`/staff/joueur/${r.player.id}`} className="font-semibold text-ink underline-offset-4 hover:underline">{fullName(r.player)}</Link> ({r.alerts.join(', ').toLowerCase()})</span>)}.
+            {alerted.slice(0, 3).map((r, i) => <span key={r.player.id}>{i > 0 && ', '}<Link to={`/staff/joueur/${r.player.id}`} className="font-semibold text-ink underline-offset-4 hover:underline">{label(r.player)}</Link> ({r.alerts[0].toLowerCase()})</span>)}
+            {alerted.length > 3 ? <> et {alerted.length - 3} autre{alerted.length > 4 ? 's' : ''}.</> : '.'}
           </>}
           {roster.data.some(p => p.injured) && <> {roster.data.filter(p => p.injured).length} blessé{roster.data.filter(p => p.injured).length > 1 ? 's' : ''}.</>}
         </p>
@@ -123,7 +127,7 @@ export function TodayView() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard order={1} label="États de forme remplis" value={filled} suffix={` / ${rows.length}`} delta={cur.filled - prev.filled} better="up" trend={series('filled')} color={BRAND.ok} />
         <StatCard order={2} label="Alertes" value={alerted.length} delta={cur.alerts - prev.alerts} better="down" trend={series('alerts')} color={BRAND.rnr} />
-        <StatCard order={3} label="Fatigue moyenne" value={mean ?? 0} suffix=" %" delta={cur.fatigue !== null && prev.fatigue !== null ? cur.fatigue - prev.fatigue : null} better="down" trend={series('fatigue')} color={BRAND.gold} />
+        <StatCard order={3} label="Fatigue moyenne" value={mean} suffix=" %" delta={cur.fatigue !== null && prev.fatigue !== null ? cur.fatigue - prev.fatigue : null} better="down" trend={series('fatigue')} color={BRAND.gold} />
         <StatCard order={4} label="À relancer" value={late.length} color={BRAND.muted} hint="Oubli d'une saisie hier ou aujourd'hui (liste à droite)." />
       </div>
 
@@ -139,6 +143,9 @@ export function TodayView() {
               {LEVELS.map(l => <option key={l.id} value={l.id}>{l.label} ({rows.filter(r => level(r) === l.id).length})</option>)}
             </ViewSelect>
           )}>
+          <div className="relative">
+          {/* Petit écran : un dégradé au bord droit signale que le tableau défile */}
+          <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-surface xl:hidden" />
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-xs text-ink/55">
@@ -156,8 +163,8 @@ export function TodayView() {
                   return (
                     // Alerte : ligne teintée, motif en infobulle ; la réponse à 1 est déjà en rouge dans sa colonne, le score sous 16 aussi
                     <tr key={player.id} className={`border-t border-line ${alerts.length ? 'bg-rnr/[0.07]' : ''}`} title={alerts.length ? `Alerte : ${alerts.join(', ')}` : undefined}>
-                      <td className="whitespace-nowrap py-1.5 pr-3">
-                        <Link to={`/staff/joueur/${player.id}`} className="flex items-center gap-2 font-semibold underline-offset-4 hover:underline"><Avatar id={player.id} name={fullName(player)} className="h-7 w-7" />{fullName(player)}</Link>
+                      <td className="min-w-[12rem] max-w-[18rem] py-1.5 pr-3">
+                        <Link to={`/staff/joueur/${player.id}`} className="flex items-center gap-2 font-semibold underline-offset-4 hover:underline"><Avatar id={player.id} name={fullName(player)} className="h-7 w-7" /><span className="min-w-0">{fullName(player)}</span></Link>
                         <span className="ml-2 text-xs text-ink/50">{player.position}</span>
                         {player.injured && <span className="ml-2"><Badge tone="warn">blessé</Badge></span>}
                         {alerts.length > 0 && <span className="sr-only">Alerte : {alerts.join(', ')}</span>}
@@ -186,6 +193,7 @@ export function TodayView() {
               </tbody>
             </table>
             {shown.length === 0 && <p className="py-3 text-sm text-ink/60">Personne dans cette catégorie.</p>}
+          </div>
           </div>
         </Card>
         </div>
@@ -216,7 +224,7 @@ export function TodayView() {
                     <button type="button" onClick={() => setFilter(filter === x.id ? 'tous' : x.id)}
                       className={`flex w-full items-center gap-2 rounded-md px-1.5 py-0.5 text-left hover:bg-field ${filter === x.id ? 'bg-field font-semibold' : ''}`}>
                       <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: x.color }} aria-hidden="true" />
-                      <span className="flex-1 truncate">{x.label}</span><span className="tabular-nums text-ink/70">{x.count}</span>
+                      <span className="flex-1 leading-tight">{x.label}</span><span className="tabular-nums text-ink/70">{x.count}</span>
                     </button>
                   </li>
                 ))}
@@ -225,7 +233,7 @@ export function TodayView() {
           </div>
 
           <div className="rise" style={{ animationDelay: '440ms' }}>
-            <MissingRpeCard data={recentLogs.data && recentPlan.data && recentSkips.data && ref.data
+            <MissingRpeCard label={label} data={recentLogs.data && recentPlan.data && recentSkips.data && ref.data
               ? missingRpe(roster.data, recentPlan.data, recentLogs.data, ref.data.types, addDays(today, -7), yesterday, recentSkips.data) : null}
               skips={recentSkips.data && ref.data ? recentSkips.data.map(k => ({ ...k, player: roster.data.find(p => p.id === k.player_id),
                 activity: ref.data.types.find(t => t.id === k.activity_type_id)?.name ?? '' })) : null} />
@@ -237,7 +245,7 @@ export function TodayView() {
           {late.length === 0 && <p className="text-sm text-ok">Tout le monde est à jour.</p>}
           <ul className="flex flex-col">
             {(allLate ? late : late.slice(0, 6)).map(({ player, missing }) => (
-              <Reminder key={player.id} playerId={player.id} name={fullName(player)} missing={missing} message={reminderMessage(player, missing)}
+              <Reminder key={player.id} playerId={player.id} name={label(player)} missing={missing} message={reminderMessage(player, missing)}
                 yesterday={missing.includes('RPE d\'hier') ? yesterday : null} reminded={reminded.data?.includes(player.id) ?? false} />
             ))}
           </ul>
@@ -260,7 +268,7 @@ function LoadCell({ load }: { load: { total: number; pace: ReturnType<typeof wee
   return (
     <span className="flex flex-col items-start gap-1 whitespace-nowrap">
       <span className="flex items-center gap-1.5" title={pace ? `${total} UA pour ${pace.limit} au rythme de la semaine (${pace.share} % du planning passé)` : undefined}>
-        {pace?.over ? <Badge tone="bad">{total} UA · {pace.pct} %</Badge> : <span className="tabular-nums">{total} UA</span>}
+        {pace?.over ? <Badge tone="bad">{total.toLocaleString('fr-FR')} UA · {pace.pct} %</Badge> : <span className="tabular-nums">{total.toLocaleString('fr-FR')} UA</span>}
         {flagged.length > 0 && (
           <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="rounded-full hover:opacity-80"
             aria-label={`${flagged.length} séance${flagged.length > 1 ? 's' : ''} d'hier ou d'aujourd'hui à signaler : détails`} title="Séances d'hier ou d'aujourd'hui à signaler">
@@ -281,8 +289,8 @@ function LoadCell({ load }: { load: { total: number; pace: ReturnType<typeof wee
 // Les joueurs qui ne déclarent pas leur RPE : nombre d'oublis sur les 7 derniers jours ; le jour par jour au clic, 5 joueurs d'abord
 type SkipRow = { player_id: string; session_date: string; activity: string; reason: string; note: string | null; player?: Player }
 
-export function MissingRpeCard({ data, skips, title = 'RPE non déclarés (7 derniers jours)' }: {
-  data: ReturnType<typeof missingRpe> | null; skips?: SkipRow[] | null; title?: string
+export function MissingRpeCard({ data, skips, label = fullName, title = 'RPE non déclarés (7 derniers jours)' }: {
+  data: ReturnType<typeof missingRpe> | null; skips?: SkipRow[] | null; title?: string; label?: (p: Player) => string
 }) {
   const [open, setOpen] = useState<string | null>(null)
   const [all, setAll] = useState(false)
@@ -310,7 +318,7 @@ export function MissingRpeCard({ data, skips, title = 'RPE non déclarés (7 der
               <li key={player.id} className="border-t border-line/60 py-1.5 text-sm">
                 <button type="button" onClick={() => setOpen(open === player.id ? null : player.id)} aria-expanded={open === player.id}
                   className="flex w-full items-center justify-between gap-2 text-left">
-                  <span className="flex min-w-0 items-center gap-2 font-semibold"><Avatar id={player.id} name={fullName(player)} className="h-6 w-6" /><span className="truncate">{fullName(player)}</span></span>
+                  <span className="flex min-w-0 items-center gap-2 font-semibold"><Avatar id={player.id} name={fullName(player)} className="h-6 w-6" /><span className="truncate" title={label(player)}>{label(player)}</span></span>
                   <Badge tone={missed / planned >= 0.25 ? 'bad' : 'warn'}>{missed} oubli{missed > 1 ? 's' : ''} sur {planned}</Badge>
                 </button>
                 {open === player.id && (
@@ -348,7 +356,7 @@ function Reminder({ playerId, name, missing, message, yesterday, reminded }: {
   return (
     <li className="flex items-center justify-between gap-2 border-t border-line/60 py-1.5">
       <span className="min-w-0 text-sm">
-        <span className="block truncate font-semibold">{name}</span>
+        <span className="block truncate font-semibold" title={name}>{name}</span>
         <span className="block truncate text-xs text-ink/55" title={missing.join(', ')}>{missing.join(', ')}</span>
       </span>
       <span className="flex shrink-0 items-center gap-1.5">

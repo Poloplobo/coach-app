@@ -24,6 +24,14 @@ body {
   @apply bg-app text-ink font-sans antialiased;
 }
 
+/* Pas de flash gris au toucher (iOS) : chaque élément touchable a son propre retour (léger enfoncement) */
+html { -webkit-tap-highlight-color: transparent; }
+
+/* En-tête et barre d'onglets translucides ; opaques si l'appareil demande moins de transparence */
+@media (prefers-reduced-transparency: reduce) {
+  .glass { backdrop-filter: none; background-color: rgb(var(--surface)); }
+}
+
 /* Chiffres alignés en colonne dans tous les tableaux */
 table { font-variant-numeric: tabular-nums; }
 

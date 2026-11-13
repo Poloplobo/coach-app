@@ -31,7 +31,7 @@ export function SettingsTab() {
           <span>Mode sombre</span>
           <button type="button" role="switch" aria-checked={theme === 'dark'} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             className={`relative h-7 w-12 rounded-full border border-line ${theme === 'dark' ? 'bg-rnr' : 'bg-field'}`}>
-            <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white border border-line shadow transition-all ${theme === 'dark' ? 'left-6' : 'left-0.5'}`} />
+            <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white border border-line shadow left-0.5 transition-transform duration-150 ease-out ${theme === 'dark' ? 'translate-x-[1.375rem]' : ''}`} />
           </button>
         </label>
         {profile.data?.role === 'player' && <MorningReminder className={row} />}
@@ -90,7 +90,7 @@ function MorningReminder({ className }: { className: string }) {
       {(state.data === 'on' || state.data === 'off') && (
         <button type="button" role="switch" aria-checked={on} aria-label="Rappel du matin" disabled={toggle.isPending} onClick={() => toggle.mutate(!on)}
           className={`relative h-7 w-12 shrink-0 rounded-full border border-line ${on ? 'bg-rnr' : 'bg-field'}`}>
-          <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white border border-line shadow transition-all ${on ? 'left-6' : 'left-0.5'}`} />
+          <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white border border-line shadow left-0.5 transition-transform duration-150 ease-out ${on ? 'translate-x-[1.375rem]' : ''}`} />
         </button>
       )}
     </div>

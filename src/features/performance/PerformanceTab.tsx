@@ -72,7 +72,7 @@ export function PerformanceTab() {
           </button>
         ))}
       </div>
-      <div id="perf-pane" role="tabpanel" aria-labelledby={`perf-${pane}`} key={pane} className="rise flex touch-pan-y flex-col gap-6"
+      <div id="perf-pane" role="tabpanel" aria-labelledby={`perf-${pane}`} key={pane} className="flex touch-pan-y flex-col gap-6"
         onTouchStart={e => { touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY } }}
         onTouchEnd={e => swipe(e.changedTouches[0].clientX, e.changedTouches[0].clientY)}>
       {/* Carte de joueur : le joueur détouré en tête de ses GPS et de ses tests */}

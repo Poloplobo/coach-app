@@ -17,6 +17,8 @@ export default {
         // fond des champs et boutons d'échelle : translucide, lisible sur la page comme dans un bloc
         field: 'rgb(var(--ink) / 0.06)',
       },
+      // ease-out forte pour l'interface (la valeur par défaut de Tailwind est trop molle)
+      transitionTimingFunction: { out: 'cubic-bezier(0.23, 1, 0.32, 1)' },
       fontFamily: {
         // Barlow : texte courant ; Barlow Condensed : chiffres, titres, navigation (esprit tableau d'affichage)
         sans: ['Barlow', 'system-ui', 'sans-serif'],

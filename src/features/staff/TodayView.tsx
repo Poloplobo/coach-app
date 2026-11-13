@@ -132,7 +132,7 @@ export function TodayView() {
       </div>
 
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="rise min-w-0" style={{ animationDelay: '320ms' }}>
+        <div className="rise min-w-0" style={{ animationDelay: '160ms' }}>
         <Card boxed title="État de forme du jour"
           help="Chaque question de 1 (mauvais) à 5 (bon) : 2 en jaune, 1 en rouge. Alerte (ligne teintée) : score sous 16/30 ou une réponse à 1. Cloche barrée : rappel du matin non activé. Un nom ouvre la fiche."
           aside={(
@@ -199,13 +199,13 @@ export function TodayView() {
         </div>
 
         <div className="flex flex-col gap-4">
-          <div className="rise" style={{ animationDelay: '400ms' }}>
+          <div className="rise" style={{ animationDelay: '200ms' }}>
             <Card boxed title="Forme du groupe" help="Fatigue estimée de chaque joueur aujourd'hui. Cliquez une part pour filtrer le tableau.">
               <div className="relative h-44">
                 <ResponsiveContainer>
                   <PieChart>
                     <Pie data={donut} dataKey="count" nameKey="label" innerRadius="62%" outerRadius="92%" paddingAngle={2} stroke="none"
-                      onClick={(_, i) => setFilter(donut[i].id)} className="cursor-pointer" animationDuration={900}>
+                      onClick={(_, i) => setFilter(donut[i].id)} className="cursor-pointer" isAnimationActive={false}>
                       {donut.map(x => <Cell key={x.id} fill={x.color} opacity={filter === 'tous' || filter === x.id ? 1 : 0.35} />)}
                     </Pie>
                     <Tooltip formatter={(v, n) => [`${v} joueur${Number(v) > 1 ? 's' : ''}`, String(n)]}
@@ -232,14 +232,14 @@ export function TodayView() {
             </Card>
           </div>
 
-          <div className="rise" style={{ animationDelay: '440ms' }}>
+          <div className="rise" style={{ animationDelay: '200ms' }}>
             <MissingRpeCard label={label} data={recentLogs.data && recentPlan.data && recentSkips.data && ref.data
               ? missingRpe(roster.data, recentPlan.data, recentLogs.data, ref.data.types, addDays(today, -7), yesterday, recentSkips.data) : null}
               skips={recentSkips.data && ref.data ? recentSkips.data.map(k => ({ ...k, player: roster.data.find(p => p.id === k.player_id),
                 activity: ref.data.types.find(t => t.id === k.activity_type_id)?.name ?? '' })) : null} />
           </div>
 
-          <div className="rise" style={{ animationDelay: '480ms' }}>
+          <div className="rise" style={{ animationDelay: '200ms' }}>
         <Card boxed title={`À relancer (${late.length})`}
           help="Ont oublié une saisie hier ou aujourd'hui. « Relancer » : le joueur voit un bandeau dans l'app et peut déclarer sa journée d'hier jusqu'à minuit. « Copier » : message à envoyer vous-même.">
           {late.length === 0 && <p className="text-sm text-ok">Tout le monde est à jour.</p>}

@@ -1,25 +1,5 @@
-import { useEffect, useState } from 'react'
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
 import { Area, AreaChart, ResponsiveContainer, Tooltip } from 'recharts'
-
-// Le chiffre défile jusqu'à sa valeur au chargement (une fois) ; immédiat si l'appareil demande moins d'animations
-function useCountUp(target: number, ms = 700) {
-  const [shown, setShown] = useState(0)
-  useEffect(() => {
-    // 0 : valeur finale dès la 1re image ; matchMedia absent (tests, très vieux navigateur) : animation normale
-    const dur = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : ms
-    let raf = 0
-    const start = performance.now()
-    const tick = (t: number) => {
-      const k = dur ? Math.min(1, (t - start) / dur) : 1
-      setShown(Math.round(target * (1 - (1 - k) ** 3)))
-      if (k < 1) raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [target, ms])
-  return shown
-}
 
 type Props = {
   label: string; value: number | null; suffix?: string // null : aucune donnée, « — »
@@ -32,8 +12,8 @@ type Props = {
 // Carte de chiffre clé : valeur, écart à la veille, tendance des 7 derniers jours (survol = valeur du jour)
 export function StatCard({ label, value, suffix = '', delta, better = 'up', trend, color, hint, order = 0, deltaLabel = 'vs hier', decimals = 0 }: Props) {
   const k = 10 ** decimals
-  const counted = (useCountUp(Math.round((value ?? 0) * k)) / k).toLocaleString('fr-FR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
-  const shown = value === null ? '—' : counted
+  // Valeur affichée telle quelle : c'est une donnée de travail lue tous les jours, pas une animation à regarder
+  const shown = value === null ? '—' : (Math.round(value * k) / k).toLocaleString('fr-FR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
   const good = delta != null && delta !== 0 && (delta > 0) === (better === 'up')
   const Arrow = (delta ?? 0) >= 0 ? ArrowUpRight : ArrowDownRight
   const gradient = `spark-${label.replace(/\W/g, '')}`
@@ -62,7 +42,7 @@ export function StatCard({ label, value, suffix = '', delta, better = 'up', tren
               <Tooltip cursor={{ stroke: 'currentColor', strokeOpacity: 0.2 }} formatter={v => [`${v}${suffix}`, '']} labelFormatter={l => String(l)}
                 contentStyle={{ background: 'rgb(var(--surface))', border: '1px solid rgb(var(--line))', borderRadius: 8, fontSize: 12, padding: '4px 8px' }}
                 itemStyle={{ color: 'rgb(var(--ink))', padding: 0 }} labelStyle={{ color: 'rgb(var(--ink) / 0.6)' }} separator="" />
-              <Area type="monotone" dataKey="value" stroke={color} strokeWidth={2} fill={`url(#${gradient})`} connectNulls animationDuration={900} />
+              <Area type="monotone" dataKey="value" stroke={color} strokeWidth={2} fill={`url(#${gradient})`} connectNulls isAnimationActive={false} />
             </AreaChart>
           </ResponsiveContainer>
         </div>

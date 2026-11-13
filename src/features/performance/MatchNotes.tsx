@@ -34,7 +34,7 @@ export function MatchNotes() {
         {matches.data.map((m, i) => {
           const staff = of(m.id, 'staff')
           return (
-            <li key={m.id} className="rise" style={{ animationDelay: `${i * 50}ms` }}>
+            <li key={m.id} className="rise" style={{ animationDelay: `${Math.min(i * 40, 200)}ms` }}>
               <div className={`flex h-full flex-col gap-3 rounded-2xl bg-surface p-4 ring-1 ${staff.length ? 'ring-line/60' : 'ring-rnr/50'}`}>
                 <div className="flex items-center gap-3">
                   <ClubLogo match={m} className="h-11 w-11" />

@@ -30,7 +30,7 @@ export function HomeTab() {
   // jour : rejouer la cascade ralentirait) ; coupé si l'appareil demande moins d'animations
   const [animate] = useState(() => !homeShown)
   useEffect(() => { homeShown = true }, [])
-  const rise = (i: number) => (animate ? { className: 'rise empty:hidden', style: { animationDelay: `${i * 50}ms` } } : { className: 'empty:hidden' })
+  const rise = (i: number) => (animate ? { className: 'rise empty:hidden', style: { animationDelay: `${Math.min(i * 40, 200)}ms` } } : { className: 'empty:hidden' })
   return (
     <>
       <div {...rise(0)}><CatchUp playerId={playerId} today={today} /></div>
@@ -76,7 +76,7 @@ function TodoToday({ playerId, today, title }: { playerId: string; today: string
         {pending.map(a => (
           <li key={a.activityTypeId}>
             <TabLink to={isMuscu(a) ? '/joueur/seance' : '/joueur/rugby'}
-              className="flex min-h-12 items-center justify-between gap-3 rounded-2xl bg-white/15 px-4 py-2.5 transition-[transform,background-color] duration-100 active:scale-[0.97] active:bg-white/25">
+              className="flex min-h-12 items-center justify-between gap-3 rounded-2xl bg-white/15 px-4 py-2.5 transition-[transform,background-color] duration-150 ease-out active:scale-[0.97] motion-reduce:active:scale-100 active:bg-white/25">
               <span><span className="font-semibold">{a.name}</span> <span className="text-sm text-white/75">{label(a)}</span></span>
               <ChevronRight size={18} aria-hidden="true" />
             </TabLink>
@@ -92,7 +92,7 @@ function TodoToday({ playerId, today, title }: { playerId: string; today: string
         {pending.map(a => (
           <li key={a.activityTypeId}>
             <TabLink to={isMuscu(a) ? '/joueur/seance' : '/joueur/rugby'}
-              className="flex items-center justify-between gap-3 rounded-lg bg-field px-3 py-2.5 transition-[transform,background-color] duration-100 active:scale-[0.97] active:bg-ink/10">
+              className="flex items-center justify-between gap-3 rounded-lg bg-field px-3 py-2.5 transition-[transform,background-color] duration-150 ease-out active:scale-[0.97] motion-reduce:active:scale-100 active:bg-ink/10">
               <span><span className="font-semibold">{a.name}</span>{' '}
                 <span className="text-sm text-ink/60">{label(a)}</span></span>
               <ChevronRight size={18} aria-hidden="true" className="text-ink/50" />
@@ -149,7 +149,7 @@ function Ring({ label, fill, tone, children }: { label: string; fill: number; to
         <svg viewBox="0 0 64 64" aria-hidden="true" className="h-16 w-16 -rotate-90">
           <circle cx="32" cy="32" r="26" strokeWidth="7" className="fill-none stroke-field" />
           <circle cx="32" cy="32" r="26" strokeWidth="7" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - Math.min(1, Math.max(0, fill) / 100))}
-            className={`fill-none transition-[stroke-dashoffset] duration-700 ${tone}`} />
+            className={`fill-none transition-[stroke-dashoffset] duration-300 ease-out ${tone}`} />
         </svg>
         <span className="absolute inset-0 flex items-center justify-center font-display text-xl font-semibold tabular-nums">{children}</span>
       </div>

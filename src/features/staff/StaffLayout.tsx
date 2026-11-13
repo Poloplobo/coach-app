@@ -57,7 +57,7 @@ export function StaffLayout() {
           className="flex h-11 w-11 items-center justify-center rounded-full bg-field"><Menu size={20} aria-hidden="true" /></button>
       </header>
       {open && <button type="button" aria-label="Fermer le menu" onClick={() => setOpen(false)} className="fixed inset-0 z-20 bg-app/70 md:hidden" />}
-      <aside className={`group [view-transition-name:staff-header] fixed inset-y-0 left-0 z-30 p-2 transition-[width] duration-200 ${open ? 'block w-64' : 'hidden w-[4.75rem] md:block md:hover:w-64 md:has-[:focus-visible]:w-64'}`}>
+      <aside className={`group [view-transition-name:staff-header] fixed inset-y-0 left-0 z-30 p-2 ${open ? 'block w-64' : 'hidden w-[4.75rem] md:block md:hover:w-64 md:has-[:focus-visible]:w-64'}`}>
         <div className="flex h-full flex-col gap-5 overflow-hidden whitespace-nowrap rounded-2xl bg-surface p-2 ring-1 ring-line/60 group-hover:shadow-2xl group-hover:shadow-black/40 group-has-[:focus-visible]:shadow-2xl">
           <div className="flex items-center gap-3 px-1 pt-1">
             <img src="/logo-rnr.svg" alt="" className="h-10 shrink-0" />

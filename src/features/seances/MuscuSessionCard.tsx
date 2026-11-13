@@ -112,7 +112,7 @@ export function MuscuSessionCard({ playerId, date, catchUp = false, activity = M
         {strip}
         <div className="flex items-center gap-3" aria-label={`${c.done} exercices faits sur ${c.total}`}>
           <div className="h-2 flex-1 rounded-full bg-field" aria-hidden="true">
-            <div className="h-2 rounded-full bg-ok transition-[width] duration-500" style={{ width: `${c.pct}%` }} />
+            <div className="h-2 origin-left rounded-full bg-ok transition-transform duration-300 ease-out motion-reduce:transition-none" style={{ transform: `scaleX(${c.pct / 100})` }} />
           </div>
           <span className="text-sm tabular-nums text-ink/70">{c.done}/{c.total} faits</span>
         </div>

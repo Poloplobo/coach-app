@@ -67,7 +67,7 @@ export function PlayerLayout() {
         <ul className="glass mx-auto grid max-w-md grid-cols-5 gap-1 rounded-3xl bg-surface/80 p-1.5 shadow-lg shadow-black/30 ring-1 ring-line/60 backdrop-blur-xl backdrop-saturate-150">
           {TABS.filter(t => t.to !== '/joueur/reglages').map(t => {
             const Icon = ICON[t.to]
-            const tab = 'relative flex h-14 flex-col items-center justify-center gap-0.5 rounded-2xl font-display text-xs font-semibold tracking-wide transition-transform duration-100 active:scale-[0.94]'
+            const tab = 'relative flex h-14 flex-col items-center justify-center gap-0.5 rounded-2xl font-display text-xs font-semibold tracking-wide transition-transform duration-150 ease-out active:scale-[0.97] motion-reduce:active:scale-100'
             return (
               <li key={t.to}>
                 {mustFillForm && t.locked ? (

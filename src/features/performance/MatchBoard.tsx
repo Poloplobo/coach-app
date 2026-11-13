@@ -100,7 +100,7 @@ export function MatchBoard() {
           <p className="text-sm text-ink/60 first-letter:uppercase">{formatDay(match.match_date)}{match.home === null ? '' : match.home ? ' · domicile' : ' · extérieur'}</p>
         </div>
       </header>
-      <p className="rise max-w-4xl leading-snug text-ink/80" style={{ animationDelay: '60ms' }}>
+      <p className="rise max-w-4xl leading-snug text-ink/80" style={{ animationDelay: '40ms' }}>
         <strong className="text-ink">{withGps.length} joueur{withGps.length > 1 ? 's' : ''} avec GPS</strong> sur {rows.length}.{' '}
         {analysed.length > 0 && <><strong className="text-ink">{full} joueur{full > 1 ? 's' : ''}</strong> remplissent les 3 attendus de leur poste, {none} aucun. </>}
         {fastest?.record?.vmax != null && <>Vmax du match : <strong className="text-ink">{fastest.record.vmax.toLocaleString('fr-FR')} km/h</strong> ({fullName(fastest.player)}{fastest.vmax?.record ? ', record personnel' : ''}).</>}
@@ -115,7 +115,7 @@ export function MatchBoard() {
       </div>
 
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="rise min-w-0" style={{ animationDelay: '320ms' }}>
+        <div className="rise min-w-0" style={{ animationDelay: '160ms' }}>
           <Card boxed title="GPS du match" help="Données brutes du boîtier. Barre : comparée au meilleur du match. En petit : % de l'attendu au poste (ramené à 70 min), coché quand il est atteint."
             aside={(
               <ViewSelect label="Trier par" value={sort} onChange={setSort}>
@@ -148,7 +148,7 @@ export function MatchBoard() {
         </div>
 
         <div className="flex flex-col gap-4">
-          <div className="rise" style={{ animationDelay: '400ms' }}>
+          <div className="rise" style={{ animationDelay: '200ms' }}>
             <Card boxed title="Couleur GPS" help="Attendus du poste remplis sur 3 (distance, haute intensité, accélérations).">
               {colors.length ? (
                 <div className="relative h-40">
@@ -175,7 +175,7 @@ export function MatchBoard() {
               </ul>
             </Card>
           </div>
-          <div className="rise" style={{ animationDelay: '480ms' }}>
+          <div className="rise" style={{ animationDelay: '200ms' }}>
             <Card boxed title="Vmax du match" help="Les 5 plus rapides ; ★ : record personnel battu.">
               <ol className="flex flex-col">
                 {topVmax.map((r, i) => (

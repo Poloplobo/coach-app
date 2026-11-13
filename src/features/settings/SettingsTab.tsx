@@ -42,7 +42,7 @@ export function SettingsTab() {
               {(profile.data.role === 'player' ? PLAYER_GUIDE : STAFF_GUIDE).map(s => (
                 <section key={s.title}>
                   <h3 className="font-semibold">{s.title}</h3>
-                  <ul className="mt-1 flex list-disc flex-col gap-1 pl-5 text-ink/80">{s.items.map(i => <li key={i}>{i}</li>)}</ul>
+                  <ul className="mt-1 flex list-disc flex-col gap-1 pl-5 text-ink/75">{s.items.map(i => <li key={i}>{i}</li>)}</ul>
                 </section>
               ))}
             </div>
@@ -58,10 +58,10 @@ export function SettingsTab() {
             {PRIVACY_SECTIONS.map(s => (
               <div key={s.title}>
                 <h3 className="font-semibold">{s.title}</h3>
-                <p className="text-ink/80">{s.text}</p>
+                <p className="text-ink/75">{s.text}</p>
               </div>
             ))}
-            <p className="text-ink/80">
+            <p className="text-ink/75">
               Contact : {PRIVACY_CONTACT ? <a className="underline" href={`mailto:${PRIVACY_CONTACT}`}>{PRIVACY_CONTACT}</a> : 'le staff du Pôle'}.
               Tu peux aussi saisir la CNIL (cnil.fr).
             </p>
@@ -97,7 +97,7 @@ function MorningReminder({ className }: { className: string }) {
   )
 }
 
-const Chevron = () => <ChevronRight size={18} aria-hidden="true" className="text-ink/50 transition-transform group-open:rotate-90" />
+const Chevron = () => <ChevronRight size={18} aria-hidden="true" className="text-ink/60 transition-transform group-open:rotate-90" />
 
 function ChangePassword() {
   const change = useChangePassword()
@@ -119,17 +119,17 @@ function ChangePassword() {
         <label className="flex flex-col gap-1 text-sm">
           Mot de passe actuel
           <input type="password" autoComplete="current-password" value={current} onChange={e => setCurrent(e.target.value)}
-            className="rounded-md bg-field border border-line px-3 py-2.5 text-base" />
+            className="rounded-lg bg-field border border-line px-3 py-2.5 text-base" />
         </label>
         <label className="flex flex-col gap-1 text-sm">
           Nouveau mot de passe ({MIN_PASSWORD_LENGTH} caractères minimum)
           <input type="password" autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)}
-            className="rounded-md bg-field border border-line px-3 py-2.5 text-base" />
+            className="rounded-lg bg-field border border-line px-3 py-2.5 text-base" />
         </label>
         <label className="flex flex-col gap-1 text-sm">
           Confirmer
           <input type="password" autoComplete="new-password" value={confirm} onChange={e => setConfirm(e.target.value)}
-            className="rounded-md bg-field border border-line px-3 py-2.5 text-base" />
+            className="rounded-lg bg-field border border-line px-3 py-2.5 text-base" />
         </label>
         {tooShort && <p className="text-sm text-ink/70">Encore {MIN_PASSWORD_LENGTH - password.length} caractère(s).</p>}
         {mismatch && <p className="text-sm text-ink/70">Les deux mots de passe ne sont pas identiques.</p>}

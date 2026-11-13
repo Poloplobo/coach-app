@@ -41,7 +41,7 @@ export function WeeksPanel() {
                 const wt = ref.data.weekTypes.find(t => t.code === w.week_type_code)
                 return (
                   <tr key={w.code} className="border-t border-line">
-                    <td className="py-2 pr-3 font-semibold">{w.code}{addDays(w.start_date, 6) < today && <span className="text-ink/50"> · passée</span>}</td>
+                    <td className="py-2 pr-3 font-semibold">{w.code}{addDays(w.start_date, 6) < today && <span className="text-ink/60"> · passée</span>}</td>
                     <td className="pr-3">{w.label}</td>
                     <td className="pr-3">{new Date(w.start_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' })}</td>
                     <td className="pr-3">{w.is_off ? <Badge tone="neutral">OFF</Badge> : <>{w.week_type_code}{wt && <span className="text-ink/60"> · {rangeLabel(wt)}</span>}</>}</td>

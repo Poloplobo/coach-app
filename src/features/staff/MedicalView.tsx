@@ -224,17 +224,17 @@ function InjuredPlayer({ player, from, to, start, today, since, sessions: all, l
                     {log?.validated_at ? <Badge tone="ok">RPE {Number(log.rpe).toLocaleString('fr-FR')}</Badge>
                       : s.session_date <= last ? <Badge tone="warn">non validée</Badge> : <Badge tone="neutral">à venir</Badge>}
                     {pain !== null && <Badge tone={PAIN_TONE(pain)}>douleur {pain.toLocaleString('fr-FR')}</Badge>}
-                    <span aria-hidden="true" className="ml-auto text-ink/50">{expanded ? '▴' : '▾'}</span>
+                    <span aria-hidden="true" className="ml-auto text-ink/60">{expanded ? '▴' : '▾'}</span>
                   </button>
                   {expanded && (
                     <table className="mb-2 w-full text-sm">
-                      <thead className="text-left text-xs text-ink/55"><tr><th className="py-1 pr-2 font-normal">Exercice</th><th className="pr-2 font-normal">Prévu</th><th className="pr-2 font-normal">Statut</th><th className="pr-2 font-normal">RPE</th><th className="pr-2 font-normal">Douleur</th><th className="font-normal">Charge</th></tr></thead>
+                      <thead className="text-left text-xs text-ink/60"><tr><th className="py-1 pr-2 font-normal">Exercice</th><th className="pr-2 font-normal">Prévu</th><th className="pr-2 font-normal">Statut</th><th className="pr-2 font-normal">RPE</th><th className="pr-2 font-normal">Douleur</th><th className="font-normal">Charge</th></tr></thead>
                       <tbody>
                         {[...ex].sort((a, b) => a.position - b.position).map(e => {
                           const f = e.exercise_feedback[0]
                           return (
                             <tr key={e.id} className="border-t border-line/60">
-                              <td className="py-1 pr-2"><span className="text-ink/50">{e.block_label} </span>{e.exercises?.name}</td>
+                              <td className="py-1 pr-2"><span className="text-ink/60">{e.block_label} </span>{e.exercises?.name}</td>
                               <td className="pr-2 text-ink/70">{[e.sets, e.reps].filter(Boolean).join(' × ')}</td>
                               <td className="pr-2">{f?.status ?? '—'}</td>
                               <td className="pr-2 tabular-nums">{f?.rpe ?? '—'}</td>
@@ -262,7 +262,7 @@ function InjuredPlayer({ player, from, to, start, today, since, sessions: all, l
           <h3 className="font-display text-lg font-semibold">Douleur par exercice (4 semaines)</h3>
           {!summary.pain.length ? <p className="text-sm text-ink/60">Aucune douleur déclarée pour l'instant.</p> : (
             <table className="w-full text-sm">
-              <thead className="text-left text-xs text-ink/55"><tr><th className="py-1 pr-3 font-normal">Exercice</th><th className="pr-3 font-normal">Dernière</th><th className="pr-3 font-normal">Évolution</th><th className="font-normal">Historique</th></tr></thead>
+              <thead className="text-left text-xs text-ink/60"><tr><th className="py-1 pr-3 font-normal">Exercice</th><th className="pr-3 font-normal">Dernière</th><th className="pr-3 font-normal">Évolution</th><th className="font-normal">Historique</th></tr></thead>
               <tbody>
                 {summary.pain.map(p => (
                   <tr key={p.name} className="border-t border-line">
@@ -291,7 +291,7 @@ function ReportTable({ weeks }: { weeks: ReturnType<typeof injuryReport>['weeks'
       {!weeks.length ? <p className="text-sm text-ink/60">Rien de déclaré depuis la blessure.</p> : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-left text-xs text-ink/55">
+            <thead className="text-left text-xs text-ink/60">
               <tr><th className="py-1 pr-3 font-normal">Semaine du</th><th className="pr-3 font-normal">Réhab</th><th className="pr-3 font-normal">Membres sains</th>
                 <th className="pr-3 font-normal">Cardio</th><th className="pr-3 font-normal">Reprise terrain</th><th className="pr-3 font-normal">RPE moyen</th><th className="font-normal">Douleur moyenne</th></tr>
             </thead>
@@ -324,7 +324,7 @@ function Fold({ title, summary, open = false, children }: { title: string; summa
           <span className="block font-display text-lg font-semibold leading-tight">{title}</span>
           <span className="block truncate text-sm text-ink/60">{summary}</span>
         </span>
-        <span aria-hidden="true" className="text-ink/50 transition-transform group-open:rotate-180">▾</span>
+        <span aria-hidden="true" className="text-ink/60 transition-transform group-open:rotate-180">▾</span>
       </summary>
       <div className="flex flex-col gap-4 border-t border-line/60 px-5 py-4">{children}</div>
     </details>
@@ -350,8 +350,8 @@ function PainChart({ points }: { points: ReturnType<typeof injuryReport>['points
               <YAxis domain={[0, 10]} ticks={[0, 2, 4, 6, 8, 10]} tick={{ fill: 'currentColor', fontSize: 11 }} />
               <Tooltip formatter={(v, n) => [String(v).replace('.', ','), n === 'douleur' ? 'Douleur' : 'RPE']} labelFormatter={(l, p) => `${l} · ${p?.[0]?.payload?.type ?? ''}`}
                 contentStyle={{ background: 'rgb(var(--surface))', border: '1px solid rgb(var(--line))', borderRadius: 8, fontSize: 12 }} itemStyle={{ color: 'rgb(var(--ink))' }} />
-              <Line dataKey="rpe" stroke="currentColor" strokeOpacity={0.6} strokeWidth={1.5} dot={{ r: 2 }} connectNulls />
-              <Line dataKey="douleur" stroke={BRAND.gold} strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
+              <Line isAnimationActive={false} dataKey="rpe" stroke="currentColor" strokeOpacity={0.6} strokeWidth={1.5} dot={{ r: 2 }} connectNulls />
+              <Line isAnimationActive={false} dataKey="douleur" stroke={BRAND.gold} strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
             </LineChart>
           </ResponsiveContainer>
         </div>

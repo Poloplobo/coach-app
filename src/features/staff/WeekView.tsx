@@ -194,7 +194,7 @@ function CoachSummary({ m, wt, code, pillars, alerts, missing, gaps, rpeText, lo
                   <YAxis type="category" dataKey="name" width={150} tick={{ fill: 'currentColor', fontSize: 12 }} />
                   <Tooltip formatter={v => [`${v} UA`, 'sRPE']} />
                   {wt && <ReferenceLine x={wt.target_srpe} stroke={BRAND.gold} strokeDasharray="4 4" label={{ value: 'visée', fill: 'currentColor', fontSize: 11, position: 'top' }} />}
-                  <Bar dataKey="total" radius={[0, 4, 4, 0]}>{bars.map(b => <Cell key={b.name} fill={b.color} />)}</Bar>
+                  <Bar dataKey="total" radius={[0, 4, 4, 0]} isAnimationActive={false}>{bars.map(b => <Cell key={b.name} fill={b.color} />)}</Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -209,7 +209,7 @@ function CoachSummary({ m, wt, code, pillars, alerts, missing, gaps, rpeText, lo
               <div className="h-48">
                 <ResponsiveContainer>
                   <PieChart>
-                    <Pie data={shownPillars} dataKey="pct" nameKey="pillar" innerRadius="55%" outerRadius="85%" paddingAngle={2}>
+                    <Pie isAnimationActive={false} data={shownPillars} dataKey="pct" nameKey="pillar" innerRadius="55%" outerRadius="85%" paddingAngle={2}>
                       {shownPillars.map(p => <Cell key={p.pillar} fill={PILLAR_COLOR[p.pillar]} />)}
                     </Pie>
                     <Tooltip formatter={(v, name) => [`${v} %`, PILLAR_LABEL[String(name) as Pillar]]} />
@@ -255,7 +255,7 @@ function WatchCard({ rows, code, inProgress, counts }: {
           className="flex w-full flex-wrap items-center gap-x-1.5 gap-y-1 py-2 text-left text-sm">
           <span className="mr-1 flex items-center gap-2 font-semibold"><Avatar id={player.id} name={fullName(player)} className="h-6 w-6" />{fullName(player)}</span>
           {issues.map(i => <Badge key={i.label} tone={i.tone}>{i.label}</Badge>)}
-          <span aria-hidden="true" className="ml-auto text-xs text-ink/50">{expanded ? 'Masquer' : 'Détails'}</span>
+          <span aria-hidden="true" className="ml-auto text-xs text-ink/60">{expanded ? 'Masquer' : 'Détails'}</span>
         </button>
         {expanded && (
           <div className="mb-2 flex flex-col gap-1.5 rounded-lg bg-field px-3 py-2 text-sm">
@@ -273,7 +273,7 @@ function WatchCard({ rows, code, inProgress, counts }: {
   }
   const group = (title: string, list: typeof rows) => list.length > 0 && (
     <div>
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-ink/50">{title} · {list.length}</h3>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-ink/60">{title} · {list.length}</h3>
       <ul className="flex flex-col">{list.map(line)}</ul>
     </div>
   )

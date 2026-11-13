@@ -48,7 +48,7 @@ export function ImportMaxiPanel() {
           </select>
         </label>
         <label className="flex flex-col gap-1 text-sm">Fichier (.xlsx)
-          <input type="file" accept=".xlsx" onChange={e => read(e.target)} className="text-sm file:mr-3 file:rounded-md file:border file:border-line file:bg-field file:px-3 file:py-1.5 file:text-ink" />
+          <input type="file" accept=".xlsx" onChange={e => read(e.target)} className="text-sm file:mr-3 file:rounded-lg file:border file:border-line file:bg-field file:px-3 file:py-1.5 file:text-ink" />
         </label>
       </div>
       {readError && <p role="alert" className="text-sm text-rnr">Fichier illisible (un .xlsx est attendu) ; recharge la page si le problème continue.</p>}

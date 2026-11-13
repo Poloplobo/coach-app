@@ -26,5 +26,7 @@ export default {
       },
     },
   },
+  // survol seulement avec une souris : sur téléphone, un bouton touché ne reste plus « survolé »
+  future: { hoverOnlyWhenSupported: true },
   plugins: [],
 }

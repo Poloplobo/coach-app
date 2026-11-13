@@ -95,7 +95,7 @@ function TodoToday({ playerId, today, title }: { playerId: string; today: string
               className="flex items-center justify-between gap-3 rounded-lg bg-field px-3 py-2.5 transition-[transform,background-color] duration-150 ease-out active:scale-[0.97] motion-reduce:active:scale-100 active:bg-ink/10">
               <span><span className="font-semibold">{a.name}</span>{' '}
                 <span className="text-sm text-ink/60">{label(a)}</span></span>
-              <ChevronRight size={18} aria-hidden="true" className="text-ink/50" />
+              <ChevronRight size={18} aria-hidden="true" className="text-ink/60" />
             </TabLink>
           </li>
         ))}
@@ -199,7 +199,7 @@ function Upcoming({ playerId, today }: { playerId: string; today: string }) {
   const days = upcomingByDay(plan.data, { injured: availability.data === 'blessé' }).slice(0, 3)
   return (
     <div className="flex flex-col gap-1.5 border-t border-line/60 pt-3">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-ink/50">À venir</h3>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-ink/60">À venir</h3>
       {days.length === 0 && <p className="text-sm text-ink/70">Rien de prévu sur les 7 prochains jours.</p>}
       <ul className="flex flex-col gap-1.5 text-sm">
         {days.map(d => (

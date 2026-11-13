@@ -10,12 +10,12 @@ const LOOK = {
   ghost: 'border border-line text-ink hover:border-ink/40 disabled:opacity-40',
   quiet: 'text-ink/70 hover:text-ink underline-offset-4 hover:underline disabled:opacity-40',
 }
-const SIZE = { md: 'px-4 py-2.5 text-base', sm: 'px-3 py-1.5 text-sm' } // compacts : un écran doit tenir sans défiler sans fin
+const SIZE = { md: 'min-h-10 px-4 py-2.5 text-base', sm: 'px-3 py-1.5 text-sm' } // compacts : un écran doit tenir sans défiler sans fin
 
 export function Button({ variant = 'primary', size = 'md', className = '', ...props }: Props) {
   const box = variant === 'quiet' ? 'px-2 py-1.5 text-sm' : SIZE[size]
   return (
     <button {...props}
-      className={`rounded-md font-display font-semibold leading-none tracking-wide transition-colors active:translate-y-px disabled:cursor-not-allowed disabled:active:translate-y-0 ${box} ${LOOK[variant]} ${className}`} />
+      className={`rounded-lg font-display font-semibold leading-none tracking-wide transition-[transform,background-color,border-color,color] duration-150 ease-out active:scale-[0.97] motion-reduce:active:scale-100 disabled:cursor-not-allowed disabled:active:scale-100 [@media(pointer:coarse)]:min-h-11 ${box} ${LOOK[variant]} ${className}`} />
   )
 }

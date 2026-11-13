@@ -81,7 +81,7 @@ export function ImportPanel() {
       <label className="flex flex-col gap-1 text-sm font-semibold">
         Fiches à importer
         <input type="file" accept=".xlsx" multiple onChange={e => { const list = [...(e.target.files ?? [])]; e.target.value = ''; void read(list) }}
-          className="text-sm file:mr-3 file:rounded-md file:border file:border-line file:bg-field file:px-3 file:py-1.5 file:text-ink" />
+          className="text-sm file:mr-3 file:rounded-lg file:border file:border-line file:bg-field file:px-3 file:py-1.5 file:text-ink" />
       </label>
       {reading && <Loading />}
       {readError && <p role="alert" className="text-sm text-rnr">Lecture impossible : recharge la page et réessaie.</p>}

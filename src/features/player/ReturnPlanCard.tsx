@@ -56,7 +56,7 @@ export function ReturnPlanCard({ today }: { today: string }) {
       {next && (
         <p className="flex items-center gap-2 text-sm text-ink/70">
           <span aria-hidden="true" className="h-3 w-3 shrink-0 rounded-full border-2 border-line" />
-          Ensuite : <strong className="text-ink">{next.title}</strong>{next.planned_days > 0 && <span className="text-ink/50">· {next.planned_days} j</span>}
+          Ensuite : <strong className="text-ink">{next.title}</strong>{next.planned_days > 0 && <span className="text-ink/60">· {next.planned_days} j</span>}
         </p>
       )}
 
@@ -65,7 +65,7 @@ export function ReturnPlanCard({ today }: { today: string }) {
         {all ? 'Masquer le plan' : 'Voir tout mon plan'}<ChevronDown size={18} aria-hidden="true" className={`transition-transform ${all ? 'rotate-180' : ''}`} />
       </button>
       {all && <PlanTimeline p={p} occurredOn={occurredOn} today={today} audience="joueur" />}
-      <p className="text-xs text-ink/50">Temps théorique, préparé et validé étape par étape par le staff : il dépend de tes sensations et des critères de chaque étape.</p>
+      <p className="text-xs text-ink/60">Temps théorique, préparé et validé étape par étape par le staff : il dépend de tes sensations et des critères de chaque étape.</p>
     </section>
   )
 }

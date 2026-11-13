@@ -100,7 +100,7 @@ export function MatchBoard() {
           <p className="text-sm text-ink/60 first-letter:uppercase">{formatDay(match.match_date)}{match.home === null ? '' : match.home ? ' · domicile' : ' · extérieur'}</p>
         </div>
       </header>
-      <p className="rise max-w-4xl leading-snug text-ink/80" style={{ animationDelay: '40ms' }}>
+      <p className="rise max-w-4xl leading-snug text-ink/75" style={{ animationDelay: '40ms' }}>
         <strong className="text-ink">{withGps.length} joueur{withGps.length > 1 ? 's' : ''} avec GPS</strong> sur {rows.length}.{' '}
         {analysed.length > 0 && <><strong className="text-ink">{full} joueur{full > 1 ? 's' : ''}</strong> remplissent les 3 attendus de leur poste, {none} aucun. </>}
         {fastest?.record?.vmax != null && <>Vmax du match : <strong className="text-ink">{fastest.record.vmax.toLocaleString('fr-FR')} km/h</strong> ({fullName(fastest.player)}{fastest.vmax?.record ? ', record personnel' : ''}).</>}
@@ -125,25 +125,25 @@ export function MatchBoard() {
             )}>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="text-left text-xs text-ink/55">
+                <thead className="text-left text-xs text-ink/60">
                   <tr>{['Joueur', 'Min', 'Distance (m)', 'Haute int. (m)', 'Accél.', 'Vmax (km/h)', 'GPS'].map(h => <th key={h} className="py-2 pr-3 font-normal">{h}</th>)}</tr>
                 </thead>
                 <tbody>
                   {sorted.map(({ player, record, analysis, vmax }) => (
                     <tr key={player.id} className="border-t border-line">
-                      <td className="whitespace-nowrap py-1.5 pr-3"><span className="flex items-center gap-2"><Avatar id={player.id} name={fullName(player)} className="h-7 w-7" /><span className="font-semibold">{fullName(player)}</span> <span className="text-xs text-ink/50">{record!.position.toLowerCase()}</span></span></td>
+                      <td className="whitespace-nowrap py-1.5 pr-3"><span className="flex items-center gap-2"><Avatar id={player.id} name={fullName(player)} className="h-7 w-7" /><span className="font-semibold">{fullName(player)}</span> <span className="text-xs text-ink/60">{record!.position.toLowerCase()}</span></span></td>
                       <td className="pr-3 tabular-nums">{record!.minutes}</td>
                       <td className="pr-3"><Metric value={record!.distance_m} max={best.distance} pct={analysis?.pct.distance} /></td>
                       <td className="pr-3"><Metric value={record!.hi_distance_m} max={best.hi} pct={analysis?.pct.hi} /></td>
                       <td className="pr-3"><Metric value={record!.accelerations} max={best.acc} pct={analysis?.pct.accelerations} /></td>
                       <td className="pr-3"><Metric value={record!.vmax} max={best.vmax} star={vmax?.record} /></td>
-                      <td className="whitespace-nowrap pr-3">{analysis ? <MatchColor color={analysis.color} label={`${analysis.filled}/3`} /> : <span className="text-xs text-ink/50">{record!.minutes < MIN_MINUTES ? '< 20 min' : 'poste sans attendu'}</span>}</td>
+                      <td className="whitespace-nowrap pr-3">{analysis ? <MatchColor color={analysis.color} label={`${analysis.filled}/3`} /> : <span className="text-xs text-ink/60">{record!.minutes < MIN_MINUTES ? '< 20 min' : 'poste sans attendu'}</span>}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            {rows.length > withGps.length && <p className="text-xs text-ink/55">Sans GPS : {rows.filter(r => !r.record).map(r => fullName(r.player)).join(', ')}.</p>}
+            {rows.length > withGps.length && <p className="text-xs text-ink/60">Sans GPS : {rows.filter(r => !r.record).map(r => fullName(r.player)).join(', ')}.</p>}
           </Card>
         </div>
 
@@ -154,7 +154,7 @@ export function MatchBoard() {
                 <div className="relative h-40">
                   <ResponsiveContainer>
                     <PieChart>
-                      <Pie data={colors} dataKey="n" nameKey="label" innerRadius="62%" outerRadius="92%" paddingAngle={2} stroke="none" animationDuration={900}>
+                      <Pie isAnimationActive={false} data={colors} dataKey="n" nameKey="label" innerRadius="62%" outerRadius="92%" paddingAngle={2} stroke="none" animationDuration={900}>
                         {colors.map(c => <Cell key={c.color} fill={RATING_HEX[c.color]} />)}
                       </Pie>
                       <Tooltip formatter={(v, n) => [`${v} joueur${Number(v) > 1 ? 's' : ''}`, String(n)]}
@@ -163,7 +163,7 @@ export function MatchBoard() {
                   </ResponsiveContainer>
                   <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
                     <span className="font-display text-3xl font-semibold leading-none tabular-nums">{analysed.length}</span>
-                    <span className="text-xs text-ink/55">analysés</span>
+                    <span className="text-xs text-ink/60">analysés</span>
                   </div>
                 </div>
               ) : <p className="text-sm text-ink/60">Aucun joueur analysé (GPS absent ou moins de 20 min).</p>}
@@ -180,7 +180,7 @@ export function MatchBoard() {
               <ol className="flex flex-col">
                 {topVmax.map((r, i) => (
                   <li key={r.player.id} className="flex items-center gap-3 border-t border-line py-1.5 text-sm first:border-t-0">
-                    <span className="w-4 font-display font-semibold text-ink/50">{i + 1}</span>
+                    <span className="w-4 font-display font-semibold text-ink/60">{i + 1}</span>
                     <Avatar id={r.player.id} name={fullName(r.player)} className="h-7 w-7" /><span className="flex-1 truncate font-semibold">{fullName(r.player)}</span>
                     <span className="tabular-nums">{r.record!.vmax!.toLocaleString('fr-FR')} km/h{r.vmax?.record && <span className="ml-1 text-gold" title="Record personnel">★</span>}</span>
                   </li>
@@ -230,7 +230,7 @@ function Metric({ value, max, pct, star }: { value: number | null; max: number; 
     <span className="flex min-w-24 flex-col gap-1">
       <span className="flex items-baseline gap-1.5 tabular-nums">
         <span className="font-semibold">{value.toLocaleString('fr-FR')}</span>{star && <span className="text-gold" title="Record personnel">★</span>}
-        {pct !== undefined && <span className={`inline-flex items-center text-xs ${ok ? 'text-ok' : 'text-ink/50'}`}>{ok && <Check size={12} aria-hidden="true" />}{pct} %</span>}
+        {pct !== undefined && <span className={`inline-flex items-center text-xs ${ok ? 'text-ok' : 'text-ink/60'}`}>{ok && <Check size={12} aria-hidden="true" />}{pct} %</span>}
       </span>
       <span className="h-1 w-full rounded-full bg-field" aria-hidden="true">
         <span className={`block h-full rounded-full ${ok ? 'bg-ok' : 'bg-ink/45'}`} style={{ width: `${max ? Math.max(4, (100 * value) / max) : 0}%` }} />

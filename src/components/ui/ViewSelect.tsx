@@ -8,7 +8,7 @@ export function ViewSelect<T extends string>({ label, value, onChange, children 
     <label className="inline-flex items-center gap-2 text-sm">
       <span className="text-ink/60">{label}</span>
       <select value={value} onChange={e => onChange(e.target.value as T)}
-        className="rounded-md bg-field border border-line px-2.5 py-1.5 font-semibold text-ink">
+        className="rounded-lg bg-field border border-line px-2.5 py-1.5 font-semibold text-ink [@media(pointer:coarse)]:min-h-11">
         {children}
       </select>
     </label>

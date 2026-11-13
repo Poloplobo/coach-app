@@ -34,7 +34,7 @@ export function PlayerLayout() {
         <div className="mx-auto flex max-w-md items-center gap-3 px-4 py-2">
           <img src="/logo-rnr.svg" alt="" className="h-9 shrink-0" />
           <div className="min-w-0 flex-1">
-            <p className="text-xs text-ink/55 first-letter:uppercase">{formatDay(today)}</p>
+            <p className="text-xs text-ink/60 first-letter:uppercase">{formatDay(today)}</p>
             <h1 className="truncate font-display text-xl font-bold leading-tight">Salut {profile.data?.first_name}</h1>
           </div>
           {/* Réglages dans l'en-tête : la barre du bas garde 5 onglets lisibles au pouce */}
@@ -71,13 +71,13 @@ export function PlayerLayout() {
             return (
               <li key={t.to}>
                 {mustFillForm && t.locked ? (
-                  <TabLink to="/joueur/forme" aria-label={`${t.label} : verrouillé, remplis d'abord ton état de forme`} className={`${tab} text-ink/30`}>
+                  <TabLink to="/joueur/forme" aria-label={`${t.label} : verrouillé, remplis d'abord ton état de forme`} className={`${tab} text-ink/40`}>
                     <Lock size={20} aria-hidden="true" />{t.label}
                   </TabLink>
                 ) : (
                   // onglet actif : trait rouge en haut, comme une ligne d'en-but
                   <TabLink to={t.to} end
-                    className={({ isActive }) => `${tab} ${isActive ? 'text-app' : 'text-ink/55 hover:text-ink/80'}`}>
+                    className={({ isActive }) => `${tab} ${isActive ? 'text-app' : 'text-ink/60 hover:text-ink/75'}`}>
                     {({ isActive }) => <>
                     {/* un seul trait porte ce nom à la fois : le navigateur le fait glisser d'un onglet à l'autre */}
                     {isActive && <span aria-hidden="true" className="absolute inset-0 rounded-2xl bg-ink [view-transition-name:tab-bar]" />}

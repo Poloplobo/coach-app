@@ -51,7 +51,7 @@ export function MyWeek({ playerId, date, footer }: { playerId: string; date: str
           <div key={label} className="flex flex-col rounded-xl bg-field px-3 py-2">
             <dt className="text-xs text-ink/60">{label}</dt>
             <dd className="font-display text-2xl font-semibold leading-tight tabular-nums">{value}</dd>
-            <dd className={`text-[11px] leading-tight ${tone || 'text-ink/55'}`}>{sub}</dd>
+            <dd className={`text-[11px] leading-tight ${tone || 'text-ink/60'}`}>{sub}</dd>
           </div>
         ))}
       </dl>
@@ -59,15 +59,15 @@ export function MyWeek({ playerId, date, footer }: { playerId: string; date: str
         {days.map((x, i) => (
           <li key={x.d} className={`flex flex-col items-center gap-1.5 ${x.d > date ? 'opacity-35' : ''}`}
             aria-label={`${formatDay(x.d)} : ${x.load ? `${x.load} UA` : 'pas de charge'}${x.fatigue !== null ? `, fatigue ${x.fatigue} %` : ''}`}>
-            <div className="flex h-16 w-full items-end justify-center rounded-md bg-field" aria-hidden="true">
+            <div className="flex h-16 w-full items-end justify-center rounded-lg bg-field" aria-hidden="true">
               {x.load > 0 && <div className={`w-1/2 rounded-sm ${x.d === date ? 'bg-rnr' : 'bg-ink/70'}`} style={{ height: `${Math.max(8, (100 * x.load) / max)}%` }} />}
             </div>
             <span aria-hidden="true" className={`h-2 w-2 rounded-full ${x.fatigue === null ? 'border border-line' : DOT[postureOf(x.fatigue)]}`} />
-            <span aria-hidden="true" className={`font-display text-sm font-semibold ${x.d === date ? 'text-ink' : 'text-ink/50'}`}>{DAY_LETTERS[i]}</span>
+            <span aria-hidden="true" className={`font-display text-sm font-semibold ${x.d === date ? 'text-ink' : 'text-ink/60'}`}>{DAY_LETTERS[i]}</span>
           </li>
         ))}
       </ol>
-      <p aria-hidden="true" className="-mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-ink/55">
+      <p aria-hidden="true" className="-mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-ink/60">
         <span className="flex items-center gap-1.5"><span className="h-3 w-1.5 rounded-sm bg-ink/70" />charge du jour</span>
         <span className="flex items-center gap-1.5"><span className="flex gap-0.5"><span className="h-2 w-2 rounded-full bg-ok" /><span className="h-2 w-2 rounded-full bg-gold" /><span className="h-2 w-2 rounded-full bg-rnr" /></span>fatigue</span>
       </p>

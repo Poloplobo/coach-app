@@ -223,7 +223,7 @@ function PlanStrip({ p }: { p: ReturnType<typeof planProgress> }) {
       {p.ordered.map(s => (
         <li key={s.id} className="flex min-w-0 flex-col gap-1" style={{ flex: `${Math.max(1, s.planned_days)} 1 0` }}>
           <span className={`h-2 rounded-full ${s.validated_on ? 'bg-ok' : p.current?.id === s.id ? 'bg-gold' : 'bg-field'}`} />
-          <span className={`truncate text-xs ${p.current?.id === s.id ? 'font-semibold text-ink' : 'text-ink/55'}`}>{s.title}</span>
+          <span className={`truncate text-xs ${p.current?.id === s.id ? 'font-semibold text-ink' : 'text-ink/60'}`}>{s.title}</span>
         </li>
       ))}
     </ol>
@@ -320,14 +320,14 @@ export function EpidemiologyCard({ injuries, players, exposure, from, to, today,
   const label = (map: Record<string, string>, k: string) => map[k] ?? (k === 'non_renseigne' ? 'Non renseigné' : k)
   const list = (title: string, rows: [string, number][], map: Record<string, string>) => (
     <div className="flex min-w-0 flex-col gap-1.5 rounded-xl bg-field px-3 py-2.5">
-      <p className="text-xs font-semibold uppercase tracking-wide text-ink/50">{title}</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-ink/60">{title}</p>
       {/* une barre par catégorie, au prorata des blessures de la période */}
       <ul className="flex flex-col gap-1.5 text-sm">{rows.length ? rows.map(([k, n]) => (
         <li key={k} className="flex flex-col gap-0.5">
           <span className="flex justify-between gap-3"><span className="truncate">{label(map, k)}</span><span className="tabular-nums text-ink/70">{n}</span></span>
           <span aria-hidden="true" className="h-1.5 rounded-full bg-ink/10"><span className="block h-full rounded-full bg-ink/55" style={{ width: `${(100 * n) / Math.max(1, e.count)}%` }} /></span>
         </li>
-      )) : <li className="text-ink/50">—</li>}</ul>
+      )) : <li className="text-ink/60">—</li>}</ul>
     </div>
   )
   const name = (id: string) => { const p = players.find(x => x.id === id); return p ? fullName(p) : '—' }
@@ -348,7 +348,7 @@ export function EpidemiologyCard({ injuries, players, exposure, from, to, today,
             {list('Survenue en', e.byActivity, ACTIVITIES)}{list('Tissu', e.byTissue, TISSUES)}
           </div>
           <table className="w-full text-sm">
-            <thead className="text-left text-xs text-ink/55"><tr><th className="py-1 pr-4 font-normal">Joueur</th><th className="pr-4 font-normal">Survenue</th><th className="pr-4 font-normal">Localisation</th><th className="pr-4 font-normal">En</th><th className="font-normal">Jours</th></tr></thead>
+            <thead className="text-left text-xs text-ink/60"><tr><th className="py-1 pr-4 font-normal">Joueur</th><th className="pr-4 font-normal">Survenue</th><th className="pr-4 font-normal">Localisation</th><th className="pr-4 font-normal">En</th><th className="font-normal">Jours</th></tr></thead>
             <tbody>
               {injuries.filter(i => i.occurred_on >= from && i.occurred_on <= to).map(i => (
                 <tr key={i.id} className="border-t border-line">

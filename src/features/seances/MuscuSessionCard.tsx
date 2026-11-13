@@ -53,7 +53,7 @@ export function MuscuSessionCard({ playerId, date, catchUp = false, activity = M
         return (
           <li key={d} aria-label={`${formatDay(d)} : ${label}`}
             className={`flex h-12 flex-col items-center justify-center rounded-lg text-xs font-display font-semibold ${
-              !s ? 'text-ink/45' : done ? 'bg-ok/15 text-ok' : isToday ? 'bg-rnr text-white' : d < date ? 'bg-field text-ink/50' : 'bg-field text-ink'}`}>
+              !s ? 'text-ink/40' : done ? 'bg-ok/15 text-ok' : isToday ? 'bg-rnr text-white' : d < date ? 'bg-field text-ink/60' : 'bg-field text-ink'}`}>
             <span aria-hidden="true">{'LMMJVSD'[i]}</span>
             <span aria-hidden="true" className="text-sm">{!s ? '·' : done ? '✓' : d < date ? '–' : '●'}</span>
           </li>
@@ -101,7 +101,7 @@ export function MuscuSessionCard({ playerId, date, catchUp = false, activity = M
     // En-tête façon « séance du jour » : titre, pastilles (durée, exercices, blocs), semaine et progression ; la fiche suit
     <section aria-label={catchUp ? `Ma séance d'hier : ${label}` : `Ma séance de ${label}`} className="flex flex-col gap-4">
       <div className={`flex flex-col gap-3 rounded-3xl bg-surface p-5 ${catchUp ? 'ring-2 ring-gold' : 'ring-1 ring-line/60'}`}>
-        <p className="text-xs font-semibold uppercase tracking-wide text-ink/55 first-letter:uppercase">{catchUp ? "Relance du staff · séance d'hier" : `${formatDay(date)}`}</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-ink/60 first-letter:uppercase">{catchUp ? "Relance du staff · séance d'hier" : `${formatDay(date)}`}</p>
         <h2 className="font-display text-2xl font-semibold leading-tight first-letter:uppercase">{session.focus ?? (rehab ? activity : 'Ma séance de musculation')}
           {session.focus && <span className="block text-sm font-normal text-ink/60">{rehab ? activity : 'Musculation'}</span>}</h2>
         <ul className="flex flex-wrap gap-1.5 text-sm">
@@ -185,7 +185,7 @@ export function MuscuSessionCard({ playerId, date, catchUp = false, activity = M
           <label className="flex items-center gap-3 text-sm">
             Durée
             <input type="number" inputMode="numeric" min={1} max={300} value={duration} placeholder={String(plannedMinutes ?? '')} onChange={e => setDuration(e.target.value)}
-              className="w-20 rounded-md bg-field border border-line px-3 py-2 text-base" />
+              className="w-20 rounded-lg bg-field border border-line px-3 py-2 text-base" />
             min
           </label>
           <p className="text-xs text-ink/60">Une fois validée, la séance ne peut plus être modifiée. Les exercices sans réponse seront notés « non fait ».</p>

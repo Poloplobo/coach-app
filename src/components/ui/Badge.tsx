@@ -8,7 +8,7 @@ const DOT: Record<Tone, string | null> = { ok: 'bg-ok', warn: 'bg-gold', bad: 'b
 
 export function Badge({ tone, children }: { tone: Tone; children: ReactNode }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium tabular-nums text-ink/85 ${TONES[tone]}`}>
+    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium tabular-nums text-ink/75 ${TONES[tone]}`}>
       {DOT[tone] && <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOT[tone]}`} />}{children}
     </span>
   )

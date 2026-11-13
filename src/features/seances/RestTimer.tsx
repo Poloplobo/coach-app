@@ -22,14 +22,14 @@ export function RestTimer({ rest }: { rest: string }) {
   }, [end])
 
   if (total === null) {
-    return <span className="inline-flex items-center gap-1 rounded-md bg-field px-2 py-0.5 text-ink/80"><Timer size={13} aria-hidden="true" /><span className="sr-only">repos</span>{rest}</span>
+    return <span className="inline-flex items-center gap-1 rounded-lg bg-field px-2 py-0.5 text-ink/75"><Timer size={13} aria-hidden="true" /><span className="sr-only">repos</span>{rest}</span>
   }
   const left = end === null ? null : Math.max(0, Math.ceil((end - now) / 1000))
-  const tone = left === null ? 'bg-field text-ink/80' : left > 0 ? 'bg-gold/15 text-gold' : 'bg-ok/15 text-ok'
+  const tone = left === null ? 'bg-field text-ink/75' : left > 0 ? 'bg-gold/15 text-gold' : 'bg-ok/15 text-ok'
   return (
     <button type="button" onClick={() => { const t = Date.now(); setNow(t); setEnd(end === null ? t + total * 1000 : null) }}
       aria-label={left === null ? `Lancer le repos de ${rest}` : left > 0 ? `Repos en cours, ${left} secondes : arrêter` : 'Repos terminé : remettre à zéro'}
-      className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-semibold tabular-nums transition-colors ${tone}`}>
+      className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 font-semibold tabular-nums transition-colors ${tone}`}>
       <Timer size={13} aria-hidden="true" />
       {left === null ? rest : left > 0 ? clock(left) : 'Go !'}
     </button>

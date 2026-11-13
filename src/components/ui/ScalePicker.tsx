@@ -21,7 +21,7 @@ export function ScalePicker({ label, min, max, value, onChange, low, high, hint,
           <button
             key={v} type="button" role="radio" aria-checked={chosen} onClick={() => onChange(v)}
             style={c && (chosen ? { background: c.fill, borderColor: c.fill, color: c.text } : { borderBottomColor: c.fill })}
-            className={`${inline ? 'h-11 text-lg' : 'h-11 text-xl'} rounded-md font-display font-semibold border transition-colors ${
+            className={`${inline ? 'h-11 text-lg' : 'h-11 text-xl'} rounded-lg font-display font-semibold border transition-colors ${
               c ? (chosen ? 'ring-2 ring-ink ring-offset-2 ring-offset-app' : 'bg-field border-line border-b-4 hover:border-ink/40')
                 : chosen ? 'bg-ink border-ink text-app' : 'bg-field border-line hover:border-ink/40'}`}
           >
@@ -38,7 +38,7 @@ export function ScalePicker({ label, min, max, value, onChange, low, high, hint,
         <legend className="sr-only">{label}</legend>
         <div aria-hidden="true" className="flex items-baseline justify-between gap-3">
           <p className="font-semibold leading-tight">{label}</p>
-          <p className="shrink-0 text-xs text-ink/55">{min} {low.toLowerCase()} · {max} {high.toLowerCase()}</p>
+          <p className="shrink-0 text-xs text-ink/60">{min} {low.toLowerCase()} · {max} {high.toLowerCase()}</p>
         </div>
         {buttons}
       </fieldset>

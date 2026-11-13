@@ -59,8 +59,8 @@ export function PlanTimeline({ p, occurredOn, today, audience }: { p: Progress; 
           <li key={`${g.phase}-${gi}`} className="flex flex-col">
             {g.phase && (
               <p className="mb-2 mt-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide">
-                <span className={state === 'à venir' ? 'text-ink/45' : 'text-ink/70'}>{g.phase}</span>
-                <span className={`rounded-full px-2 py-0.5 normal-case tracking-normal ${state === 'terminée' ? 'bg-ok/15 text-ok' : state === 'en cours' ? 'bg-gold/15 text-gold' : 'bg-field text-ink/50'}`}>
+                <span className={state === 'à venir' ? 'text-ink/40' : 'text-ink/70'}>{g.phase}</span>
+                <span className={`rounded-full px-2 py-0.5 normal-case tracking-normal ${state === 'terminée' ? 'bg-ok/15 text-ok' : state === 'en cours' ? 'bg-gold/15 text-gold' : 'bg-field text-ink/60'}`}>
                   {state}{g.days != null ? ` · ${g.days} j` : ''}
                 </span>
               </p>
@@ -83,9 +83,9 @@ export function PlanTimeline({ p, occurredOn, today, audience }: { p: Progress; 
                     <div className={`flex min-w-0 flex-1 flex-col gap-1.5 ${status === 'current' ? 'rounded-xl bg-gold/10 px-3 py-2.5 ring-1 ring-gold/40' : ''}`}>
                       <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                         <span className="sr-only">{status === 'done' ? 'Étape passée : ' : status === 'current' ? 'Étape en cours : ' : 'Étape à venir : '}</span>
-                        <span className={`font-semibold ${status === 'next' ? 'text-ink/65' : ''}`}>{s.title}</span>
+                        <span className={`font-semibold ${status === 'next' ? 'text-ink/60' : ''}`}>{s.title}</span>
                         {s.is_test && <span className="rounded-full bg-field px-2 py-0.5 text-xs text-ink/70">test</span>}
-                        <span className="ml-auto text-xs text-ink/55">
+                        <span className="ml-auto text-xs text-ink/60">
                           {status === 'done' ? `validée le ${shortDate(s.validated_on!)}` : status === 'current' ? 'en cours'
                             : [s.planned_days ? `${s.planned_days} j` : null, startOf.has(s.id) ? `vers le ${shortDate(startOf.get(s.id)!)}` : null].filter(Boolean).join(' · ')}
                         </span>
@@ -94,12 +94,12 @@ export function PlanTimeline({ p, occurredOn, today, audience }: { p: Progress; 
                       {info.length > 0 && (expanded ? (
                         <dl className="flex flex-col gap-1 text-sm">
                           {info.map(([k, v]) => (
-                            <div key={k}><dt className="text-xs font-semibold text-ink/55">{k}</dt><dd className="text-ink/85">{v}</dd></div>
+                            <div key={k}><dt className="text-xs font-semibold text-ink/60">{k}</dt><dd className="text-ink/75">{v}</dd></div>
                           ))}
-                          {status !== 'current' && <button type="button" onClick={() => setOpen(null)} className="self-start text-xs text-ink/50 hover:underline">Masquer</button>}
+                          {status !== 'current' && <button type="button" onClick={() => setOpen(null)} className="self-start text-xs text-ink/60 hover:underline">Masquer</button>}
                         </dl>
                       ) : (
-                        <button type="button" onClick={() => setOpen(s.id)} className="self-start text-xs text-ink/50 hover:underline">Détails</button>
+                        <button type="button" onClick={() => setOpen(s.id)} className="self-start text-xs text-ink/60 hover:underline">Détails</button>
                       ))}
                     </div>
                   </li>

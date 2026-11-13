@@ -76,7 +76,7 @@ export function ImportGpsPanel() {
           </>
         )}
         <label className="flex flex-col gap-1 text-sm">Export GPS (.xlsx)
-          <input type="file" accept=".xlsx" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void read(() => f.arrayBuffer(), chosen?.label ?? null) }} className="text-sm file:mr-3 file:rounded-md file:border file:border-line file:bg-field file:px-3 file:py-1.5 file:text-ink" />
+          <input type="file" accept=".xlsx" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void read(() => f.arrayBuffer(), chosen?.label ?? null) }} className="text-sm file:mr-3 file:rounded-lg file:border file:border-line file:bg-field file:px-3 file:py-1.5 file:text-ink" />
         </label>
         <div className="flex flex-col gap-1 text-sm">ou la feuille Google
           <Button size="sm" variant="ghost" disabled={sheetLoading} onClick={async () => {
@@ -108,7 +108,7 @@ export function ImportGpsPanel() {
                     return (
                       <tr key={r.player.id} className="border-t border-line">
                         <td className="py-2 pr-3 font-semibold">{r.player.last_name} {r.player.first_name}</td>
-                        <td className="pr-3">{r.position.toLowerCase()} <span className="text-ink/50">({positionGroup(r.position, positions)})</span></td>
+                        <td className="pr-3">{r.position.toLowerCase()} <span className="text-ink/60">({positionGroup(r.position, positions)})</span></td>
                         <td className="pr-3">{r.minutes}</td>
                         <td className="pr-3">{r.distance_m.toLocaleString('fr-FR')}</td>
                         <td className="pr-3">{r.hi_distance_m}</td>
@@ -117,7 +117,7 @@ export function ImportGpsPanel() {
                         <td className="pr-3">{a ? `${a.pct.distance} %` : '—'}</td>
                         <td className="pr-3">{a ? `${a.pct.hi} %` : '—'}</td>
                         <td className="pr-3">{a ? `${a.pct.accelerations} %` : '—'}</td>
-                        <td>{a ? <MatchColor color={a.color} label={`${a.filled}/3`} /> : <span className="text-ink/50">temps de jeu trop court</span>}</td>
+                        <td>{a ? <MatchColor color={a.color} label={`${a.filled}/3`} /> : <span className="text-ink/60">temps de jeu trop court</span>}</td>
                       </tr>
                     )
                   })}

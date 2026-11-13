@@ -32,6 +32,20 @@ html { -webkit-tap-highlight-color: transparent; }
   .glass { backdrop-filter: none; background-color: rgb(var(--surface)); }
 }
 
+/* Hiérarchie du texte, 4 niveaux partout : text-ink (valeur), /75 (texte), /60 (libellé, aide), /40 (inactif).
+   Rayons : rounded-lg champs et boutons, rounded-xl tuiles, rounded-2xl cartes, rounded-full pastilles. */
+
+/* Titres équilibrés sur leurs lignes, paragraphes sans mot orphelin ; grands titres légèrement resserrés */
+h1, h2, h3 { text-wrap: balance; }
+p, li, dd { text-wrap: pretty; }
+h1 { letter-spacing: -0.01em; }
+
+/* Écran tactile : champs à 16 px (sinon iOS zoome la page à la saisie et ne revient pas), toucher sans délai,
+   pas de sélection de texte en restant appuyé sur un bouton */
+@media (pointer: coarse) { input, select, textarea { font-size: 16px; } }
+a, button, summary, label, select, [role='tab'], [role='radio'], [role='switch'] { touch-action: manipulation; }
+button, [role='tab'], [role='radio'], [role='switch'] { -webkit-user-select: none; user-select: none; }
+
 /* Chiffres alignés en colonne dans tous les tableaux */
 table { font-variant-numeric: tabular-nums; }
 

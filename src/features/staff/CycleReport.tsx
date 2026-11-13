@@ -97,7 +97,7 @@ export function CycleReport() {
                     <span>{t.name} : suivi sur</span>
                     <select aria-label={`Exercice suivi pour ${t.name}`} value={t.exercise_id ?? ''} disabled={link.isPending}
                       onChange={e => link.mutate({ testId: t.id, exerciseId: e.target.value || null })}
-                      className="rounded-md bg-field border border-line px-2 py-1">
+                      className="rounded-lg bg-field border border-line px-2 py-1">
                       <option value="">— choisir l'exercice —</option>
                       {(library.data ?? []).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                     </select>

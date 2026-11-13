@@ -20,7 +20,7 @@ import { Avatar } from '../photos/PlayerPhoto'
 import { useAllLogs, useAllPlan, useAllSkips, useAllWellness, usePushEnabled, useReference, useRemind, useReminders, useRoster, useTargetRpes } from './useStaff'
 
 // Seules les réponses moyennes ou mauvaises ressortent ; le rouge est gardé pour le 1 (déclencheur d'alerte)
-const itemLook = (v: number) => (v >= 4 ? 'text-ink/45' : v === 3 ? 'text-ink/85' : v === 2 ? 'text-gold font-semibold' : 'text-rnr font-bold')
+const itemLook = (v: number) => (v >= 4 ? 'text-ink/40' : v === 3 ? 'text-ink/75' : v === 2 ? 'text-gold font-semibold' : 'text-rnr font-bold')
 const BAR = ['bg-ok', 'bg-gold', 'bg-rnr'] // fatigue faible, moyenne, à surveiller
 const SHORT: Record<string, string> = { soreness_upper: 'Courb. haut', soreness_lower: 'Courb. bas' }
 type Filter = 'tous' | 'alertes' | 'non-remplis' | 'bien' | 'moyen' | 'surveiller'
@@ -110,9 +110,9 @@ export function TodayView() {
     <>
       {/* Bonjour, puis la lecture du jour en une phrase : ce qu'il faut savoir avant de regarder le détail */}
       <header className="rise flex flex-col gap-1">
-        <p className="text-sm text-ink/55 first-letter:uppercase">{formatDay(today)}</p>
+        <p className="text-sm text-ink/60 first-letter:uppercase">{formatDay(today)}</p>
         <h1 className="font-display text-3xl font-bold leading-tight">Bonjour {me.data?.first_name}</h1>
-        <p className="max-w-4xl text-base leading-snug text-ink/80">
+        <p className="max-w-4xl text-base leading-snug text-ink/75">
           <strong className="text-ink">{filled} joueur{filled > 1 ? 's' : ''} sur {rows.length}</strong> {filled > 1 ? 'ont' : 'a'} rempli {filled > 1 ? 'leur' : 'son'} état de forme.{' '}
           {/* 3 noms au plus, avec leur premier motif : la phrase reste courte quel que soit le nombre d'alertes (détail : filtre « Alertes ») */}
           {alerted.length === 0 ? 'Aucune alerte.' : <>
@@ -148,7 +148,7 @@ export function TodayView() {
           <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-surface xl:hidden" />
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="text-left text-xs text-ink/55">
+              <thead className="text-left text-xs text-ink/60">
                 <tr>
                   <th className="py-2 pr-3 font-normal">Joueur</th>
                   <th className="pr-3 font-normal">Fatigue estimée</th>
@@ -165,14 +165,14 @@ export function TodayView() {
                     <tr key={player.id} className={`border-t border-line ${alerts.length ? 'bg-rnr/[0.07]' : ''}`} title={alerts.length ? `Alerte : ${alerts.join(', ')}` : undefined}>
                       <td className="min-w-[12rem] max-w-[18rem] py-1.5 pr-3">
                         <Link to={`/staff/joueur/${player.id}`} className="flex items-center gap-2 font-semibold underline-offset-4 hover:underline"><Avatar id={player.id} name={fullName(player)} className="h-7 w-7" /><span className="min-w-0">{fullName(player)}</span></Link>
-                        <span className="ml-2 text-xs text-ink/50">{player.position}</span>
+                        <span className="ml-2 text-xs text-ink/60">{player.position}</span>
                         {player.injured && <span className="ml-2"><Badge tone="warn">blessé</Badge></span>}
                         {alerts.length > 0 && <span className="sr-only">Alerte : {alerts.join(', ')}</span>}
                         {/* rappel du matin non activé sur son téléphone : petite cloche barrée (rien si activé) */}
-                        {!push.isError && push.data && !push.data.has(player.id) && <span className="ml-2 inline-flex align-middle text-ink/35" title="Rappel du matin non activé"><BellOff size={13} aria-hidden="true" /><span className="sr-only">rappel du matin non activé</span></span>}
+                        {!push.isError && push.data && !push.data.has(player.id) && <span className="ml-2 inline-flex align-middle text-ink/40" title="Rappel du matin non activé"><BellOff size={13} aria-hidden="true" /><span className="sr-only">rappel du matin non activé</span></span>}
                       </td>
                       <td className="pr-3">
-                        {pct === null ? <span className="text-ink/50">non rempli</span> : (
+                        {pct === null ? <span className="text-ink/60">non rempli</span> : (
                           <span className="flex items-center gap-2" title="Estimation d'après les 6 réponses : 0 % = en pleine forme, 100 % = épuisé">
                             <span className="h-1.5 w-12 rounded-full bg-field" aria-hidden="true">
                               <span className={`block h-full rounded-full ${BAR[postureOf(pct)]}`} style={{ width: `${Math.max(pct, 4)}%` }} />
@@ -181,10 +181,10 @@ export function TodayView() {
                           </span>
                         )}
                       </td>
-                      <td className="pr-3 tabular-nums">{w?.score != null ? <><span className={`font-semibold ${w.score < WELLNESS_ALERT_SCORE ? 'text-rnr' : ''}`}>{w.score}</span><span className="text-ink/50">/30</span></> : '—'}</td>
+                      <td className="pr-3 tabular-nums">{w?.score != null ? <><span className={`font-semibold ${w.score < WELLNESS_ALERT_SCORE ? 'text-rnr' : ''}`}>{w.score}</span><span className="text-ink/60">/30</span></> : '—'}</td>
                       {WELLNESS_ITEMS.map(i => {
                         const v = w ? itemValue(w, i.key) : null
-                        return <td key={i.key} className={`px-1 text-center tabular-nums ${v !== null ? itemLook(v) : 'text-ink/30'}`}>{v ?? '·'}</td>
+                        return <td key={i.key} className={`px-1 text-center tabular-nums ${v !== null ? itemLook(v) : 'text-ink/40'}`}>{v ?? '·'}</td>
                       })}
                       <td className="pl-2 text-xs"><LoadCell load={load(player)} /></td>
                     </tr>
@@ -204,8 +204,8 @@ export function TodayView() {
               <div className="relative h-44">
                 <ResponsiveContainer>
                   <PieChart>
-                    <Pie data={donut} dataKey="count" nameKey="label" innerRadius="62%" outerRadius="92%" paddingAngle={2} stroke="none"
-                      onClick={(_, i) => setFilter(donut[i].id)} className="cursor-pointer" isAnimationActive={false}>
+                    <Pie isAnimationActive={false} data={donut} dataKey="count" nameKey="label" innerRadius="62%" outerRadius="92%" paddingAngle={2} stroke="none"
+                      onClick={(_, i) => setFilter(donut[i].id)} className="cursor-pointer">
                       {donut.map(x => <Cell key={x.id} fill={x.color} opacity={filter === 'tous' || filter === x.id ? 1 : 0.35} />)}
                     </Pie>
                     <Tooltip formatter={(v, n) => [`${v} joueur${Number(v) > 1 ? 's' : ''}`, String(n)]}
@@ -215,14 +215,14 @@ export function TodayView() {
                 </ResponsiveContainer>
                 <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
                   <span className="font-display text-3xl font-semibold leading-none tabular-nums">{mean ?? '—'}{mean !== null && <span className="text-base text-ink/60"> %</span>}</span>
-                  <span className="text-xs text-ink/55">fatigue moyenne</span>
+                  <span className="text-xs text-ink/60">fatigue moyenne</span>
                 </div>
               </div>
               <ul className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
                 {donut.map(x => (
                   <li key={x.id}>
                     <button type="button" onClick={() => setFilter(filter === x.id ? 'tous' : x.id)}
-                      className={`flex w-full items-center gap-2 rounded-md px-1.5 py-0.5 text-left hover:bg-field ${filter === x.id ? 'bg-field font-semibold' : ''}`}>
+                      className={`flex w-full items-center gap-2 rounded-lg px-1.5 py-0.5 text-left hover:bg-field ${filter === x.id ? 'bg-field font-semibold' : ''}`}>
                       <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: x.color }} aria-hidden="true" />
                       <span className="flex-1 leading-tight">{x.label}</span><span className="tabular-nums text-ink/70">{x.count}</span>
                     </button>
@@ -262,7 +262,7 @@ export function TodayView() {
 // derrière leur nombre : la ligne du tableau garde sa hauteur, le détail s'ouvre au clic
 function LoadCell({ load }: { load: { total: number; pace: ReturnType<typeof weekPace>; flagged: { name: string; srpe: number; rpe: string; heat: Heat; max: number | null }[] } | null }) {
   const [open, setOpen] = useState(false)
-  if (!load) return <span className="text-ink/45">…</span>
+  if (!load) return <span className="text-ink/40">…</span>
   const { total, pace, flagged } = load
   const worst: Heat = flagged.some(h => h.heat === 'bad') ? 'bad' : 'warn'
   return (
@@ -277,7 +277,7 @@ function LoadCell({ load }: { load: { total: number; pace: ReturnType<typeof wee
         )}
       </span>
       {open && flagged.map((h, i) => (
-        <span key={i} className="text-ink/80" title={h.max ? `Seuil ${h.name} : ${h.max} UA` : undefined}>
+        <span key={i} className="text-ink/75" title={h.max ? `Seuil ${h.name} : ${h.max} UA` : undefined}>
           <span aria-hidden="true" className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${h.heat === 'bad' ? 'bg-rnr' : 'bg-gold'}`} />
           {h.name} {h.srpe} UA{h.rpe && <span className="text-ink/60"> · {h.rpe}</span>}
         </span>
@@ -311,7 +311,7 @@ export function MissingRpeCard({ data, skips, label = fullName, title = 'RPE non
   return (
     <Card boxed title={data ? `${title} · ${data.length}` : title}
       help="Activités prévues avec RPE sans déclaration, et séances de musculation non validées. Une activité que le joueur a déclarée « pas faite » n'est pas un oubli : elle est listée à part, avec sa raison. Le joueur ne peut rattraper que la veille, après une relance : au-delà, la saisie se fait par le staff dans sa fiche.">
-      {!data ? <p className="text-sm text-ink/45">…</p> : !data.length ? <><p className="text-sm text-ok">Tous les RPE prévus ont été déclarés.</p>{skipped}</> : (
+      {!data ? <p className="text-sm text-ink/40">…</p> : !data.length ? <><p className="text-sm text-ok">Tous les RPE prévus ont été déclarés.</p>{skipped}</> : (
         <>
           <ul className="flex flex-col">
             {(all ? data : data.slice(0, 5)).map(({ player, missed, planned, days }) => (
@@ -322,7 +322,7 @@ export function MissingRpeCard({ data, skips, label = fullName, title = 'RPE non
                   <Badge tone={missed / planned >= 0.25 ? 'bad' : 'warn'}>{missed} oubli{missed > 1 ? 's' : ''} sur {planned}</Badge>
                 </button>
                 {open === player.id && (
-                  <span className="mt-1 flex flex-col gap-0.5 text-xs text-ink/65">
+                  <span className="mt-1 flex flex-col gap-0.5 text-xs text-ink/60">
                     {days.map(d => <span key={d.date}>{shortDay(d.date)} : {d.missing.join(', ')}</span>)}
                     <Link to={`/staff/joueur/${player.id}`} className="text-gold hover:underline">Ouvrir sa fiche</Link>
                   </span>
@@ -357,7 +357,7 @@ function Reminder({ playerId, name, missing, message, yesterday, reminded }: {
     <li className="flex items-center justify-between gap-2 border-t border-line/60 py-1.5">
       <span className="min-w-0 text-sm">
         <span className="block truncate font-semibold" title={name}>{name}</span>
-        <span className="block truncate text-xs text-ink/55" title={missing.join(', ')}>{missing.join(', ')}</span>
+        <span className="block truncate text-xs text-ink/60" title={missing.join(', ')}>{missing.join(', ')}</span>
       </span>
       <span className="flex shrink-0 items-center gap-1.5">
       {yesterday && (reminded
@@ -365,13 +365,13 @@ function Reminder({ playerId, name, missing, message, yesterday, reminded }: {
         : (
           <button type="button" disabled={remind.isPending} onClick={() => remind.mutate({ playerId, date: yesterday })} aria-label={`Relancer ${name} dans l'app pour son RPE d'hier`}
             title="Le joueur voit un bandeau et peut déclarer sa journée d'hier"
-            className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs ${remind.isError ? 'border-rnr text-rnr' : 'border-line hover:border-ink/40'}`}>
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs ${remind.isError ? 'border-rnr text-rnr' : 'border-line hover:border-ink/40'}`}>
             <BellRing size={14} aria-hidden="true" /><span className="sr-only sm:not-sr-only">{remind.isError ? 'Réessayer' : 'Relancer'}</span>
           </button>
         ))}
       <button type="button" onClick={copy} aria-label={`Copier le message pour ${name}`}
         title="Copier un message à envoyer soi-même"
-        className={`inline-flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-1 text-xs ${copied ? 'border-ok text-ok' : 'border-line hover:border-ink/40'}`}>
+        className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2 py-1 text-xs ${copied ? 'border-ok text-ok' : 'border-line hover:border-ink/40'}`}>
         {copied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
         {copied === null ? <span className="sr-only">Copier</span> : copied ? 'Copié' : 'Impossible'}
       </button>

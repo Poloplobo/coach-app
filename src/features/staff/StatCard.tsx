@@ -46,7 +46,7 @@ export function StatCard({ label, value, suffix = '', delta, better = 'up', tren
             </AreaChart>
           </ResponsiveContainer>
         </div>
-      ) : hint && <p className="mt-2 text-xs text-ink/50">{hint}</p>}
+      ) : hint && <p className="mt-2 text-xs text-ink/60">{hint}</p>}
     </section>
   )
 }

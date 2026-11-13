@@ -137,7 +137,7 @@ export function PlayerView() {
               {pillarCols ? 'Masquer les piliers' : 'Minutes par pilier'}</button>}>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="text-left text-xs text-ink/55">
+                <thead className="text-left text-xs text-ink/60">
                   <tr>{['Jour', 'Activités', 'Min', ...(pillarCols ? ['Rugby', 'Physique', 'Accomp.'] : []), 'RPE moy.', 'Charge', 'Écart'].map(h => <th key={h} className="py-2 pr-3 font-normal">{h}</th>)}</tr>
                 </thead>
                 <tbody>
@@ -175,7 +175,7 @@ export function PlayerView() {
             <div className="flex max-h-[28rem] flex-col gap-3 overflow-y-auto text-sm">
               {[...new Set(own.data.filter(inWeek).map(l => l.session_date))].sort().map(date => (
                 <section key={date}>
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-ink/50">{DAY_NAMES[(new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7]}</h3>
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-ink/60">{DAY_NAMES[(new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7]}</h3>
                   <ul className="flex flex-col">
                     {own.data.filter(l => l.session_date === date).sort((a, b) => a.created_at.localeCompare(b.created_at)).map((l, i) => {
                       // RPE déclaré face au RPE visé de la séance (jaune à ±2, rouge à ±3)
@@ -183,7 +183,7 @@ export function PlayerView() {
                       return (
                         <li key={i} className="flex items-center justify-between gap-2 border-t border-line/60 py-1.5 first:border-0">
                           <span className="min-w-0 truncate">{ref.data.types.find(t => t.id === l.activity_type_id)?.name}
-                            <span className="ml-1.5 text-xs text-ink/50">{SOURCE[l.source] ?? l.source}</span></span>
+                            <span className="ml-1.5 text-xs text-ink/60">{SOURCE[l.source] ?? l.source}</span></span>
                           <span className="flex shrink-0 items-center gap-2 tabular-nums">
                             {l.rpe !== null && (g?.heat ? <Badge tone={g.heat}>{rpeVsTarget(l.rpe, t)}</Badge> : <span className="text-ink/70">{rpeVsTarget(l.rpe, t)}</span>)}
                             <span className="w-14 text-right font-semibold">{Number(l.srpe ?? 0)} UA</span>
@@ -251,8 +251,8 @@ function SeasonCharts({ own, wellness, weeks, weekTypes, today }: {
               <XAxis dataKey="week" tick={{ fill: 'currentColor', fontSize: 12 }} />
               <YAxis tick={{ fill: 'currentColor', fontSize: 12 }} width={44} />
               <Tooltip formatter={(v, name) => [`${v} UA`, name === 'srpe' ? 'Charge' : 'Visée']} />
-              <Bar dataKey="srpe" name="srpe" radius={[4, 4, 0, 0]}>{load.map(l => <Cell key={l.week} fill={l.fill} />)}</Bar>
-              <Line type="stepAfter" dataKey="cible" name="cible" stroke={BRAND.gold} strokeDasharray="4 4" dot={false} />
+              <Bar isAnimationActive={false} dataKey="srpe" name="srpe" radius={[4, 4, 0, 0]}>{load.map(l => <Cell key={l.week} fill={l.fill} />)}</Bar>
+              <Line isAnimationActive={false} type="stepAfter" dataKey="cible" name="cible" stroke={BRAND.gold} strokeDasharray="4 4" dot={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -268,8 +268,8 @@ function SeasonCharts({ own, wellness, weeks, weekTypes, today }: {
                 <YAxis domain={[0, 100]} tick={{ fill: 'currentColor', fontSize: 12 }} width={36} unit="%" />
                 <Tooltip formatter={(v, name) => [`${v} %`, name === 'tendance' ? 'Moyenne 7 j' : 'Jour']} />
                 <ReferenceLine y={fatiguePercent(WELLNESS_ALERT_SCORE)} stroke={BRAND.rnr} strokeDasharray="4 4" />
-                <Line dataKey="fatigue" name="fatigue" stroke={BRAND.muted} strokeOpacity={0.5} dot={false} strokeWidth={1} />
-                <Line dataKey="tendance" name="tendance" stroke={BRAND.gold} dot={false} strokeWidth={2.5} />
+                <Line isAnimationActive={false} dataKey="fatigue" name="fatigue" stroke={BRAND.muted} strokeOpacity={0.5} dot={false} strokeWidth={1} />
+                <Line isAnimationActive={false} dataKey="tendance" name="tendance" stroke={BRAND.gold} dot={false} strokeWidth={2.5} />
               </LineChart>
             </ResponsiveContainer>
           </div>

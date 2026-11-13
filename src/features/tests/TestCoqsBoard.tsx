@@ -70,7 +70,7 @@ export function TestCoqsBoard() {
           <div key={c} className="flex items-center gap-4 rounded-2xl bg-surface p-4 ring-1 ring-line/60">
             <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${TINT[c]}`}><Coq color={c} className="h-8 w-8" /></span>
             <div>
-              <p className="font-display text-3xl font-semibold leading-none tabular-nums">{count(c)}<span className="ml-1 text-base text-ink/50">{total ? `${Math.round((100 * count(c)) / total)} %` : ''}</span></p>
+              <p className="font-display text-3xl font-semibold leading-none tabular-nums">{count(c)}<span className="ml-1 text-base text-ink/60">{total ? `${Math.round((100 * count(c)) / total)} %` : ''}</span></p>
               <p className="text-sm text-ink/60">coq {COQ_LABEL[c]}</p>
             </div>
           </div>
@@ -79,7 +79,7 @@ export function TestCoqsBoard() {
 
       <div className="overflow-x-auto rounded-2xl bg-surface ring-1 ring-line/60">
         <table className="w-full text-sm">
-          <thead className="text-left text-xs text-ink/55">
+          <thead className="text-left text-xs text-ink/60">
             <tr>
               <th className="sticky left-0 bg-surface px-4 py-3 font-normal">Joueur</th>
               {tests.map(([id, d]) => (
@@ -94,11 +94,11 @@ export function TestCoqsBoard() {
             {rows.map(p => (
               <tr key={p.id} className="border-t border-line/60">
                 <td className="sticky left-0 whitespace-nowrap bg-surface px-4 py-2">
-                  <span className="flex items-center gap-2"><Avatar id={p.id} name={fullName(p)} className="h-8 w-8" /><span><span className="font-semibold">{fullName(p)}</span><span className="block text-xs text-ink/55">{p.position ?? 'poste ?'}</span></span></span>
+                  <span className="flex items-center gap-2"><Avatar id={p.id} name={fullName(p)} className="h-8 w-8" /><span><span className="font-semibold">{fullName(p)}</span><span className="block text-xs text-ink/60">{p.position ?? 'poste ?'}</span></span></span>
                 </td>
                 {tests.map(([id]) => {
                   const c = cells.find(x => x.player.id === p.id && x.r.test_id === id)
-                  if (!c) return <td key={id} className="px-2 text-ink/35">—</td>
+                  if (!c) return <td key={id} className="px-2 text-ink/40">—</td>
                   const medal = podium.get(`${p.id}|${id}`)
                   return (
                     <td key={id} className="px-1.5 py-1.5">
@@ -106,7 +106,7 @@ export function TestCoqsBoard() {
                         title={[c.coq && `coq ${COQ_LABEL[c.coq.color]}`, c.coq?.note].filter(Boolean).join(' · ') || 'pas de barème pour ce poste'}>
                         {c.coq ? <Coq color={c.coq.color} className="h-5 w-5" /> : <span className="h-5 w-5" aria-hidden="true" />}
                         {c.coq && <span className="sr-only">coq {COQ_LABEL[c.coq.color]}</span>}
-                        <span className="font-semibold">{number(c.value)}</span>{c.coq?.estimated && <span aria-hidden="true" className="text-ink/50">*</span>}
+                        <span className="font-semibold">{number(c.value)}</span>{c.coq?.estimated && <span aria-hidden="true" className="text-ink/60">*</span>}
                         {medal && <span role="img" aria-label={`médaille ${medal}`} className="ml-auto">{MEDAL[medal]}</span>}
                       </span>
                     </td>
@@ -117,7 +117,7 @@ export function TestCoqsBoard() {
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-ink/55">Charnière : barème demi de mêlée. * Développé couché et squat convertis en 1RM estimé (3RM × 36/34 ; front squat ≈ 85 % du back squat). Case grise : poste sans barème.</p>
+      <p className="text-xs text-ink/60">Charnière : barème demi de mêlée. * Développé couché et squat convertis en 1RM estimé (3RM × 36/34 ; front squat ≈ 85 % du back squat). Case grise : poste sans barème.</p>
     </section>
   )
 }
@@ -136,7 +136,7 @@ export function TestReferencePanel() {
     <Card title="Barème FFR filière jeune (garçons)" help="Référentiel « Génération bleue » (janvier 2025). Entre deux seuils : l'échelon inférieur. Pour un temps, plus bas = mieux."
       aside={<ViewSelect label="Test" value={current.id} onChange={setTestId}>{tests.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</ViewSelect>}>
       <table className="text-sm">
-        <thead className="text-left text-xs text-ink/55">
+        <thead className="text-left text-xs text-ink/60">
           <tr><th className="py-1 pr-6 font-normal">Poste</th>{(['bleu', 'vert', 'jaune'] as const).map(c => <th key={c} className="pr-6 font-normal"><span className="flex items-center gap-1"><Coq color={c} className="h-5 w-5" />{c}</span></th>)}</tr>
         </thead>
         <tbody>

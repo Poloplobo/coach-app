@@ -66,7 +66,7 @@ export function PerformanceTab() {
         {PANES.map(p => (
           <button key={p.id} id={`perf-${p.id}`} type="button" role="tab" aria-selected={pane === p.id} aria-controls="perf-pane" onClick={() => setPane(p.id)}
             className={`relative flex h-11 items-center justify-center gap-1.5 rounded-xl font-display text-sm font-semibold uppercase tracking-wider transition-colors ${
-              pane === p.id ? 'bg-surface text-ink shadow-sm ring-1 ring-line/60' : 'text-ink/55'}`}>
+              pane === p.id ? 'bg-surface text-ink shadow-sm ring-1 ring-line/60' : 'text-ink/60'}`}>
             <p.icon size={15} aria-hidden="true" />{p.label}
             {p.id === 'notes' && match && !own && !loading && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-rnr" aria-label="match à noter" />}
           </button>
@@ -97,7 +97,7 @@ export function PerformanceTab() {
                 {own.comment && <p className="text-sm text-ink/70"><span className="font-semibold text-ink">Mon commentaire : </span>{own.comment}</p>}
                 {staff && staff.color === own.color && <p className="text-center text-sm font-semibold text-ok">Même lecture que le coach</p>}
                 {staff?.comment && <p className="border-l-2 border-gold pl-3 text-sm italic">« {staff.comment} »</p>}
-                <p className="text-xs text-ink/50">Note validée : elle ne peut plus être modifiée.</p>
+                <p className="text-xs text-ink/60">Note validée : elle ne peut plus être modifiée.</p>
               </>
             ) : (
               <>
@@ -142,7 +142,7 @@ export function PerformanceTab() {
           {/* Sans GPS sur ce match (8 boîtiers pour le groupe) : partie grisée, la note et les objectifs restent */}
           <Card title="Mon GPS du week-end" help={record ? `Comparé à l'attendu de ton poste (${record.position.toLowerCase()}), ramené à un match de 70 min. Le trait marque l'attendu.` : undefined}>
             {!record
-              ? <p aria-disabled="true" className="rounded-lg bg-field px-3 py-4 text-center text-sm text-ink/45">Pas de GPS pour toi sur ce match.</p>
+              ? <p aria-disabled="true" className="rounded-lg bg-field px-3 py-4 text-center text-sm text-ink/40">Pas de GPS pour toi sur ce match.</p>
               : (
                 <>
                   <div className="flex items-center gap-4">
@@ -201,7 +201,7 @@ function GpsBar({ label, value, pct }: { label: string; value?: string; pct: num
         <dt className="text-sm text-ink/70">{label}</dt>
         <dd className="flex items-baseline gap-2 tabular-nums">
           {value && <span className="font-display text-lg font-semibold">{value}</span>}
-          {pct !== null ? <span className={`text-sm font-semibold ${ok ? 'text-ok' : 'text-ink/60'}`}>{pct} %</span> : !value && <span className="text-ink/50">—</span>}
+          {pct !== null ? <span className={`text-sm font-semibold ${ok ? 'text-ok' : 'text-ink/60'}`}>{pct} %</span> : !value && <span className="text-ink/60">—</span>}
         </dd>
       </div>
       {pct !== null && (
@@ -223,7 +223,7 @@ function LastMatches({ report: r }: { report: ReturnType<typeof playerReport> })
       <ul className="grid grid-cols-3 gap-2 text-center text-xs">
         {chrono.map(h => (
           <li key={h.match.id} className={`flex flex-col items-center gap-1 rounded-xl bg-field px-1 py-2.5 ${h.analysis ? '' : 'opacity-50'}`}>
-            {h.analysis ? <Coq color={h.analysis.color} className="h-9 w-9" /> : <span className="flex h-9 items-center text-ink/50">—</span>}
+            {h.analysis ? <Coq color={h.analysis.color} className="h-9 w-9" /> : <span className="flex h-9 items-center text-ink/60">—</span>}
             <span className="font-semibold">{h.match.label ?? h.match.opponent}</span>
             <span className="text-ink/60">{h.analysis ? `${h.analysis.filled}/3` : h.record ? '< 20 min' : 'pas de GPS'}</span>
           </li>

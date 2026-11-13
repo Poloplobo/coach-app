@@ -73,7 +73,7 @@ export function MuscuView() {
                       </td>
                       <td>
                         <button type="button" aria-expanded={open === player.id} onClick={() => setOpen(open === player.id ? null : player.id)}
-                          className="rounded-md border border-line px-2.5 py-1 text-sm hover:border-ink/40">{open === player.id ? 'Masquer' : 'Détail'}</button>
+                          className="rounded-lg border border-line px-2.5 py-1 text-sm hover:border-ink/40">{open === player.id ? 'Masquer' : 'Détail'}</button>
                       </td>
                     </tr>
                     {open === player.id && (
@@ -157,8 +157,8 @@ function Progression({ players, seasonStart, today }: { players: { id: string; f
               <YAxis tick={{ fill: 'currentColor', fontSize: 12 }} width={44} unit=" kg" />
               <Tooltip />
               <Legend />
-              <Line dataKey="done" name="Charge réalisée (max)" stroke={BRAND.gold} strokeWidth={2} connectNulls />
-              <Line dataKey="prescribed" name="Charge prescrite (kg)" stroke={BRAND.rnr} strokeDasharray="4 4" dot={false} connectNulls />
+              <Line isAnimationActive={false} dataKey="done" name="Charge réalisée (max)" stroke={BRAND.gold} strokeWidth={2} connectNulls />
+              <Line isAnimationActive={false} dataKey="prescribed" name="Charge prescrite (kg)" stroke={BRAND.rnr} strokeDasharray="4 4" dot={false} connectNulls />
             </LineChart>
           </ResponsiveContainer>
         </div>

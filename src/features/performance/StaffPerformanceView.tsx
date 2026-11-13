@@ -25,7 +25,7 @@ export function StaffPerformanceView() {
         <div role="tablist" aria-label="Performance" className="inline-flex rounded-lg border border-line p-0.5">
           {(Object.keys(SPACES) as Space[]).map(s => (
             <button key={s} type="button" role="tab" aria-selected={space === s} onClick={() => choose(s)}
-              className={`rounded-md px-4 py-1.5 font-display text-lg font-semibold ${space === s ? 'bg-rnr text-white' : 'text-ink/70 hover:text-ink'}`}>
+              className={`rounded-lg px-4 py-1.5 font-display text-lg font-semibold ${space === s ? 'bg-rnr text-white' : 'text-ink/70 hover:text-ink'}`}>
               {SPACES[s].label}
             </button>
           ))}

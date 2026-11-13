@@ -44,7 +44,7 @@ export function MyGoals({ playerId, date, title = 'Mes objectifs', medals = fals
     if (!coq) return null
     const n = nextCoq(coq, higherIsBetter, scaleOf(name).factor)
     return n
-      ? <span className="flex items-center gap-1 text-xs text-ink/65"><Coq color={n.color} className="h-4 w-4" />Coq {n.color} : encore {coq.estimated ? `≈ ${number(Math.ceil(n.gap * 2) / 2)}` : number(n.gap)} {unit}</span>
+      ? <span className="flex items-center gap-1 text-xs text-ink/60"><Coq color={n.color} className="h-4 w-4" />Coq {n.color} : encore {coq.estimated ? `≈ ${number(Math.ceil(n.gap * 2) / 2)}` : number(n.gap)} {unit}</span>
       : <span className="flex items-center gap-1 text-xs font-semibold text-blue"><Coq color="bleu" className="h-4 w-4" />Coq bleu : le plus haut niveau jeune</span>
   }
   // Mes coqs et médailles, sur le dernier résultat de chaque test
@@ -71,7 +71,7 @@ export function MyGoals({ playerId, date, title = 'Mes objectifs', medals = fals
         <div className="flex items-center gap-4 rounded-2xl bg-surface p-5 ring-1 ring-line/60">
           <Ring done={reached} total={goals.length} />
           <div className="min-w-0">
-            <p className="font-display text-2xl font-semibold leading-tight">{reached} objectif{reached > 1 ? 's' : ''} atteint{reached > 1 ? 's' : ''} <span className="text-ink/50">sur {goals.length}</span></p>
+            <p className="font-display text-2xl font-semibold leading-tight">{reached} objectif{reached > 1 ? 's' : ''} atteint{reached > 1 ? 's' : ''} <span className="text-ink/60">sur {goals.length}</span></p>
             {closest?.g
               ? <p className="text-sm text-ink/70">Le plus proche : <strong className="text-ink">{closest.t.test_definitions.name}</strong>, encore {number(closest.g.remaining)} {closest.t.test_definitions.unit}</p>
               : <p className="text-sm font-semibold text-ok">Tous tes objectifs sont atteints, bravo !</p>}
@@ -84,14 +84,14 @@ export function MyGoals({ playerId, date, title = 'Mes objectifs', medals = fals
         <div className="flex flex-col gap-3 rounded-2xl bg-surface p-5 ring-1 ring-line/60">
           <p className="flex items-baseline justify-between gap-3">
             <span className="font-display text-lg font-semibold">Mes coqs FFR</span>
-            <span className="text-xs text-ink/55">barème {ffrPosition(position.data ?? null)}</span>
+            <span className="text-xs text-ink/60">barème {ffrPosition(position.data ?? null)}</span>
           </p>
           <ul className="grid grid-cols-4 gap-2">
             {(['bleu', 'vert', 'jaune', 'rouge'] as const).map(c => (
               <li key={c} className={`flex flex-col items-center gap-1 rounded-xl bg-field py-2 ${myCoqs.some(x => x.color === c) ? '' : 'opacity-40'}`}>
                 <Coq color={c} className="h-8 w-8" />
                 <span className="font-display text-xl font-semibold leading-none tabular-nums">{myCoqs.filter(x => x.color === c).length}</span>
-                <span className="text-[11px] text-ink/55">{c}</span>
+                <span className="text-[11px] text-ink/60">{c}</span>
               </li>
             ))}
           </ul>
@@ -122,7 +122,7 @@ export function MyGoals({ playerId, date, title = 'Mes objectifs', medals = fals
                 </div>
                 {g?.reached
                   ? <span className="flex shrink-0 items-center gap-1 rounded-full bg-ok px-2.5 py-1 text-xs font-semibold text-app"><Check size={14} strokeWidth={3} aria-hidden="true" />Atteint</span>
-                  : g && <span className="shrink-0 text-right"><span className="block text-xs text-ink/55">encore</span><span className="font-display text-xl font-semibold tabular-nums text-gold">{number(g.remaining)} {unit}</span></span>}
+                  : g && <span className="shrink-0 text-right"><span className="block text-xs text-ink/60">encore</span><span className="font-display text-xl font-semibold tabular-nums text-gold">{number(g.remaining)} {unit}</span></span>}
               </div>
               {g ? (
                 <>
@@ -141,14 +141,14 @@ export function MyGoals({ playerId, date, title = 'Mes objectifs', medals = fals
                   </p>
                   {toNext(t.test_definitions.name, unit, g.last.value, t.test_definitions.higher_is_better)}
                 </>
-              ) : <p className="text-sm text-ink/55">Pas encore testé cette saison.</p>}
+              ) : <p className="text-sm text-ink/60">Pas encore testé cette saison.</p>}
             </li>
           )
         })}
       </ul>
 
       {anyCoq && (
-        <p className="text-xs text-ink/55">
+        <p className="text-xs text-ink/60">
           Coqs : référentiel FFR filière jeune, barème {ffrPosition(position.data ?? null)}. Bleu premium, vert très bon, jaune bon, rouge à améliorer.
           {' '}<span aria-hidden="true">*</span> estimé (développé couché et squat convertis en 1RM).{medals && ' Médailles : podium du groupe sur le dernier test.'}
         </p>
@@ -156,7 +156,7 @@ export function MyGoals({ playerId, date, title = 'Mes objectifs', medals = fals
       {others.length > 0 && (
         // Tests sans objectif : dernier résultat et évolution, en plus discret
         <div className="flex flex-col gap-1.5">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-ink/50">Autres tests</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-ink/60">Autres tests</h3>
           <ul className="flex flex-col divide-y divide-line/60 rounded-2xl bg-surface px-4 ring-1 ring-line/60 text-sm">
             {others.map(r => {
               const g = goalProgress(history(r.test_id), Number(r.value), r.test_definitions.higher_is_better)
@@ -168,7 +168,7 @@ export function MyGoals({ playerId, date, title = 'Mes objectifs', medals = fals
                   </span>
                   <span className="shrink-0 tabular-nums">
                     <strong>{number(Number(r.value))} {r.test_definitions.unit}</strong>
-                    {g?.gained != null && g.gained !== 0 && <span className={`ml-2 text-xs ${g.gained > 0 ? 'text-ok' : 'text-ink/55'}`}>{signed(g.last.value - g.first.value, r.test_definitions.unit)}</span>}
+                    {g?.gained != null && g.gained !== 0 && <span className={`ml-2 text-xs ${g.gained > 0 ? 'text-ok' : 'text-ink/60'}`}>{signed(g.last.value - g.first.value, r.test_definitions.unit)}</span>}
                   </span>
                 </li>
               )
@@ -189,7 +189,7 @@ function Ring({ done, total }: { done: number; total: number }) {
         <circle cx="32" cy="32" r="26" strokeWidth="7" className="fill-none stroke-field" />
         <circle cx="32" cy="32" r="26" strokeWidth="7" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - done / total)} className="fill-none stroke-ok" />
       </svg>
-      <span className="font-display text-xl font-semibold tabular-nums">{done}<span className="text-sm text-ink/50">/{total}</span></span>
+      <span className="font-display text-xl font-semibold tabular-nums">{done}<span className="text-sm text-ink/60">/{total}</span></span>
     </span>
   )
 }
@@ -204,7 +204,7 @@ function Level({ coq, medal }: { coq: ReturnType<typeof testCoq>; medal?: Medal 
         <span className="flex items-center" title={coq.note ?? undefined}>
           <Coq color={coq.color} className="h-6 w-6" />
           <span className="sr-only">Coq {COQ_LABEL[coq.color]}{coq.note ? ` (${coq.note})` : ''}</span>
-          {coq.estimated && <span aria-hidden="true" className="text-xs text-ink/50">*</span>}
+          {coq.estimated && <span aria-hidden="true" className="text-xs text-ink/60">*</span>}
         </span>
       )}
       {medal && <span role="img" aria-label={`Médaille ${medal === 'or' ? "d'or" : medal === 'argent' ? "d'argent" : 'de bronze'} du groupe`} className="text-base leading-none">{MEDAL[medal]}</span>}

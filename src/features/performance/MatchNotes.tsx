@@ -59,7 +59,7 @@ export function MatchNotes() {
 
 // Répartition des coqs du coach : une barre empilée (taille = nombre de joueurs), le reste en gris clair = pas encore noté
 function CoqBar({ ratings, total }: { ratings: Rating[]; total: number }) {
-  if (!ratings.length) return <p className="text-sm text-ink/50">Pas encore noté.</p>
+  if (!ratings.length) return <p className="text-sm text-ink/60">Pas encore noté.</p>
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex h-2.5 overflow-hidden rounded-full bg-field" role="img"

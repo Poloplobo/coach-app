@@ -30,7 +30,7 @@ export function LoginPage() {
             value={identifier} onChange={e => setIdentifier(e.target.value)}
             autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} required
             placeholder="prenom.nom ou e-mail"
-            className="rounded-md bg-surface border border-line px-3 py-3 text-base focus:border-ink/50"
+            className="rounded-lg bg-surface border border-line px-3 py-3 text-base focus:border-ink/50"
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
@@ -38,7 +38,7 @@ export function LoginPage() {
           <input
             type="password" value={password} onChange={e => setPassword(e.target.value)}
             autoComplete="current-password" required
-            className="rounded-md bg-surface border border-line px-3 py-3 text-base focus:border-ink/50"
+            className="rounded-lg bg-surface border border-line px-3 py-3 text-base focus:border-ink/50"
           />
         </label>
 

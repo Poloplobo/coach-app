@@ -14,7 +14,7 @@ export function Coq({ color, className = 'h-5 w-5' }: { color: RatingColor; clas
 }
 
 export function MatchColor({ color, label }: { color: RatingColor | null; label?: string }) {
-  if (!color) return <span className="text-ink/50">—</span>
+  if (!color) return <span className="text-ink/60">—</span>
   return (
     <span className="inline-flex items-center gap-1.5">
       <Coq color={color} />

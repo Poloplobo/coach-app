@@ -22,10 +22,10 @@ export function FatigueTrend({ playerId, date }: { playerId: string; date: strin
         {days.map(x => (
           <li key={x.d} className="flex flex-col items-center gap-1" aria-label={`${x.d} : ${x.pct === null ? 'pas de saisie' : `fatigue ${x.pct} %`}`}>
             <span aria-hidden="true" className="text-xs tabular-nums text-ink/60">{x.pct ?? ''}</span>
-            <div aria-hidden="true" className="flex h-14 w-full items-end justify-center rounded-md bg-field">
+            <div aria-hidden="true" className="flex h-14 w-full items-end justify-center rounded-lg bg-field">
               {x.pct !== null && <div className={`w-1/2 rounded-sm ${BAR[postureOf(x.pct)]}`} style={{ height: `${Math.max(6, x.pct)}%` }} />}
             </div>
-            <span aria-hidden="true" className={`font-display text-sm font-semibold ${x.d === date ? 'text-ink' : 'text-ink/50'}`}>{dayLetter(x.d)}</span>
+            <span aria-hidden="true" className={`font-display text-sm font-semibold ${x.d === date ? 'text-ink' : 'text-ink/60'}`}>{dayLetter(x.d)}</span>
           </li>
         ))}
       </ol>

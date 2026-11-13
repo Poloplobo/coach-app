@@ -64,13 +64,13 @@ export function ExerciseRow({ playerId, exercise, editable, maxes = [], last, pa
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         {cue && <span className={`self-start rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${cue === 'current' ? 'bg-gold/15 text-gold' : 'bg-field text-ink/60'}`}>{cue === 'current' ? 'En cours' : 'Ensuite'}</span>}
         <p className="font-semibold leading-snug">
-          {exercise.block_label && <span className="mr-1.5 font-display text-sm font-semibold text-ink/50">{exercise.block_label}</span>}
+          {exercise.block_label && <span className="mr-1.5 font-display text-sm font-semibold text-ink/60">{exercise.block_label}</span>}
           {exercise.exercises.name}
         </p>
         <div className="flex flex-wrap items-center gap-1.5 text-sm">
           {p.volume && <span className="mr-1 font-display text-xl font-semibold leading-none tabular-nums">{p.volume}</span>}
-          {p.load && <span className="rounded-md bg-gold/15 px-2 py-0.5 font-semibold text-gold">{p.load}{est && ` ≈ ${est.kg.toLocaleString('fr-FR')} kg`}</span>}
-          {p.tempo && <span className="rounded-md bg-field px-2 py-0.5 tabular-nums text-ink/80">tempo {p.tempo}</span>}
+          {p.load && <span className="rounded-lg bg-gold/15 px-2 py-0.5 font-semibold text-gold">{p.load}{est && ` ≈ ${est.kg.toLocaleString('fr-FR')} kg`}</span>}
+          {p.tempo && <span className="rounded-lg bg-field px-2 py-0.5 tabular-nums text-ink/75">tempo {p.tempo}</span>}
           {p.rest && !restInFlow && <RestTimer rest={p.rest} />}
         </div>
         {p.note && <p className="text-sm text-ink/60">{p.note}</p>}
@@ -78,7 +78,7 @@ export function ExerciseRow({ playerId, exercise, editable, maxes = [], last, pa
           <p className="text-xs text-ink/60">
             {est && <>d'après ton test {est.ref.test} ({est.ref.value.toLocaleString('fr-FR')} kg, {shortDate(est.ref.date)})</>}
             {est && last && <br />}
-            {last && <>la dernière fois ({shortDate(last.date)}) : <span className="font-semibold text-ink/80">{last.done_load}</span></>}
+            {last && <>la dernière fois ({shortDate(last.date)}) : <span className="font-semibold text-ink/75">{last.done_load}</span></>}
           </p>
         )}
       </div>

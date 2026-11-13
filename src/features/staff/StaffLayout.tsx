@@ -63,14 +63,14 @@ export function StaffLayout() {
             <img src="/logo-rnr.svg" alt="" className="h-10 shrink-0" />
             <div className={`${block} min-w-0 flex-1`}>
               <p className="font-display text-xl font-bold leading-tight">Suivi PER</p>
-              <p className="text-xs text-ink/55">Pôle Espoir · RNR</p>
+              <p className="text-xs text-ink/60">Pôle Espoir · RNR</p>
             </div>
             {open && <button type="button" onClick={() => setOpen(false)} aria-label="Fermer le menu" className="flex h-11 w-11 items-center justify-center rounded-full bg-field"><X size={20} aria-hidden="true" /></button>}
           </div>
           <nav aria-label="Navigation staff" className="flex flex-1 flex-col gap-4 overflow-y-auto">
             {GROUPS.map(g => (
               <div key={g.title} className="flex flex-col gap-1">
-                <p className={`${block} px-3 text-[11px] font-semibold uppercase tracking-wider text-ink/45`}>{g.title}</p>
+                <p className={`${block} px-3 text-[11px] font-semibold uppercase tracking-wider text-ink/40`}>{g.title}</p>
                 {g.tabs.map(t => link(t, t.to === '/staff/medical' ? injured : undefined))}
               </div>
             ))}
@@ -81,7 +81,7 @@ export function StaffLayout() {
               <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rnr font-display text-sm font-bold text-white">{initials}</span>
               <div className={`${block} min-w-0`}>
                 <p className="truncate text-sm font-semibold">{name}</p>
-                <p className="truncate text-xs text-ink/55 first-letter:uppercase">{profile.data?.role === 'admin' ? 'admin' : 'coach'} · {formatDay(parisDate())}</p>
+                <p className="truncate text-xs text-ink/60 first-letter:uppercase">{profile.data?.role === 'admin' ? 'admin' : 'coach'} · {formatDay(parisDate())}</p>
               </div>
             </div>
           </div>

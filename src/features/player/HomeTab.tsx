@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState } from 'react'
 
 let homeShown = false // module : vit le temps de la session
 import { addDays, isoWeekStart } from '../../lib/week'
@@ -6,24 +6,25 @@ import { Check, ChevronRight } from 'lucide-react'
 import { TabLink } from '../../components/ui/TabLink'
 import { EXERCISE_SESSIONS, dayActivities, upcomingByDay } from '../rpe/activities'
 import { useAvailability, useCatchUpDay, usePlanRange, useWeekTarget } from '../rpe/useRpe'
-import { completion } from '../seances/program'
-import { useWeekProgram } from '../seances/useSeance'
 import { SeasonProfileCard } from '../tests/SeasonProfileCard'
 import { WeekendSummary } from '../performance/WeekendSummary'
 import { fatiguePercent, postureOf } from '../wellness/fatigue'
-import { useWellnessDay } from '../wellness/useWellness'
+import { useWellnessRange } from '../wellness/useWellness'
 import { useLogsRange } from '../rpe/useRpe'
 import { MyWeek } from './MyWeek'
 import { ReturnPlanCard } from './ReturnPlanCard'
 import { usePlayerDay } from './playerDay'
 import { Cutout } from '../photos/PlayerPhoto'
+import { Card } from '../../components/ui/Card'
+import { loadGauge } from './loadGauge'
 import { Loading } from '../../components/ui/Loading'
 
 const done = (n: number, total: number) => `${n}/${total} fait${n > 1 ? 's' : ''}`
 const shortDay = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', timeZone: 'UTC' })
 
-// Accueil, du plus urgent au plus calme : ce qu'il reste à faire, le plan de retour (blessé), le tableau du jour (fatigue,
-// charge), la semaine (avec la muscu et les jours à venir), le dernier match, le profil de saison. Maxi et objectifs : onglet Perf.
+// Accueil : une question par zone, une réponse par question (décision du 13/11/2026, l'écran faisait brouillon).
+// Quoi faire aujourd'hui · [mon retour, blessé] · comment je vais (fatigue, charge) · ma semaine (7 jours, la suite) ·
+// mon dernier match (une ligne) · mon profil de saison. Le détail est dans Séance, Perf et Forme.
 export function HomeTab() {
   const { playerId, today } = usePlayerDay()
   // Les blocs apparaissent l'un après l'autre à la première ouverture seulement (l'Accueil est rouvert plusieurs fois par
@@ -36,8 +37,8 @@ export function HomeTab() {
       <div {...rise(0)}><CatchUp playerId={playerId} today={today} /></div>
       <div {...rise(0)}><TodoToday playerId={playerId} today={today} /></div>
       <div {...rise(1)}><ReturnPlanCard today={today} /></div>
-      <div {...rise(2)}><Scoreboard playerId={playerId} today={today} /></div>
-      <div {...rise(3)}><MyWeek playerId={playerId} date={today} footer={<><MuscuWeek playerId={playerId} today={today} /><Upcoming playerId={playerId} today={today} /></>} /></div>
+      <div {...rise(2)}><Shape playerId={playerId} today={today} /></div>
+      <div {...rise(3)}><MyWeek playerId={playerId} date={today} footer={<Upcoming playerId={playerId} today={today} />} /></div>
       <div {...rise(4)}><WeekendSummary playerId={playerId} /></div>
       <div {...rise(5)}><SeasonProfileCard playerId={playerId} date={today} /></div>
     </>
@@ -104,89 +105,60 @@ function TodoToday({ playerId, today, title }: { playerId: string; today: string
   )
 }
 
-// Le tableau du jour en anneaux, comme les apps d'entraînement : fatigue du jour, charge de la semaine face à sa plage,
-// exercices de muscu faits ; sous les anneaux, le type de semaine et où en est la charge
-const TONE = ['stroke-ok', 'stroke-gold', 'stroke-rnr'] // fatigue faible, moyenne, à surveiller
-function Scoreboard({ playerId, today }: { playerId: string; today: string }) {
-  const wellness = useWellnessDay(playerId, today)
+// « Comment je vais » : la fatigue du jour en grand (avec la tendance de la semaine), puis la charge de la semaine sur une
+// seule jauge, face à la plage de son type de semaine. Une réponse par question : le détail est dans Forme et Séance.
+const TONE = ['text-ok', 'text-gold', 'text-rnr'] // fatigue faible, moyenne, à surveiller
+const WORD = ['en forme', 'fatigue moyenne', 'à surveiller']
+function Shape({ playerId, today }: { playerId: string; today: string }) {
   const week = isoWeekStart(today)
-  const logs = useLogsRange(playerId, [week, addDays(today, -6)].sort()[0], today) // même requête que « Ma semaine » : servie par le cache
+  const wellness = useWellnessRange(playerId, addDays(week, -7), today) // même requête que « Ma semaine » : servie par le cache
+  const logs = useLogsRange(playerId, [week, addDays(today, -6)].sort()[0], today)
   const target = useWeekTarget(week).data
-  const program = useWeekProgram(playerId, week, addDays(week, 6))
-  const w = wellness.data
+  const mean = (from: string, to: string) => {
+    const v = (wellness.data ?? []).filter(w => w.entry_date >= from && w.entry_date <= to && w.score !== null).map(w => fatiguePercent(w.score!))
+    return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null
+  }
+  const score = wellness.data?.find(w => w.entry_date === today)?.score
+  const pct = score != null ? fatiguePercent(score) : null
+  const now = mean(week, today), before = mean(addDays(week, -7), addDays(week, -1))
+  const trend = now === null || before === null ? null : now - before > 3 ? '↑ en hausse' : now - before < -3 ? '↓ en baisse' : 'stable'
   const load = logs.data?.filter(l => l.session_date >= week).reduce((sum, l) => sum + Number(l.srpe ?? 0), 0)
-  const pct = w?.score != null ? fatiguePercent(w.score) : null
-  const muscu = program.data?.length ? completion(program.data.filter(s => s.session_date <= today).flatMap(s => s.planned_exercises)) : null
-  const where = !target || load === undefined ? null : load < (target.srpe_min ?? 0) ? 'below' : target.srpe_max !== null && load > target.srpe_max ? 'above' : 'in'
+  const g = target && load !== undefined ? loadGauge(load, target.srpe_min ?? 0, target.srpe_max) : null
+  const daysLeft = 6 - Math.round((Date.parse(today) - Date.parse(week)) / 864e5)
 
   return (
-    <section aria-label="Mon tableau du jour" className="flex flex-col gap-3">
-      {/* Le joueur détouré à côté de ses anneaux (rien s'il n'a pas de photo) */}
-      <div className="flex items-end gap-2">
-      <Cutout id={playerId} className="h-32 w-24 -mb-1" />
-      <div className={`grid flex-1 gap-2 ${muscu ? 'grid-cols-3' : 'grid-cols-2'}`}>
-        <Ring label="Fatigue du jour" fill={pct ?? 0} tone={pct === null ? 'stroke-line' : TONE[postureOf(pct)]}>
-          {pct ?? '–'}<span className="text-xs text-ink/60">%</span>
-        </Ring>
-        <Ring label="UA cette semaine" fill={target && load !== undefined ? (100 * load) / (target.srpe_max ?? target.target_srpe ?? load) : 0}
-          tone={where === 'in' ? 'stroke-ok' : where === 'above' ? 'stroke-rnr' : 'stroke-ink/50'}>
-          <span className="text-base">{load ?? '–'}</span>
-        </Ring>
-        {muscu && <Ring label="Muscu faite" fill={muscu.pct} tone="stroke-ok">{muscu.pct}<span className="text-xs text-ink/60">%</span></Ring>}
+    <Card boxed title="Ma forme">
+      <div className="flex items-end gap-4">
+        <Cutout id={playerId} className="-mb-1 h-24 w-20" />
+        <div className="flex flex-col">
+          <p className={`font-display text-6xl font-semibold leading-none tabular-nums ${pct === null ? 'text-ink/40' : TONE[postureOf(pct)]}`}>
+            {pct ?? '–'}<span className="text-2xl text-ink/60"> %</span>
+          </p>
+          <p className="mt-1 text-sm"><span className="font-semibold">Fatigue du jour</span>{pct !== null && <span className="text-ink/60"> · {WORD[postureOf(pct)]}</span>}</p>
+          {now !== null && <p className="text-xs text-ink/60">Moyenne de la semaine {now} %{trend && <> · <span className={trend.startsWith('↑') ? 'text-gold' : trend.startsWith('↓') ? 'text-ok' : ''}>{trend}</span></>}</p>}
+        </div>
       </div>
-      </div>
-      {target && load !== undefined && <WeekGauge load={load} target={target} daysLeft={6 - Math.round((Date.parse(today) - Date.parse(week)) / 864e5)} />}
-    </section>
-  )
-}
-
-// Anneau de progression (0 à 100 %, plein au-delà) avec sa valeur au centre
-function Ring({ label, fill, tone, children }: { label: string; fill: number; tone: string; children: ReactNode }) {
-  const c = 2 * Math.PI * 26
-  return (
-    <div className="flex flex-col items-center gap-1.5 rounded-2xl bg-surface px-2 py-3 ring-1 ring-line/60">
-      <div className="relative h-16 w-16">
-        <svg viewBox="0 0 64 64" aria-hidden="true" className="h-16 w-16 -rotate-90">
-          <circle cx="32" cy="32" r="26" strokeWidth="7" className="fill-none stroke-field" />
-          <circle cx="32" cy="32" r="26" strokeWidth="7" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - Math.min(1, Math.max(0, fill) / 100))}
-            className={`fill-none transition-[stroke-dashoffset] duration-300 ease-out ${tone}`} />
-        </svg>
-        <span className="absolute inset-0 flex items-center justify-center font-display text-xl font-semibold tabular-nums">{children}</span>
-      </div>
-      <p className="text-center text-xs leading-tight text-ink/60">{label}</p>
-    </div>
-  )
-}
-
-// Type de semaine et plage de charge (REG 500-1500, COMP 1500-2500, DEV au-delà de 2500), et où en est la charge
-function WeekGauge({ load, target, daysLeft }: {
-  load: number; daysLeft: number; target: { week: string; code: string; name: string; srpe_min: number | null; srpe_max: number | null }
-}) {
-  const min = target.srpe_min ?? 0
-  const where = load < min ? 'below' : target.srpe_max !== null && load > target.srpe_max ? 'above' : 'in'
-  return (
-    <p className="flex items-baseline justify-between gap-3 px-1 text-xs">
-      <span><span className="font-semibold">{target.week} · {target.name}</span> <span className="text-ink/60">plage {min.toLocaleString('fr-FR')}{target.srpe_max !== null ? `–${target.srpe_max.toLocaleString('fr-FR')}` : ' et +'} UA</span></span>
-      <span className={`shrink-0 font-semibold ${where === 'in' ? 'text-ok' : where === 'above' ? 'text-rnr' : 'text-ink/60'}`}>
-        {where === 'in' ? 'dans la plage' : where === 'above' ? 'au-dessus' : daysLeft > 0 ? `encore ${daysLeft} j` : 'sous la plage'}
-      </span>
-    </p>
-  )
-}
-
-function MuscuWeek({ playerId, today }: { playerId: string; today: string }) {
-  const from = isoWeekStart(today)
-  const program = useWeekProgram(playerId, from, addDays(from, 6))
-  if (!program.data?.length) return null
-  const done = program.data.filter(s => s.session_date <= today).flatMap(s => s.planned_exercises)
-  const c = completion(done)
-  const left = program.data.filter(s => s.session_date > today).length
-  return (
-    <p className="text-sm">
-      <span className="font-semibold">{program.data.every(s => s.activity_types.name === 'Musculation') ? 'Musculation' : 'Réhab et membres sains'}</span> <span className="text-ink/70">
-        {c.done}/{c.total} exercices faits ({c.pct} %){left > 0 && ` · ${left} séance${left > 1 ? 's' : ''} encore prévue${left > 1 ? 's' : ''}`}
-      </span>
-    </p>
+      {g && target && load !== undefined && (
+        <div className="flex flex-col gap-1.5 border-t border-line/60 pt-3">
+          <p className="flex items-baseline justify-between gap-3 text-sm">
+            <span className="font-semibold">Charge de la semaine</span>
+            <span className="font-display text-xl font-semibold tabular-nums">{load.toLocaleString('fr-FR')} <span className="text-sm font-normal text-ink/60">UA</span></span>
+          </p>
+          {/* La zone plus claire est la plage visée ; la barre est la charge déclarée depuis lundi */}
+          <div className="relative h-2.5 overflow-hidden rounded-full bg-field" role="img"
+            aria-label={`${load} UA, plage visée ${target.srpe_min ?? 0}${target.srpe_max !== null ? ` à ${target.srpe_max}` : ' et plus'} UA`}>
+            <span className="absolute inset-y-0 bg-ok/25" style={{ left: `${g.bandFrom}%`, width: `${g.bandTo - g.bandFrom}%` }} />
+            <span className={`absolute inset-y-0 left-0 rounded-full ${g.where === 'in' ? 'bg-ok' : g.where === 'above' ? 'bg-rnr' : 'bg-ink/70'}`} style={{ width: `${Math.max(2, g.fill)}%` }} />
+          </div>
+          <p className="flex items-baseline justify-between gap-3 text-xs text-ink/60">
+            <span>{target.week} · {target.name} · plage {(target.srpe_min ?? 0).toLocaleString('fr-FR')}{target.srpe_max !== null ? `–${target.srpe_max.toLocaleString('fr-FR')}` : ' et +'} UA</span>
+            <span className={`shrink-0 font-semibold ${g.where === 'in' ? 'text-ok' : g.where === 'above' ? 'text-rnr' : ''}`}>
+              {g.where === 'in' ? 'dans la plage' : g.where === 'above' ? 'au-dessus' : daysLeft > 0 ? `encore ${daysLeft} j` : 'sous la plage'}
+            </span>
+          </p>
+        </div>
+      )}
+    </Card>
   )
 }
 

@@ -21,16 +21,15 @@ describe('WeekendSummary (accueil)', () => {
   it('sans sa note : invitation à noter, rien du coach', () => {
     h.ratings = [staff]
     show()
-    expect(screen.getByText('après ta note')).toBeTruthy()
     expect(screen.queryByText('Très bon match')).toBeNull()
     expect(screen.queryByText(/Gros match/)).toBeNull()
     expect(screen.getByText('Noter mon match')).toBeTruthy()
   })
-  it('avec sa note : note du coach, temps de jeu et commentaire', () => {
+  it('avec sa note : sa note et celle du coach ; commentaire et temps de jeu restent dans Perf', () => {
     h.ratings = [{ match_id: 'm1', player_id: 'p1', rater: 'player', color: 'vert' }, staff]
     show()
-    expect(screen.getByText('Très bon match')).toBeTruthy()
-    expect(screen.getByText('65 min')).toBeTruthy()
-    expect(screen.getByText('« Gros match »')).toBeTruthy()
+    expect(screen.getByText(/Très bon match/)).toBeTruthy()
+    expect(screen.queryByText(/Gros match/)).toBeNull()
+    expect(screen.queryByText('Noter mon match')).toBeNull()
   })
 })

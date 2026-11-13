@@ -2,8 +2,7 @@ import type { ReactNode } from 'react'
 import { Card } from '../../components/ui/Card'
 import { Loading } from '../../components/ui/Loading'
 import { addDays, formatDay, isoWeekStart } from '../../lib/week'
-import { upcomingByDay } from '../rpe/activities'
-import { useAvailability, useLogsRange, usePlanRange } from '../rpe/useRpe'
+import { useLogsRange } from '../rpe/useRpe'
 import { fatiguePercent, postureOf } from '../wellness/fatigue'
 import { useWellnessRange } from '../wellness/useWellness'
 
@@ -15,22 +14,10 @@ export function MyWeek({ playerId, date, footer }: { playerId: string; date: str
   const start = isoWeekStart(date)
   const from = [start, addDays(date, -6)].sort()[0] // même plage que le tableau d'affichage : servie par le cache
   const logs = useLogsRange(playerId, from, date)
-  const wellness = useWellnessRange(playerId, addDays(start, -7), date) // + semaine dernière : tendance de la fatigue
-  const plan = usePlanRange(playerId, start, date)
-  const availability = useAvailability(playerId)
+  const wellness = useWellnessRange(playerId, addDays(start, -7), date) // même plage que « Ma forme » : servie par le cache
 
-  if (logs.isPending || wellness.isPending || plan.isPending || availability.isPending) return <Card title="Ma semaine"><Loading /></Card>
-  if (logs.isError || wellness.isError || plan.isError || availability.isError) return <Card title="Ma semaine"><p>Impossible de charger ta semaine.</p></Card>
-
-  // Résumé chiffré : activités déclarées / prévues depuis lundi, fatigue moyenne comparée à la semaine dernière
-  const planned = upcomingByDay(plan.data, { injured: availability.data === 'blessé' }).reduce((n, d) => n + d.activities.length, 0)
-  const declared = logs.data.filter(l => l.session_date >= start).length
-  const meanFatigue = (from: string, to: string) => {
-    const v = wellness.data.filter(w => w.entry_date >= from && w.entry_date <= to && w.score !== null).map(w => fatiguePercent(w.score!))
-    return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null
-  }
-  const fatigue = meanFatigue(start, date), before = meanFatigue(addDays(start, -7), addDays(start, -1))
-  const trend = fatigue === null || before === null ? null : fatigue - before > 3 ? 'en hausse' : fatigue - before < -3 ? 'en baisse' : 'stable'
+  if (logs.isPending || wellness.isPending) return <Card boxed title="Ma semaine"><Loading /></Card>
+  if (logs.isError || wellness.isError) return <Card boxed title="Ma semaine"><p>Impossible de charger ta semaine.</p></Card>
 
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = addDays(start, i)
@@ -41,20 +28,7 @@ export function MyWeek({ playerId, date, footer }: { playerId: string; date: str
   const max = Math.max(300, ...days.map(x => x.load))
 
   return (
-    <Card title="Ma semaine">
-      {/* Deux chiffres depuis lundi : déclarées et fatigue moyenne (tendance) ; la charge est dans les anneaux du tableau du jour */}
-      <dl className="grid grid-cols-2 gap-2">
-        {([
-          ['Déclarées', String(declared), planned > 0 ? `pour ${planned} prévue${planned > 1 ? 's' : ''}` : 'depuis lundi', ''], // pas de fraction : les ajouts hors planning la feraient dépasser (« 4/3 »)
-          ['Fatigue moy.', fatigue === null ? '—' : `${fatigue} %`, trend ? (trend === 'en hausse' ? '↑ en hausse' : trend === 'en baisse' ? '↓ en baisse' : 'stable') : 'cette semaine', trend === 'en hausse' ? 'text-gold' : trend === 'en baisse' ? 'text-ok' : ''],
-        ] as const).map(([label, value, sub, tone]) => (
-          <div key={label} className="flex flex-col rounded-xl bg-field px-3 py-2">
-            <dt className="text-xs text-ink/60">{label}</dt>
-            <dd className="font-display text-2xl font-semibold leading-tight tabular-nums">{value}</dd>
-            <dd className={`text-[11px] leading-tight ${tone || 'text-ink/60'}`}>{sub}</dd>
-          </div>
-        ))}
-      </dl>
+    <Card boxed title="Ma semaine">
       <ol className="grid grid-cols-7 gap-1.5">
         {days.map((x, i) => (
           <li key={x.d} className={`flex flex-col items-center gap-1.5 ${x.d > date ? 'opacity-35' : ''}`}

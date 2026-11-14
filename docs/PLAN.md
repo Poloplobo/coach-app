@@ -274,6 +274,116 @@ hors de l'app.
      les étapes. Le joueur et le staff voient l'étape en cours, les étapes restantes et le temps théorique restant ; le
      diagnostic et les notes restent au staff.
 
+## Étape 14 — « Suivi individuel » : nutrition et sommeil (décisions du 14/11/2026)
+Outils de suivi activés joueur par joueur après un entretien. Deux modules au départ (Nutrition, Sommeil), d'autres
+plus tard (mental, récupération…) sans refaire le socle. Benchmark et sources : conversation du 14/11/2026.
+
+**Publication : rien de visible en production tant que ce n'est pas fini.**
+- Drapeau `suivi_individuel` en base : `feature_flags` (ouvert à tous ou non) + `feature_testers` (comptes testeurs).
+  Fonction `has_feature()` utilisée par la RLS de toutes les nouvelles tables : drapeau fermé, un joueur ne peut ni
+  lire ni écrire, même en appelant l'API à la main.
+- Front : `useFeature('suivi_individuel')`. Drapeau fermé : pas de route, pas d'entrée de menu, pas de notification,
+  l'onglet joueur reste « Forme » tel quel. Écrans chargés à la demande (rien dans le bundle initial).
+- Base de dev : drapeau ouvert à tous. Production : fermé, ouvert pour l'admin et les comptes testeurs (dont joueur.test).
+- Les migrations partent en production sous drapeau ; chaque mise en ligne attend le « go déploiement ».
+
+**Navigation.** Joueur : l'onglet « Forme » devient « Suivi » (état de forme du jour, puis les modules actifs, ou
+« Demander un entretien »). Staff : entrée « Suivi individuel » dans la barre latérale (groupe Santé).
+
+14a. Socle, drapeau et accès par entretien.
+     Tables : `follow_modules` (nutrition, sommeil…), `follow_requests` (demande : module, créneaux proposés,
+     commentaire, statut en attente / confirmé / autre créneau proposé / refusé / réalisé), `follow_request_notes`
+     (notes d'entretien, staff seulement), `follow_enrollments` (joueur ↔ module : actif / terminé, consentement daté).
+     Joueur : sans module actif, une seule action, « Demander un entretien » (sujet, un ou plusieurs créneaux, commentaire).
+     Staff : demandes en attente, accepter un créneau / en proposer un autre / refuser, marquer réalisé avec notes
+     privées, activer le ou les modules. Un joueur suivi en nutrition peut demander un entretien sommeil, et inversement.
+     Notifications push : entretien confirmé et module débloqué (joueur), nouvelle demande (staff).
+     Consentement : case à cocher par le joueur à la première ouverture de chaque module (données de santé).
+     Fin de suivi : le staff clôt le module ; ses données sont supprimées (fonction dédiée, confirmée deux fois).
+14b. Objectifs (communs aux modules). `follow_goals` : objectif central, moyens d'action, cible chiffrée (valeur,
+     unité, valeur de départ), date de fin, statut en cours / atteint / non atteint / abandonné. Saisis par le joueur ou
+     le staff pendant l'entretien, validés et modifiables par le staff. Historique, et écran de progression (courbe
+     vers la cible, jours restants). Le module ne s'ouvre qu'avec un objectif validé.
+14c. Sommeil. Saisie du matin enchaînée après l'état de forme (sans repasser par le menu), en moins de 30 secondes :
+     heures de coucher, d'endormissement et de réveil (préremplies avec celles de la veille, durée calculée), minutes
+     sans téléphone, qualité 1 à 5, réveils nocturnes (nombre, durée), sensation au réveil ; facultatifs repliés :
+     sieste, caféine après 16 h, note. Champs du Consensus Sleep Diary. Routines personnelles à cocher (joueur ou
+     staff), comptées en séries de jours, sans pénalité affichée pour un oubli. Indicateurs : durée moyenne, régularité
+     des horaires, dette sur 7 jours face à la cible individuelle, tendance de la qualité, lien avec la fatigue.
+     Tables : `sleep_entries`, `sleep_routines`, `sleep_routine_checks`.
+14d. Nutrition. Journal par repas (petit-déjeuner, collation matin, déjeuner et dîner en entrée / plat / dessert,
+     goûter, collation du soir) et hydratation à part (verre, bouteille, mL). Aliments : Ciqual (ANSES, licence à
+     confirmer à l'import) + aliments du staff (cantine du pôle, compléments) + aliments personnels ; recherche
+     instantanée en français, tolérante aux fautes (pg_trgm, sans accents). Quantités : g, kg, mL, L et portions
+     simples (petite / moyenne / grande, bol, assiette, cuillère, poignée, tranche, unité, portions à la main), chacune
+     avec son équivalent en grammes. Saisie rapide : récents, favoris, repas enregistrés, copier le repas d'hier ;
+     moins d'une minute par repas. Pesée reliée à l'objectif chiffré (table `body_measurements` existante, fréquence
+     fixée par le staff). Côté joueur : jamais de calories ni de macros ; régularité (repas pris / prévus), repas
+     complet (protéine, féculent, légume), hydratation. Les valeurs nutritionnelles sont dans une table lisible du
+     staff seulement (`food_nutrients`) : apports estimés (énergie, macros) calculés côté staff.
+     Tables : `foods`, `food_nutrients`, `food_portions`, `meal_items`, `saved_meals`, `food_favorites`, `hydration_entries`.
+14e. Tableaux de bord staff. Par joueur : vue jour et semaine, régularité de saisie, indicateurs, objectifs,
+     commentaires adressés au joueur (`follow_comments`). Alertes paramétrables par joueur (ex. moins de 7 h trois
+     nuits de suite, qualité ≤ 2, deux jours sans saisie), reprises dans « Aujourd'hui ».
+14f. Données de test (base de dev seulement) : 3 joueurs fictifs avec 30 jours d'historique sommeil et nutrition.
+
+**Sécurité (relecture du 14/11/2026, à respecter dans chaque incrément).**
+- Drapeau : politique *restrictive* `for all` sur chaque nouvelle table (modèle 0039), et premier test de toute
+  fonction security definer (`has_feature`, sinon erreur 42501) ; vues en `security_invoker` ; pas de push si le
+  drapeau est fermé pour le destinataire ; `feature_flags` et `feature_testers` illisibles par un joueur.
+- Qui lit côté staff : **à trancher** (admin seul avec `is_admin()`, ou liste de staff habilités). Tant que ce n'est
+  pas décidé : admin seul. Jamais `is_staff()` par défaut (les coachs U16 liraient sommeil, alimentation et poids).
+- Aucune colonne réservée au staff dans une table lisible du joueur (la RLS filtre des lignes, pas des colonnes) :
+  notes d'entretien, seuils d'alerte et `food_nutrients` dans des tables staff seulement. « Repas complet » vient
+  d'une catégorie portée par `foods`, jamais d'un calcul sur les valeurs nutritionnelles.
+- Le joueur ne modifie ni son enrôlement, ni le statut d'une demande ou d'un objectif : activation, validation et
+  consentement passent par des fonctions dédiées. Consentement : date posée côté serveur, par le joueur lui-même,
+  avec la version du texte ; les saisies exigent un enrôlement actif *et* consenti.
+- Fin de suivi : une fonction (admin, une transaction) supprime toutes les tables du module et les tables communes
+  (objectifs, commentaires, demandes, notes, seuils) ; l'enrôlement garde une trace sans donnée de santé (terminé le,
+  supprimé le, par qui). Les pesées du suivi sont marquées par leur origine pour n'effacer que celles-là. Toutes les
+  tables en `on delete cascade` sur le joueur. Le joueur peut demander l'arrêt de son suivi.
+- Aliments personnels : visibles de leur auteur et de l'admin seulement ; longueurs et quantités bornées en base ;
+  recherche paramétrée (pas de SQL dynamique), terme de 2 à 50 caractères, nombre de résultats plafonné.
+- Notifications : texte générique (« Du nouveau dans ton suivi », « Nouvelle demande d'entretien »), jamais le
+  module ni le nom du joueur (affiché sur l'écran verrouillé, transite par Apple / Google).
+- Compte joueur.test : autorisé à écrire dans ces modules pour tester la saisie (exception à la lecture seule du
+  06/11), toujours exclu des tableaux de bord et des alertes du staff.
+- 14f est un script réservé à la base de dev (garde `--confirm`), jamais une migration.
+- Heures de coucher et de réveil : date de la nuit + heures, fuseau Europe/Paris, nuit à cheval sur deux jours gérée.
+
+**Ajustements après relecture d'architecture (14/11/2026) : cet ordre et ces choix remplacent ceux de la liste 14a-14f.**
+- Ordre : (1) drapeau, demandes d'entretien, inscriptions et objectifs ensemble (l'activation dépend d'un objectif
+  validé) ; (2) notifications du joueur ; (3) sommeil, avec ses données de test ; (4) pesée ; (5) nutrition avec ses
+  données de test, en deux temps (journal et recherche, puis favoris et repas enregistrés) ; (6) tableaux de bord,
+  alertes, puis fin de suivi et suppression une fois toutes les tables connues.
+- Adresse `/joueur/forme` conservée (en dur dans les rappels et en cache sur les téléphones) : seul le libellé de
+  l'onglet passe à « Suivi », drapeau ouvert. Routes déclarées en permanence, l'écran se garde lui-même par
+  `useFeature` (sinon un lien ouvert à froid retombe sur l'accueil) ; la RLS reste la vraie barrière.
+- Le drapeau s'insère fermé par migration ; la base de dev est ouverte par une ligne de seed, pas par la migration.
+- Sommeil : la qualité (1 à 5) n'est pas redemandée, elle est lue dans l'état de forme saisi juste avant. La carte
+  sommeil passe au-dessus de la carte d'état de forme une fois celui-ci rempli. Le verrou des onglets reste sur
+  l'état de forme seul. Une ligne par joueur et par nuit.
+- Pesée : `body_measurements` reçoit une colonne d'origine ; le joueur écrit et corrige ses seules pesées ; l'import
+  n'écrase plus une mesure existante.
+- Notifications : pas de push pour le staff en V1 (aucun abonnement staff aujourd'hui) : compteur de demandes dans
+  la barre latérale et reprise dans « Aujourd'hui ». Push joueur par déclencheur, texte neutre, étiquette distincte
+  du rappel du matin (sinon l'un remplace l'autre) ; ce n'est jamais le seul canal (un joueur peut l'avoir coupé).
+- Testeur en production : joueur.test, une fois inscrit comme testeur, n'est plus en lecture seule (il doit pouvoir
+  remplir l'état de forme pour enchaîner sur le sommeil) mais reste caché des chiffres du staff ; les écrans staff du
+  suivi l'affichent. Son bandeau « lecture seule » disparaît tant qu'il est testeur.
+- Réglages par joueur à prévoir : cible de sommeil, fréquence de pesée, repas prévus par jour, seuils d'alerte
+  (ces derniers en table staff). Aliment personnel : colonne propriétaire.
+- Ciqual : licence à confirmer avant la nutrition ; chargement par script avec `--confirm`, pas par migration.
+
+**Méthode à chaque incrément** : migration + tests RLS (drapeau fermé = rien de lisible ; un joueur ne lit que ses
+lignes ; notes d'entretien et valeurs nutritionnelles jamais lisibles par un joueur), tests des calculs (durée, dette,
+régularité, séries), relecture par l'agent reviewer, écrans conçus avec les skills de design (interface-design,
+mobile-native, break-ui sur les formulaires), captures sur le banc d'essai, puis « comment tester » pour l'admin.
+
+**V2** : scan de code-barres (Open Food Facts, licence ODbL : données gardées séparées), questionnaire ASSQ à
+l'entretien, photo du repas pour le staff, autres modules. Écarté : import Apple Santé (impossible depuis une app web).
+
 ## Décisions prises
 - **D1** Connexion par identifiant `prenom.nom` + mot de passe, comptes créés en amont ; réinitialisation par un admin.
 - **D2** Comptes créés par script sur le Mac de l'admin, à partir de la liste des joueurs du Drive.
@@ -288,6 +398,9 @@ hors de l'app.
 - **D8** Objectifs et tests affichés sur l'accueil du joueur, en lecture seule.
 - **D9** Identifiants envoyés en message privé à chaque joueur (jamais en groupe), mot de passe à changer dans Réglages.
 - **D10** Après la mise en ligne, la base de dev (Londres) est vidée des vraies données ; elle ne garde que du fictif.
+- **D11** Suivi individuel (14/11/2026) : hébergement actuel validé avec le club ; pas d'information aux parents,
+  consentement du joueur à l'activation de chaque module ; l'onglet joueur « Forme » devient « Suivi » ; pas de
+  calories côté joueur ; onces et Apple Santé écartés ; rien de visible en production avant la fin (drapeau).
 
 ## Plus tard
 Export CSV/PDF, imports SYNTHÈSE / MOBILITÉ / SUIVI VITESSE / Planification individuelle PER, PWA hors-ligne.

@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(249);
+select plan(267);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -808,6 +808,55 @@ select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000
 set local role authenticated;
 select is(public.is_test_user(), false, 'compte de test inscrit comme testeur : plus en lecture seule');
 select lives_ok($$insert into public.wellness_entries (player_id, sleep_quality, fatigue, soreness_upper, soreness_lower, stress, mood) values ('00000000-0000-0000-0000-0000000000ee', 4, 4, 4, 4, 4, 4)$$, 'le testeur remplit son état de forme (pour enchaîner sur le suivi)');
+
+-- ---------- Suivi individuel, sommeil (0051) ----------
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+set local role authenticated;
+select lives_ok($$insert into public.sleep_entries (player_id, night_date, bed_time, asleep_time, wake_time, awakenings, awake_min, phone_free_min, feeling) values ('00000000-0000-0000-0000-00000000000a', public.paris_today(), '23:00', '23:30', '07:00', 1, 15, 30, 'repose')$$, 'A (suivi sommeil accepté) saisit sa nuit');
+select is((select duration_min from public.sleep_entries where player_id = '00000000-0000-0000-0000-00000000000a'), 435, 'durée : de 23:30 à 07:00 moins 15 min éveillé = 7 h 15');
+select throws_ok($$insert into public.sleep_entries (player_id, night_date, bed_time, asleep_time, wake_time, awakenings, awake_min, phone_free_min, feeling) values ('00000000-0000-0000-0000-00000000000a', public.paris_today() - 5, '23:00', '23:30', '07:00', 1, 15, 30, 'repose')$$, '42501', null, 'A ne saisit pas une nuit d''il y a 5 jours');
+select lives_ok($$insert into public.sleep_routines (id, player_id, label) values ('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-00000000000a', 'Écrans coupés à 22 h')$$, 'A ajoute une routine');
+select lives_ok($$insert into public.sleep_routine_checks (routine_id, player_id, night_date) values ('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-00000000000a', public.paris_today())$$, 'A coche sa routine');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}', true);
+set local role authenticated;
+select throws_ok($$insert into public.sleep_entries (player_id, night_date, bed_time, asleep_time, wake_time, awakenings, awake_min, phone_free_min, feeling) values ('00000000-0000-0000-0000-00000000000b', public.paris_today(), '23:00', '23:30', '07:00', 1, 15, 30, 'repose')$$, '42501', null, 'B (module activé mais pas accepté) ne saisit pas');
+select is_empty($$select 1 from public.sleep_entries$$, 'B ne lit pas le sommeil de A');
+select throws_ok($$insert into public.sleep_routine_checks (routine_id, player_id, night_date) values ('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-00000000000b', public.paris_today())$$, null, null, 'B ne coche pas la routine de A');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000c","role":"authenticated"}', true);
+set local role authenticated;
+select is_empty($$select 1 from public.sleep_entries$$, 'un coach non admin ne lit pas le sommeil');
+select is_empty($$select 1 from public.sleep_routines$$, 'un coach non admin ne lit pas les routines');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000d","role":"authenticated"}', true);
+set local role authenticated;
+select is((select count(*)::int from public.sleep_entries), 1, 'l''admin lit le sommeil');
+-- Sommeil, après relecture : fenêtre de date, routines d'un autre, admin en lecture seule sur les nuits
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+set local role authenticated;
+select throws_ok($$insert into public.sleep_routine_checks (routine_id, player_id, night_date) values ('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-00000000000a', public.paris_today() - 5)$$, '42501', null, 'A ne coche pas une routine pour un jour ancien');
+select throws_ok($$insert into public.sleep_entries (player_id, night_date, bed_time, asleep_time, wake_time, phone_free_min, feeling) values ('00000000-0000-0000-0000-00000000000a', public.paris_today() - 1, '23:45', '23:00', '07:00', 0, 'repose')$$, '23514', null, 'heures incohérentes refusées (endormi avant le coucher)');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}', true);
+set local role authenticated;
+select is_empty($$update public.sleep_routines set label = 'Piraté' returning 1$$, 'B ne modifie pas la routine de A');
+select is_empty($$delete from public.sleep_routine_checks returning 1$$, 'B ne supprime pas les coches de A');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000d","role":"authenticated"}', true);
+set local role authenticated;
+select is_empty($$update public.sleep_entries set phone_free_min = 0 returning 1$$, 'l''admin ne modifie pas la nuit d''un joueur');
+select lives_ok($$insert into public.sleep_routines (player_id, label) values ('00000000-0000-0000-0000-00000000000a', 'Coucher avant 23 h')$$, 'l''admin propose une routine à un joueur');
+reset role;
+delete from public.feature_testers where profile_id = '00000000-0000-0000-0000-00000000000a';
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+set local role authenticated;
+select is_empty($$select 1 from public.sleep_entries$$, 'drapeau refermé pour A : son sommeil n''est plus lisible');
+reset role;
+insert into public.feature_testers (feature, profile_id) values ('suivi_individuel', '00000000-0000-0000-0000-00000000000a');
 
 -- ---------- Visiteur non connecté ----------
 reset role;

@@ -6,11 +6,13 @@ import { useWeekProgram } from '../seances/useSeance'
 import { EXERCISE_SESSIONS, MUSCULATION } from '../rpe/activities'
 import { addDays, isoWeekStart } from '../../lib/week'
 import { WellnessCard } from '../wellness/WellnessCard'
+import { useWellnessDay } from '../wellness/useWellness'
 import { usePlayerDay } from './playerDay'
 import { useFeature } from '../follow/feature'
 
 // Suivi individuel (étape 14) : chargé à part, jamais téléchargé tant que le drapeau est fermé
 const FollowSection = lazy(() => import('../follow/FollowSection'))
+const SleepToday = lazy(() => import('../follow/SleepModule'))
 
 export function SeanceTab() {
   const { playerId, today } = usePlayerDay()
@@ -40,5 +42,13 @@ export function RugbyTab() {
 export function FormeTab() {
   const { playerId, today } = usePlayerDay()
   const follow = useFeature()
-  return <><WellnessCard playerId={playerId} date={today} />{follow && <Suspense fallback={null}><FollowSection playerId={playerId} today={today} /></Suspense>}</>
+  const filled = !!useWellnessDay(playerId, today).data // même requête que la mise en page : servie par le cache
+  return (
+    <>
+      {/* Suivi sommeil : la saisie de la nuit s'enchaîne juste après l'état de forme, sans repasser par un menu */}
+      {follow && filled && <Suspense fallback={null}><SleepToday playerId={playerId} today={today} /></Suspense>}
+      <WellnessCard playerId={playerId} date={today} />
+      {follow && <Suspense fallback={null}><FollowSection playerId={playerId} today={today} /></Suspense>}
+    </>
+  )
 }

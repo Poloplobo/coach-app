@@ -77,8 +77,22 @@ const FOLLOW = {
     { id: 'go0', enrollment_id: 'en1', player_id: PLAYER, central: 'Se coucher à heure fixe', means: ['Réveil à la même heure le week-end'], target_label: '5 nuits sur 7', target_value: null, baseline: null, unit: null, due_on: addDays(TODAY, -21), status: 'atteint', created_at: iso(-60, 9), validated_at: iso(-60, 12) },
   ],
 }
+// Sommeil fictif : 14 nuits (une manquée), coucher plus tardif le week-end, deux routines dont une cochée 4 soirs d'affilée
+const pad = n => String(n).padStart(2, '0')
+FOLLOW.sleep_entries = Array.from({ length: 14 }, (_, i) => {
+  const late = [0, 6].includes(new Date(`${addDays(TODAY, -i)}T12:00:00Z`).getUTCDay()) ? 70 : 0
+  const bed = 22 * 60 + 40 + late + (i * 13) % 35, asleep = bed + 15 + (i * 7) % 20, wake = 7 * 60 + (i % 3) * 10 + (late ? 60 : 0)
+  const awakenings = i % 4 === 1 ? 2 : i % 5 === 0 ? 1 : 0, awake_min = awakenings ? 15 * awakenings : 0
+  const t = m => `${pad(Math.floor((m % 1440) / 60))}:${pad(m % 60)}:00`
+  return { player_id: PLAYER, night_date: addDays(TODAY, -i), bed_time: t(bed), asleep_time: t(asleep), wake_time: t(wake), awakenings, awake_min,
+    phone_free_min: [30, 0, 15, 45, 30, 60, 0][i % 7], feeling: i % 3 === 1 ? 'fatigue' : 'repose', nap_min: null, caffeine_late: null, note: null,
+    duration_min: ((wake - asleep % 1440 + 1440) % 1440) - awake_min }
+}).filter((_, i) => i !== 5)
+FOLLOW.sleep_routines = [{ id: 'rt1', player_id: PLAYER, label: 'Écrans coupés à 22 h', active: true }, { id: 'rt2', player_id: PLAYER, label: 'Lire 20 min avant de dormir', active: true }]
+FOLLOW.sleep_routine_checks = [0, 1, 2, 3, 7].map(i => ({ routine_id: 'rt1', player_id: PLAYER, night_date: addDays(TODAY, -i) }))
+if (scenario === 'suivi-matin') FOLLOW.sleep_entries = FOLLOW.sleep_entries.filter(e => e.night_date !== TODAY)
 const followOn = scenario.startsWith('suivi')
-const mine = rows => (scenario === 'suivi' ? rows.filter(r => !r.player_id || r.player_id === PLAYER) : rows.filter(r => !r.player_id))
+const mine = rows => (scenario !== 'suivi-debut' ? rows.filter(r => !r.player_id || r.player_id === PLAYER) : rows.filter(r => !r.player_id))
 
 function table(name, url) {
   const p = url.searchParams

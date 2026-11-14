@@ -10,6 +10,7 @@ import {
   GOAL_LABEL, OPEN_REQUEST, useAnswerRequest, useAskInterview, useConsent, useDeleteGoal, useEnrollments, useGoals, useModules, useRequests, useSaveGoal,
   type Enrollment, type Goal, type GoalInput, type Request,
 } from './useFollow'
+import { SleepModule } from './SleepModule'
 
 const field = 'rounded-lg border border-line bg-field px-3 py-2.5 text-base'
 // Heure de Paris, première lettre en capitale (« Mercredi 18 novembre à 18:00 »)
@@ -155,7 +156,9 @@ function ModuleCard({ enrollment: e, title, goals, today }: { enrollment: Enroll
       {current ? <GoalSummary goal={current} today={today} />
         : proposed ? <ProposedGoal goal={proposed} enrollment={e} />
           : <GoalForm enrollment={e} intro="Avant de commencer, fixe ton objectif. Le staff le valide avec toi." />}
-      {current && <p className="rounded-lg bg-field px-3 py-2.5 text-sm text-ink/75">Tes saisies {title.toLowerCase()} arrivent bientôt ici.</p>}
+      {current && (e.module_code === 'sommeil'
+        ? <div className="border-t border-line/60 pt-3"><SleepModule playerId={e.player_id} today={today} /></div>
+        : <p className="rounded-lg bg-field px-3 py-2.5 text-sm text-ink/75">Tes saisies {title.toLowerCase()} arrivent bientôt ici.</p>)}
       {past.length > 0 && (
         <details className="text-sm">
           <summary className="min-h-11 cursor-pointer py-2.5 text-ink/60">Mes objectifs passés · {past.length}</summary>

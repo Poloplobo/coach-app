@@ -4,9 +4,10 @@ import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { ConfirmButton } from '../../components/ui/ConfirmButton'
 import { Loading } from '../../components/ui/Loading'
-import { formatDay } from '../../lib/week'
+import { formatDay, parisDate } from '../../lib/week'
 import { useIsAdmin } from '../staff/useStaff'
 import { GoalForm } from './FollowSection'
+import { SleepModule } from './SleepModule'
 import { useFeatureQuery } from './feature'
 import {
   GOAL_LABEL, OPEN_REQUEST, STATUS_LABEL, useActivateModule, useEnrollments, useFollowPlayers, useGoals, useHandleRequest, useModules,
@@ -158,6 +159,12 @@ function EnrollmentCard({ enrollment: e, player, module, goals }: { enrollment: 
         </div>
       ))}
       {setStatus.isError && <p role="alert" className="text-sm text-rnr">Action impossible, réessaie.</p>}
+      {e.module_code === 'sommeil' && e.consented_at && (
+        <details className="rounded-xl bg-field px-3 py-2">
+          <summary className="flex min-h-11 cursor-pointer items-center text-sm font-semibold">Son sommeil</summary>
+          <div className="pt-2"><SleepModule playerId={e.player_id} today={parisDate()} staff /></div>
+        </details>
+      )}
       {adding
         ? <GoalForm enrollment={e} validate onDone={() => setAdding(false)} />
         : !live.some(g => g.status === 'en_cours') && <Button size="sm" variant="ghost" className="self-start" onClick={() => setAdding(true)}>Poser un objectif</Button>}

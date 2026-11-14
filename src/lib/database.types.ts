@@ -1136,6 +1136,24 @@ export type Database = {
           },
         ]
       }
+      sleep_entries: {
+        Row: { asleep_time: string; awake_min: number; awakenings: number; bed_time: string; caffeine_late: boolean | null; created_at: string; duration_min: number; feeling: string; nap_min: number | null; night_date: string; note: string | null; phone_free_min: number; player_id: string; wake_time: string }
+        Insert: { asleep_time: string; awake_min?: number; awakenings?: number; bed_time: string; caffeine_late?: boolean | null; created_at?: string; feeling: string; nap_min?: number | null; night_date: string; note?: string | null; phone_free_min: number; player_id: string; wake_time: string }
+        Update: { asleep_time?: string; awake_min?: number; awakenings?: number; bed_time?: string; caffeine_late?: boolean | null; created_at?: string; feeling?: string; nap_min?: number | null; night_date?: string; note?: string | null; phone_free_min?: number; player_id?: string; wake_time?: string }
+        Relationships: []
+      }
+      sleep_routines: {
+        Row: { active: boolean; created_at: string; created_by: string | null; id: string; label: string; player_id: string }
+        Insert: { active?: boolean; created_at?: string; created_by?: string | null; id?: string; label: string; player_id: string }
+        Update: { active?: boolean; created_at?: string; created_by?: string | null; id?: string; label?: string; player_id?: string }
+        Relationships: []
+      }
+      sleep_routine_checks: {
+        Row: { night_date: string; player_id: string; routine_id: string }
+        Insert: { night_date: string; player_id: string; routine_id: string }
+        Update: { night_date?: string; player_id?: string; routine_id?: string }
+        Relationships: []
+      }
       test_reference: {
         Row: { blue: number; green: number; position_group: string; test_id: string; yellow: number }
         Insert: { blue: number; green: number; position_group: string; test_id: string; yellow: number }
@@ -1403,6 +1421,7 @@ export type Database = {
       push_enabled_players: { Args: never; Returns: string[] }
       redo_muscu_session: { Args: { p_session: string }; Returns: undefined }
       is_test_user: { Args: never; Returns: boolean }
+      has_follow: { Args: { p_module: string }; Returns: boolean }
       has_feature: { Args: { p_feature: string }; Returns: boolean }
       accept_follow_consent: { Args: { p_module: string; p_version: string }; Returns: undefined }
       answer_follow_request: { Args: { p_request: string; p_accept: boolean }; Returns: undefined }

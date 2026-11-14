@@ -7,6 +7,7 @@ import { useParisToday } from '../../lib/useParisToday'
 import { useProfile, useUserId } from '../auth/useAuth'
 import { useWellnessDay } from '../wellness/useWellness'
 import { TABS, isTabLocked, type PlayerDay } from './playerDay'
+import { useFeature, useReadOnlyTest } from '../follow/feature'
 
 const ICON: Record<string, LucideIcon> = {
   '/joueur': House, '/joueur/seance': Dumbbell, '/joueur/rugby': Users, '/joueur/performance': Activity, '/joueur/forme': HeartPulse, '/joueur/reglages': Settings,
@@ -18,10 +19,12 @@ export function PlayerLayout() {
   const today = useParisToday()
   const wellness = useWellnessDay(playerId, today)
   const { pathname } = useLocation()
+  const follow = useFeature()
 
   // Tant que l'état de forme du jour n'est pas confirmé (chargement, réseau coupé), on reste verrouillé
   // Compte de test (lecture seule, 0039) : il ne peut rien remplir, donc rien ne lui est verrouillé
-  const testAccount = !!profile.data?.is_test
+  // Inscrit comme testeur du suivi, il écrit comme un joueur : plus de bandeau, état de forme demandé (la base décide)
+  const testAccount = useReadOnlyTest(!!profile.data?.is_test)
   const mustFillForm = !testAccount && (!wellness.isSuccess || !wellness.data)
   // Pendant le chargement on attend sur place (sinon chaque ouverture de l'app renvoyait vers Forme, même rempli)
   const locked = isTabLocked(pathname, mustFillForm)
@@ -65,7 +68,9 @@ export function PlayerLayout() {
       {/* Barre d'onglets flottante : pilule détachée du bord, l'onglet actif rempli */}
       <nav aria-label="Navigation" className="[view-transition-name:player-nav] fixed inset-x-0 bottom-0 px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
         <ul className="glass mx-auto grid max-w-md grid-cols-5 gap-1 rounded-3xl bg-surface/80 p-1.5 shadow-lg shadow-black/30 ring-1 ring-line/60 backdrop-blur-xl backdrop-saturate-150">
-          {TABS.filter(t => t.to !== '/joueur/reglages').map(t => {
+          {TABS.filter(t => t.to !== '/joueur/reglages').map(tab0 => {
+            // Suivi individuel ouvert : l'onglet Forme s'appelle « Suivi » (état de forme + modules), même adresse
+            const t = tab0.to === '/joueur/forme' && follow ? { ...tab0, label: 'Suivi' } : tab0
             const Icon = ICON[t.to]
             const tab = 'relative flex h-14 flex-col items-center justify-center gap-0.5 rounded-2xl font-display text-xs font-semibold tracking-wide transition-transform duration-150 ease-out active:scale-[0.97] motion-reduce:active:scale-100'
             return (

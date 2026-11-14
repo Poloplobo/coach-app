@@ -58,6 +58,28 @@ const TESTS = [
 const REFS = [['CMJ', 45, 40, 35], ['Sprint 10m', 1.75, 1.82, 1.9], ['Sprint 50m', 6.4, 6.7, 7.0], ['Broad Jump', 260, 245, 230],
   ['Yo-Yo Test', 2400, 2100, 1800], ['Développé Couché 1RM', 110, 95, 85], ['Back Squat 1RM', 160, 140, 120]]
 const MEDALS = [{ test_id: 'Yo-Yo Test', medal: 'or' }, { test_id: 'CMJ', medal: 'bronze' }, { test_id: 'Broad Jump', medal: 'argent' }]
+// Suivi individuel (étape 14), données fictives : drapeau ouvert seulement dans les scénarios « suivi »
+const iso = (days, h) => `${addDays(TODAY, days)}T${String(h).padStart(2, '0')}:00:00+01:00`
+const FOLLOW = {
+  follow_modules: [{ code: 'nutrition', label: 'Nutrition' }, { code: 'sommeil', label: 'Sommeil' }],
+  follow_requests: [
+    { id: 'rq1', player_id: PLAYER, module_code: 'nutrition', slots: [iso(2, 17), iso(3, 12)], comment: 'Je veux prendre du poids avant la reprise.', status: 'autre_creneau', confirmed_slot: null, proposed_slot: iso(4, 18), created_at: iso(-1, 9) },
+    { id: 'rq2', player_id: 'autre', module_code: 'sommeil', slots: [iso(1, 13), iso(2, 13), iso(5, 17)], comment: null, status: 'en_attente', confirmed_slot: null, proposed_slot: null, created_at: iso(0, 8) },
+    { id: 'rq0', player_id: PLAYER, module_code: 'sommeil', slots: [iso(-20, 17)], comment: null, status: 'realise', confirmed_slot: iso(-20, 17), proposed_slot: null, created_at: iso(-24, 9) },
+  ],
+  follow_request_notes: [{ request_id: 'rq1', notes: 'Petit-déjeuner souvent sauté. À revoir après le match.' }],
+  follow_enrollments: [
+    { id: 'en1', player_id: PLAYER, module_code: 'sommeil', status: 'actif', activated_at: iso(-20, 18), consented_at: iso(-19, 8), ended_at: null },
+    { id: 'en2', player_id: 'autre', module_code: 'nutrition', status: 'actif', activated_at: iso(-3, 18), consented_at: null, ended_at: null },
+  ],
+  follow_goals: [
+    { id: 'go1', enrollment_id: 'en1', player_id: PLAYER, central: 'Mieux récupérer entre les entraînements', means: ['Coucher avant 23 h en semaine', 'Écrans coupés 30 min avant de dormir'], target_label: '8 h par nuit', target_value: 8, baseline: 6.5, unit: 'h', due_on: addDays(TODAY, 40), status: 'en_cours', created_at: iso(-19, 9), validated_at: iso(-19, 12) },
+    { id: 'go0', enrollment_id: 'en1', player_id: PLAYER, central: 'Se coucher à heure fixe', means: ['Réveil à la même heure le week-end'], target_label: '5 nuits sur 7', target_value: null, baseline: null, unit: null, due_on: addDays(TODAY, -21), status: 'atteint', created_at: iso(-60, 9), validated_at: iso(-60, 12) },
+  ],
+}
+const followOn = scenario.startsWith('suivi')
+const mine = rows => (scenario === 'suivi' ? rows.filter(r => !r.player_id || r.player_id === PLAYER) : rows.filter(r => !r.player_id))
+
 function table(name, url) {
   const p = url.searchParams
   switch (name) {
@@ -86,7 +108,7 @@ function table(name, url) {
     case 'gps_positions': return [{ position: 'AILIER', position_group: 'AILIER' }]
     case 'match_ratings': return ratings
     case 'rating_guidelines': return guidelines
-    default: return []
+    default: return followOn && FOLLOW[name] ? mine(FOLLOW[name]) : []
   }
 }
 
@@ -128,6 +150,7 @@ await ctx.route(/supabase\.co\//, async route => {
   const photo = photoRoute(route, url, req, [PLAYER]) // un joueur sur quatre sans photo : initiales
   if (photo) return photo
   const m = url.pathname.match(/\/rest\/v1\/([a-z_]+)$/)
+  if (url.pathname.endsWith('/rpc/has_feature')) return route.fulfill({ json: followOn })
   if (url.pathname.endsWith('/rpc/my_test_medals')) return route.fulfill({ json: MEDALS })
   if (url.pathname.endsWith('/rpc/my_return_plan')) return route.fulfill({ json: scenario === 'blesse' ? plan : [] })
   if (req.method() !== 'GET' || !m) { blocked.push(`${req.method()} ${url.pathname}`); return route.abort() }
@@ -135,7 +158,7 @@ await ctx.route(/supabase\.co\//, async route => {
   return route.fulfill({ json: (req.headers()['accept'] ?? '').includes('vnd.pgrst.object') ? (rows[0] ?? null) : rows })
 })
 const page = await ctx.newPage()
-const pages = scenario === 'vide' ? ['forme'] : scenario === 'blesse' ? ['accueil'] : ['accueil', 'seance', 'rugby', 'performance', 'performance-tests', 'forme', 'reglages']
+const pages = scenario === 'vide' || followOn ? ['forme'] : scenario === 'blesse' ? ['accueil'] : ['accueil', 'seance', 'rugby', 'performance', 'performance-tests', 'forme', 'reglages']
 for (const p of pages) {
   await page.goto(`http://localhost:5199${p === 'accueil' ? '/joueur' : `/joueur/${p.replace('-tests', '')}`}`)
   await page.waitForLoadState('networkidle'); await page.waitForTimeout(1500)

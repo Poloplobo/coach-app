@@ -315,6 +315,48 @@ export type Database = {
         }
         Relationships: []
       }
+      feature_flags: {
+        Row: { feature: string; open_to_all: boolean }
+        Insert: { feature: string; open_to_all?: boolean }
+        Update: { feature?: string; open_to_all?: boolean }
+        Relationships: []
+      }
+      feature_testers: {
+        Row: { feature: string; profile_id: string }
+        Insert: { feature: string; profile_id: string }
+        Update: { feature?: string; profile_id?: string }
+        Relationships: []
+      }
+      follow_modules: {
+        Row: { active: boolean; code: string; label: string; position: number }
+        Insert: { active?: boolean; code: string; label: string; position?: number }
+        Update: { active?: boolean; code?: string; label?: string; position?: number }
+        Relationships: []
+      }
+      follow_requests: {
+        Row: { comment: string | null; confirmed_slot: string | null; created_at: string; handled_by: string | null; id: string; module_code: string; player_id: string; proposed_slot: string | null; slots: string[]; status: string }
+        Insert: { comment?: string | null; confirmed_slot?: string | null; created_at?: string; handled_by?: string | null; id?: string; module_code: string; player_id: string; proposed_slot?: string | null; slots: string[]; status?: string }
+        Update: { comment?: string | null; confirmed_slot?: string | null; created_at?: string; handled_by?: string | null; id?: string; module_code?: string; player_id?: string; proposed_slot?: string | null; slots?: string[]; status?: string }
+        Relationships: [{ foreignKeyName: "follow_requests_player_id_fkey"; columns: ["player_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] }]
+      }
+      follow_request_notes: {
+        Row: { notes: string; request_id: string; updated_at: string; updated_by: string | null }
+        Insert: { notes: string; request_id: string; updated_at?: string; updated_by?: string | null }
+        Update: { notes?: string; request_id?: string; updated_at?: string; updated_by?: string | null }
+        Relationships: []
+      }
+      follow_enrollments: {
+        Row: { activated_at: string; activated_by: string | null; consent_version: string | null; consented_at: string | null; data_deleted_at: string | null; deleted_by: string | null; ended_at: string | null; id: string; module_code: string; player_id: string; status: string }
+        Insert: { activated_at?: string; activated_by?: string | null; consent_version?: string | null; consented_at?: string | null; data_deleted_at?: string | null; deleted_by?: string | null; ended_at?: string | null; id?: string; module_code: string; player_id: string; status?: string }
+        Update: { activated_at?: string; activated_by?: string | null; consent_version?: string | null; consented_at?: string | null; data_deleted_at?: string | null; deleted_by?: string | null; ended_at?: string | null; id?: string; module_code?: string; player_id?: string; status?: string }
+        Relationships: [{ foreignKeyName: "follow_enrollments_player_id_fkey"; columns: ["player_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] }]
+      }
+      follow_goals: {
+        Row: { baseline: number | null; central: string; created_at: string; created_by: string | null; due_on: string; enrollment_id: string; id: string; means: string[]; player_id: string; status: string; target_label: string; target_value: number | null; unit: string | null; validated_at: string | null; validated_by: string | null }
+        Insert: { baseline?: number | null; central: string; created_at?: string; created_by?: string | null; due_on: string; enrollment_id: string; id?: string; means: string[]; player_id: string; status?: string; target_label: string; target_value?: number | null; unit?: string | null; validated_at?: string | null; validated_by?: string | null }
+        Update: { baseline?: number | null; central?: string; created_at?: string; created_by?: string | null; due_on?: string; enrollment_id?: string; id?: string; means?: string[]; player_id?: string; status?: string; target_label?: string; target_value?: number | null; unit?: string | null; validated_at?: string | null; validated_by?: string | null }
+        Relationships: [{ foreignKeyName: "follow_goals_enrollment_id_fkey"; columns: ["enrollment_id"]; isOneToOne: false; referencedRelation: "follow_enrollments"; referencedColumns: ["id"] }]
+      }
       group_members: {
         Row: {
           group_id: string
@@ -1360,6 +1402,10 @@ export type Database = {
       can_log_day: { Args: { p_date: string }; Returns: boolean }
       push_enabled_players: { Args: never; Returns: string[] }
       redo_muscu_session: { Args: { p_session: string }; Returns: undefined }
+      is_test_user: { Args: never; Returns: boolean }
+      has_feature: { Args: { p_feature: string }; Returns: boolean }
+      accept_follow_consent: { Args: { p_module: string; p_version: string }; Returns: undefined }
+      answer_follow_request: { Args: { p_request: string; p_accept: boolean }; Returns: undefined }
       declare_concussion_with_program: { Args: { p_player: string; p_occurred_on: string; p_minor: boolean }; Returns: Json }
       concussion_program: { Args: { p_injury: string }; Returns: number }
       declare_concussion: { Args: { p_player: string; p_occurred_on: string; p_minor: boolean }; Returns: Json }

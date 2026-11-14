@@ -148,6 +148,26 @@ function filtered(rows, params) {
     return true
   }))
 }
+// Suivi individuel (étape 14), données fictives : drapeau ouvert seulement dans les scénarios « suivi »
+const iso = (days, h) => `${addDays(TODAY, days)}T${String(h).padStart(2, '0')}:00:00+01:00`
+const FOLLOW = {
+  follow_modules: [{ code: 'nutrition', label: 'Nutrition' }, { code: 'sommeil', label: 'Sommeil' }],
+  follow_requests: [
+    { id: 'rq1', player_id: 'p1', module_code: 'nutrition', slots: [iso(2, 17), iso(3, 12)], comment: 'Je veux prendre du poids avant la reprise.', status: 'autre_creneau', confirmed_slot: null, proposed_slot: iso(4, 18), created_at: iso(-1, 9) },
+    { id: 'rq2', player_id: 'p2', module_code: 'sommeil', slots: [iso(1, 13), iso(2, 13), iso(5, 17)], comment: null, status: 'en_attente', confirmed_slot: null, proposed_slot: null, created_at: iso(0, 8) },
+    { id: 'rq0', player_id: 'p1', module_code: 'sommeil', slots: [iso(-20, 17)], comment: null, status: 'realise', confirmed_slot: iso(-20, 17), proposed_slot: null, created_at: iso(-24, 9) },
+  ],
+  follow_request_notes: [{ request_id: 'rq1', notes: 'Petit-déjeuner souvent sauté. À revoir après le match.' }],
+  follow_enrollments: [
+    { id: 'en1', player_id: 'p1', module_code: 'sommeil', status: 'actif', activated_at: iso(-20, 18), consented_at: iso(-19, 8), ended_at: null },
+    { id: 'en2', player_id: 'p3', module_code: 'nutrition', status: 'actif', activated_at: iso(-3, 18), consented_at: null, ended_at: null },
+  ],
+  follow_goals: [
+    { id: 'go1', enrollment_id: 'en1', player_id: 'p1', central: 'Mieux récupérer entre les entraînements', means: ['Coucher avant 23 h en semaine', 'Écrans coupés 30 min avant de dormir'], target_label: '8 h par nuit', target_value: 8, baseline: 6.5, unit: 'h', due_on: addDays(TODAY, 40), status: 'en_cours', created_at: iso(-19, 9), validated_at: iso(-19, 12) },
+    { id: 'go0', enrollment_id: 'en1', player_id: 'p1', central: 'Se coucher à heure fixe', means: ['Réveil à la même heure le week-end'], target_label: '5 nuits sur 7', target_value: null, baseline: null, unit: null, due_on: addDays(TODAY, -21), status: 'atteint', created_at: iso(-60, 9), validated_at: iso(-60, 12) },
+  ],
+}
+
 function table(name, url) {
   const p = url.searchParams
   switch (name) {
@@ -182,7 +202,7 @@ function table(name, url) {
     case 'gps_positions': return gpsPos
     case 'match_ratings': return ratings
     case 'session_skips': return skips
-    default: return []
+    default: return only === 'suivi' && FOLLOW[name] ? FOLLOW[name] : []
   }
 }
 
@@ -209,6 +229,7 @@ const photoRoute = (route, url, req, ids) => {
 const blocked = []
 await ctx.route(/supabase\.co\//, async route => {
   const req = route.request(); const url = new URL(req.url())
+  if (url.pathname.endsWith('/rpc/has_feature')) return route.fulfill({ json: only === 'suivi' })
   const photo = photoRoute(route, url, req, roster.map(r => r.id).filter((_, i) => i % 4 !== 3)) // un joueur sur quatre sans photo : initiales
   if (photo) return photo
   const m = url.pathname.match(/\/rest\/v1\/([a-z_]+)$/)
@@ -241,6 +262,8 @@ if (only === 'perf') {
     await page.getByLabel('Afficher').selectOption(v); await page.waitForTimeout(1200)
     heights[`prog-${v}`] = await page.evaluate(() => document.documentElement.scrollHeight); await shot(`prog-${v}`)
   }
+} else if (only === 'suivi') {
+  await open('/staff/suivi'); heights.suivi = await page.evaluate(() => document.documentElement.scrollHeight); await shot('suivi')
 } else if (only === 'medical') {
   await open('/staff/medical')
   for (const v of ['suivi', 'plan', 'preparation', 'epidemio']) {

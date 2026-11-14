@@ -1,11 +1,13 @@
 import { Suspense, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { TabLink } from '../../components/ui/TabLink'
-import { Activity, CalendarDays, ClipboardList, Dumbbell, Menu, Settings, Stethoscope, Sun, User, X, type LucideIcon } from 'lucide-react'
+import { Activity, CalendarDays, ClipboardList, Dumbbell, HeartHandshake, Menu, Settings, Stethoscope, Sun, User, X, type LucideIcon } from 'lucide-react'
 import { formatDay, parisDate } from '../../lib/week'
 import { useProfile, useUserId } from '../auth/useAuth'
 import { Loading } from '../../components/ui/Loading'
 import { useRoster } from './useStaff'
+import { useFeature } from '../follow/feature'
+import { OPEN_REQUEST, useRequests } from '../follow/useFollow'
 
 type Tab = { to: string; label: string; icon: LucideIcon }
 // Navigation regroupée par usage : le suivi du jour, la préparation, la santé
@@ -30,10 +32,13 @@ export function StaffLayout() {
   const [open, setOpen] = useState(false)
   const label = open ? 'inline' : 'hidden group-hover:inline group-has-[:focus-visible]:inline', block = open ? 'block' : 'hidden group-hover:block group-has-[:focus-visible]:block'
   const injured = useRoster().data?.filter(p => p.injured).length ?? 0
+  // Suivi individuel (étape 14) : visible de l'admin seulement, drapeau ouvert ; pastille = demandes d'entretien ouvertes
+  const follow = useFeature() && profile.data?.role === 'admin'
+  const asks = useRequests(undefined, follow).data?.filter(r => OPEN_REQUEST.includes(r.status)).length ?? 0
   const name = [profile.data?.first_name, profile.data?.last_name].filter(Boolean).join(' ')
   const initials = `${profile.data?.first_name?.[0] ?? ''}${profile.data?.last_name?.[0] ?? ''}`.toUpperCase()
 
-  const link = (t: Tab, count?: number) => (
+  const link = (t: Tab, count?: number, unit = 'blessé') => (
     <TabLink key={t.to} to={t.to} end={t.to === '/staff'} title={t.label} onClick={() => setOpen(false)}
       className={({ isActive }) => `relative flex h-11 items-center gap-3 rounded-xl px-3 font-display text-lg font-semibold tracking-wide ${open ? '' : 'justify-center group-hover:justify-start group-has-[:focus-visible]:justify-start'} ${
         isActive ? 'bg-field text-ink' : 'text-ink/60 hover:bg-field hover:text-ink'}`}>
@@ -42,7 +47,7 @@ export function StaffLayout() {
         {isActive && <span aria-hidden="true" className="absolute inset-y-2 left-0 w-[3px] rounded-full bg-rnr [view-transition-name:tab-bar]" />}
         <t.icon size={19} aria-hidden="true" className="shrink-0" />
         <span className={`${label} flex-1 truncate`}>{t.label}</span>
-        {count ? <span className={`rounded-full bg-gold/20 px-1.5 text-xs tabular-nums text-gold ${open ? '' : 'absolute right-1 top-1 group-hover:static group-has-[:focus-visible]:static'}`} aria-label={`${count} blessé${count > 1 ? 's' : ''}`}>{count}</span> : null}
+        {count ? <span className={`rounded-full bg-gold/20 px-1.5 text-xs tabular-nums text-gold ${open ? '' : 'absolute right-1 top-1 group-hover:static group-has-[:focus-visible]:static'}`} aria-label={`${count} ${unit}${count > 1 ? 's' : ''}`}>{count}</span> : null}
       </>}
     </TabLink>
   )
@@ -72,6 +77,7 @@ export function StaffLayout() {
               <div key={g.title} className="flex flex-col gap-1">
                 <p className={`${block} px-3 text-[11px] font-semibold uppercase tracking-wider text-ink/40`}>{g.title}</p>
                 {g.tabs.map(t => link(t, t.to === '/staff/medical' ? injured : undefined))}
+                {g.title === 'Santé' && follow && link({ to: '/staff/suivi', label: 'Suivi individuel', icon: HeartHandshake }, asks, 'demande')}
               </div>
             ))}
           </nav>

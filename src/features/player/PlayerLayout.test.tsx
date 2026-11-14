@@ -7,6 +7,7 @@ import { PlayerLayout } from './PlayerLayout'
 // État de forme simulé : on teste le verrou des onglets, pas Supabase
 const form = vi.hoisted(() => ({ state: 'pending' as 'pending' | 'filled' | 'empty' | 'error' }))
 vi.mock('../auth/useAuth', () => ({ useUserId: () => 'p1', useProfile: () => ({ data: { first_name: 'Test' } }) }))
+vi.mock('../follow/feature', () => ({ useFeature: () => false, useReadOnlyTest: () => false })) // drapeau fermé : l'onglet reste « Forme »
 vi.mock('../wellness/useWellness', () => ({
   useWellnessDay: () => ({
     isPending: form.state === 'pending', isSuccess: form.state === 'filled' || form.state === 'empty', isError: form.state === 'error',

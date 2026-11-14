@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(212);
+select plan(249);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -721,6 +721,93 @@ select is_empty($$select 1 from public.planned_sessions ps join public.activity_
 -- ---------- Longueurs (0048) ----------
 reset role;
 select throws_ok($$update public.profiles set last_name = repeat('X', 61) where id = '00000000-0000-0000-0000-00000000000a'$$, '23514', null, 'nom de plus de 60 caractères refusé');
+
+-- ---------- Suivi individuel, socle (0049) ----------
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+set local role authenticated;
+select is(public.has_feature('suivi_individuel'), false, 'drapeau fermé par défaut');
+select is_empty($$select 1 from public.follow_modules$$, 'drapeau fermé : le joueur ne lit aucun module');
+select throws_ok($$insert into public.follow_requests (player_id, module_code, slots, comment) values ('00000000-0000-0000-0000-00000000000a', 'sommeil', array[now() + interval '2 days'], 'Je dors mal')$$, '42501', null, 'drapeau fermé : pas de demande d''entretien');
+select throws_ok($$select public.accept_follow_consent('sommeil', 'v1')$$, '42501', null, 'drapeau fermé : les fonctions refusent aussi');
+select is_empty($$select 1 from public.feature_flags$$, 'un joueur ne lit pas les drapeaux');
+reset role;
+insert into public.feature_testers (feature, profile_id) values ('suivi_individuel', '00000000-0000-0000-0000-00000000000a'), ('suivi_individuel', '00000000-0000-0000-0000-00000000000b'), ('suivi_individuel', '00000000-0000-0000-0000-00000000000c'), ('suivi_individuel', '00000000-0000-0000-0000-00000000000d');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+set local role authenticated;
+select is((select count(*)::int from public.follow_modules), 2, 'testeur : A lit les modules');
+select lives_ok($$insert into public.follow_requests (player_id, module_code, slots, comment) values ('00000000-0000-0000-0000-00000000000a', 'sommeil', array[now() + interval '2 days'], 'Je dors mal')$$, 'A demande un entretien sommeil');
+select throws_ok($$insert into public.follow_requests (player_id, module_code, slots, comment) values ('00000000-0000-0000-0000-00000000000a', 'sommeil', array[now() + interval '2 days'], 'Je dors mal')$$, '23505', null, 'une seule demande ouverte par module');
+select throws_ok($$insert into public.follow_requests (player_id, module_code, slots, status, confirmed_slot) values ('00000000-0000-0000-0000-00000000000a', 'nutrition', array[now()], 'confirme', now())$$, '42501', null, 'A ne dépose pas une demande déjà confirmée');
+select is_empty($$update public.follow_requests set status = 'confirme', confirmed_slot = now() returning 1$$, 'A ne confirme pas sa demande lui-même');
+select throws_ok($$insert into public.follow_enrollments (player_id, module_code) values ('00000000-0000-0000-0000-00000000000a', 'sommeil')$$, '42501', null, 'A ne s''active pas un module');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}', true);
+set local role authenticated;
+select is_empty($$select 1 from public.follow_requests$$, 'B ne lit pas la demande de A');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000c","role":"authenticated"}', true);
+set local role authenticated;
+select is_empty($$select 1 from public.follow_requests$$, 'un coach non admin ne lit pas les demandes');
+select is_empty($$select 1 from public.follow_enrollments$$, 'un coach non admin ne lit pas les inscriptions');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000d","role":"authenticated"}', true);
+set local role authenticated;
+select isnt_empty($$update public.follow_requests set status = 'autre_creneau', proposed_slot = now() + interval '3 days', handled_by = auth.uid() where player_id = '00000000-0000-0000-0000-00000000000a' returning 1$$, 'l''admin propose un autre créneau');
+select lives_ok($$insert into public.follow_request_notes (request_id, notes) select id, 'Notes privées' from public.follow_requests where player_id = '00000000-0000-0000-0000-00000000000a'$$, 'l''admin écrit ses notes d''entretien');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+set local role authenticated;
+select is_empty($$select 1 from public.follow_request_notes$$, 'A ne lit pas les notes d''entretien');
+select lives_ok($$select public.answer_follow_request((select id from public.follow_requests where player_id = '00000000-0000-0000-0000-00000000000a'), true)$$, 'A accepte le créneau proposé');
+select is((select status from public.follow_requests where player_id = '00000000-0000-0000-0000-00000000000a'), 'confirme', 'la demande est confirmée au créneau proposé');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000d","role":"authenticated"}', true);
+set local role authenticated;
+select lives_ok($$insert into public.follow_enrollments (player_id, module_code, activated_by) values ('00000000-0000-0000-0000-00000000000a', 'sommeil', auth.uid())$$, 'l''admin active le module sommeil pour A');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+set local role authenticated;
+select throws_ok($$insert into public.follow_goals (enrollment_id, player_id, central, means, target_label, due_on) select id, '00000000-0000-0000-0000-00000000000a', 'Mieux dormir', array['Coucher avant 23 h'], '8 h par nuit', current_date + 60 from public.follow_enrollments$$, '42501', null, 'pas d''objectif avant le consentement');
+select is_empty($$update public.follow_enrollments set consented_at = now() returning 1$$, 'A ne modifie pas son inscription directement');
+select lives_ok($$select public.accept_follow_consent('sommeil', 'v1')$$, 'A consent par la fonction dédiée');
+select lives_ok($$insert into public.follow_goals (enrollment_id, player_id, central, means, target_label, due_on) select id, '00000000-0000-0000-0000-00000000000a', 'Mieux dormir', array['Coucher avant 23 h'], '8 h par nuit', current_date + 60 from public.follow_enrollments$$, 'A propose un objectif');
+select throws_ok($$update public.follow_goals set status = 'en_cours'$$, '42501', null, 'A ne valide pas son objectif');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000d","role":"authenticated"}', true);
+set local role authenticated;
+select isnt_empty($$update public.follow_goals set status = 'en_cours', validated_by = auth.uid(), validated_at = now() returning 1$$, 'l''admin valide l''objectif');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+set local role authenticated;
+select is_empty($$update public.follow_goals set central = 'Autre chose' returning 1$$, 'un objectif validé n''est plus modifiable par le joueur');
+
+-- ---------- Suivi individuel, corrections après relecture (0050) ----------
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000d","role":"authenticated"}', true);
+set local role authenticated;
+select lives_ok($$insert into public.follow_enrollments (player_id, module_code) values ('00000000-0000-0000-0000-00000000000b', 'sommeil')$$, 'l''admin active aussi le sommeil pour B');
+select is((select activated_by from public.follow_enrollments where player_id = '00000000-0000-0000-0000-00000000000b'), '00000000-0000-0000-0000-00000000000d'::uuid, 'l''activation garde la trace de l''admin');
+select is((select validated_by from public.follow_goals where player_id = '00000000-0000-0000-0000-00000000000a'), '00000000-0000-0000-0000-00000000000d'::uuid, 'la validation de l''objectif est tracée par la base');
+select throws_ok($$insert into public.follow_goals (enrollment_id, player_id, central, means, target_label, due_on, status) select id, '00000000-0000-0000-0000-00000000000a', 'Deuxième', array['x'], '1', current_date + 30, 'en_cours' from public.follow_enrollments where player_id = '00000000-0000-0000-0000-00000000000a'$$, '23505', null, 'un seul objectif en cours par inscription');
+select throws_ok($$insert into public.follow_goals (enrollment_id, player_id, central, means, target_label, due_on) select id, '00000000-0000-0000-0000-00000000000a', 'Chez un autre', array['x'], '1', current_date + 30 from public.follow_enrollments where player_id = '00000000-0000-0000-0000-00000000000b'$$, '23503', null, 'un objectif ne se rattache pas à l''inscription d''un autre joueur');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000c","role":"authenticated"}', true);
+set local role authenticated;
+select is_empty($$select 1 from public.follow_goals$$, 'un coach non admin ne lit pas les objectifs');
+select is_empty($$select 1 from public.follow_request_notes$$, 'un coach non admin ne lit pas les notes d''entretien');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000ee","role":"authenticated"}', true);
+set local role authenticated;
+select throws_ok($$insert into public.wellness_entries (player_id, sleep_quality, fatigue, soreness_upper, soreness_lower, stress, mood) values ('00000000-0000-0000-0000-0000000000ee', 4, 4, 4, 4, 4, 4)$$, '42501', null, 'compte de test non testeur : toujours en lecture seule');
+reset role;
+insert into public.feature_testers (feature, profile_id) values ('suivi_individuel', '00000000-0000-0000-0000-0000000000ee');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000ee","role":"authenticated"}', true);
+set local role authenticated;
+select is(public.is_test_user(), false, 'compte de test inscrit comme testeur : plus en lecture seule');
+select lives_ok($$insert into public.wellness_entries (player_id, sleep_quality, fatigue, soreness_upper, soreness_lower, stress, mood) values ('00000000-0000-0000-0000-0000000000ee', 4, 4, 4, 4, 4, 4)$$, 'le testeur remplit son état de forme (pour enchaîner sur le suivi)');
 
 -- ---------- Visiteur non connecté ----------
 reset role;

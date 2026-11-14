@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { TodayActivities } from '../rpe/TodayActivities'
 import { useCatchUpDay } from '../rpe/useRpe'
 import { MuscuSessionCard } from '../seances/MuscuSessionCard'
@@ -6,6 +7,10 @@ import { EXERCISE_SESSIONS, MUSCULATION } from '../rpe/activities'
 import { addDays, isoWeekStart } from '../../lib/week'
 import { WellnessCard } from '../wellness/WellnessCard'
 import { usePlayerDay } from './playerDay'
+import { useFeature } from '../follow/feature'
+
+// Suivi individuel (étape 14) : chargé à part, jamais téléchargé tant que le drapeau est fermé
+const FollowSection = lazy(() => import('../follow/FollowSection'))
 
 export function SeanceTab() {
   const { playerId, today } = usePlayerDay()
@@ -34,5 +39,6 @@ export function RugbyTab() {
 
 export function FormeTab() {
   const { playerId, today } = usePlayerDay()
-  return <WellnessCard playerId={playerId} date={today} />
+  const follow = useFeature()
+  return <><WellnessCard playerId={playerId} date={today} />{follow && <Suspense fallback={null}><FollowSection playerId={playerId} today={today} /></Suspense>}</>
 }

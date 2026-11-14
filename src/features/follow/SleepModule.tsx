@@ -16,7 +16,7 @@ const shortDay = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('f
 const HISTORY = 14 // nuits affichées dans le détail
 
 // Choix en une touche : de vrais boutons radio (flèches du clavier, lecteur d'écran) habillés en puces de 44 px
-function Chips<T extends number | string>({ label, value, options, onChange }: {
+export function Chips<T extends number | string>({ label, value, options, onChange }: {
   label: string; value: T | null; options: readonly (readonly [T, string])[]; onChange: (v: T) => void
 }) {
   const name = useId()
@@ -127,7 +127,7 @@ function Pending({ playerId, today }: { playerId: string; today: string }) {
   )
 }
 
-function Tile({ label, value, sub }: { label: string; value: ReactNode; sub?: string }) {
+export function Tile({ label, value, sub }: { label: string; value: ReactNode; sub?: string }) {
   return (
     <div className="flex flex-col rounded-xl bg-field px-3 py-2.5">
       <dt className="text-xs text-ink/60">{label}</dt>

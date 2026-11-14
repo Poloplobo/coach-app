@@ -1142,6 +1142,30 @@ export type Database = {
         Update: { asleep_time?: string; awake_min?: number; awakenings?: number; bed_time?: string; caffeine_late?: boolean | null; created_at?: string; feeling?: string; nap_min?: number | null; night_date?: string; note?: string | null; phone_free_min?: number; player_id?: string; wake_time?: string }
         Relationships: []
       }
+      foods: {
+        Row: { category: string; ciqual_code: number | null; created_at: string; id: string; name: string; owner_id: string | null; search: string }
+        Insert: { category?: string; ciqual_code?: number | null; created_at?: string; id?: string; name: string; owner_id?: string | null; search?: string }
+        Update: { category?: string; ciqual_code?: number | null; created_at?: string; id?: string; name?: string; owner_id?: string | null; search?: string }
+        Relationships: []
+      }
+      food_nutrients: {
+        Row: { carbs_g: number | null; fat_g: number | null; food_id: string; kcal: number | null; protein_g: number | null }
+        Insert: { carbs_g?: number | null; fat_g?: number | null; food_id: string; kcal?: number | null; protein_g?: number | null }
+        Update: { carbs_g?: number | null; fat_g?: number | null; food_id?: string; kcal?: number | null; protein_g?: number | null }
+        Relationships: [{ foreignKeyName: "food_nutrients_food_id_fkey"; columns: ["food_id"]; isOneToOne: true; referencedRelation: "foods"; referencedColumns: ["id"] }]
+      }
+      hydration_entries: {
+        Row: { created_at: string; day: string; id: string; ml: number; player_id: string }
+        Insert: { created_at?: string; day: string; id?: string; ml: number; player_id: string }
+        Update: { created_at?: string; day?: string; id?: string; ml?: number; player_id?: string }
+        Relationships: []
+      }
+      meal_items: {
+        Row: { course: string | null; created_at: string; day: string; food_id: string; grams: number; id: string; meal: string; player_id: string; quantity: number; unit: string }
+        Insert: { course?: string | null; created_at?: string; day: string; food_id: string; grams: number; id?: string; meal: string; player_id: string; quantity: number; unit: string }
+        Update: { course?: string | null; created_at?: string; day?: string; food_id?: string; grams?: number; id?: string; meal?: string; player_id?: string; quantity?: number; unit?: string }
+        Relationships: [{ foreignKeyName: "meal_items_food_id_fkey"; columns: ["food_id"]; isOneToOne: false; referencedRelation: "foods"; referencedColumns: ["id"] }]
+      }
       sleep_routines: {
         Row: { active: boolean; created_at: string; created_by: string | null; id: string; label: string; player_id: string }
         Insert: { active?: boolean; created_at?: string; created_by?: string | null; id?: string; label: string; player_id: string }
@@ -1422,6 +1446,7 @@ export type Database = {
       redo_muscu_session: { Args: { p_session: string }; Returns: undefined }
       is_test_user: { Args: never; Returns: boolean }
       has_follow: { Args: { p_module: string }; Returns: boolean }
+      search_foods: { Args: { p_term: string }; Returns: { id: string; name: string; category: string; personal: boolean }[] }
       has_feature: { Args: { p_feature: string }; Returns: boolean }
       accept_follow_consent: { Args: { p_module: string; p_version: string }; Returns: undefined }
       answer_follow_request: { Args: { p_request: string; p_accept: boolean }; Returns: undefined }

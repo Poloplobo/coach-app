@@ -182,6 +182,20 @@ FOLLOW.sleep_entries = Array.from({ length: 14 }, (_, i) => {
 FOLLOW.sleep_routines = [{ id: 'rt1', player_id: 'p1', label: 'Écrans coupés à 22 h', active: true }, { id: 'rt2', player_id: 'p1', label: 'Lire 20 min avant de dormir', active: true }]
 FOLLOW.sleep_routine_checks = [0, 1, 2, 3, 7].map(i => ({ routine_id: 'rt1', player_id: 'p1', night_date: addDays(TODAY, -i) }))
 
+// Nutrition fictive : un journal sur deux jours, de l'eau, et une recherche qui renvoie toujours la même liste
+const FOODS = [['f1', 'Pâtes sèches, standard, cuites, sans sel ajouté', 'feculent', 126, 4.4, 25, 0.6], ['f2', 'Poulet, filet sans peau grillé/poêlé', 'proteine', 147, 30, 0, 3],
+  ['f3', 'Haricots verts, cuits', 'legume', 29, 2, 3, 0.2], ['f4', 'Yaourt ou lait fermenté, nature', 'laitier', 52, 4, 5, 1.6], ['f5', 'Banane, chair sans peau, crue', 'fruit', 90, 1, 20, 0.2],
+  ['f6', 'Pain, baguette de tradition française', 'feculent', 270, 9, 55, 1], ['f7', 'Lasagnes ou cannellonis à la viande (bolognaise), préemballés', 'plat', 140, 7, 13, 6], ['f8', 'Gâteau de mamie', 'sucre', null, null, null, null]]
+  .map(([id, name, category, kcal, protein_g, carbs_g, fat_g]) => ({ id, name, category, personal: id === 'f8', nutrients: kcal === null ? null : { kcal, protein_g, carbs_g, fat_g } }))
+const meal = (i, d, m, f, quantity, unit, grams, course = null) => ({ id: `mi${i}`, player_id: 'p2', day: addDays(TODAY, d), meal: m, course, quantity, unit, grams, food: FOODS.find(x => x.id === f) })
+const MEALS = [meal(1, -1, 'petit_dejeuner', 'f6', 3, 'tranche', 90), meal(2, -1, 'petit_dejeuner', 'f4', 1, 'unité', 100), meal(3, -1, 'dejeuner', 'f2', 1, 'paume', 100, 'plat'),
+  meal(4, -1, 'dejeuner', 'f1', 1, 'assiette', 300, 'plat'), meal(5, -1, 'dejeuner', 'f3', 1, 'petite portion', 100, 'plat'), meal(6, -1, 'diner', 'f7', 1, 'grande portion', 300, 'plat'),
+  meal(7, 0, 'petit_dejeuner', 'f6', 2, 'tranche', 60), meal(8, 0, 'petit_dejeuner', 'f5', 1, 'unité', 100), meal(9, 0, 'dejeuner', 'f2', 150, 'g', 150, 'plat'),
+  meal(10, 0, 'dejeuner', 'f1', 1, 'assiette', 300, 'plat'), meal(11, 0, 'dejeuner', 'f4', 1, 'unité', 100, 'dessert'), meal(12, 0, 'gouter', 'f8', 1, 'tranche', 30)]
+const WATER = [[-1, 500], [-1, 750], [-1, 500], [0, 250], [0, 500]].map(([d, ml], i) => ({ id: `w${i}`, player_id: 'p2', day: addDays(TODAY, d), ml }))
+FOLLOW.follow_enrollments.push({ id: 'en3', player_id: 'p2', module_code: 'nutrition', status: 'actif', activated_at: iso(-10, 18), consented_at: iso(-9, 8), ended_at: null })
+FOLLOW.meal_items = MEALS; FOLLOW.hydration_entries = WATER
+
 function table(name, url) {
   const p = url.searchParams
   switch (name) {
@@ -277,7 +291,7 @@ if (only === 'perf') {
     heights[`prog-${v}`] = await page.evaluate(() => document.documentElement.scrollHeight); await shot(`prog-${v}`)
   }
 } else if (only === 'suivi') {
-  await open('/staff/suivi'); await page.getByText('Son sommeil').first().click(); await page.waitForTimeout(600); heights.suivi = await page.evaluate(() => document.documentElement.scrollHeight); await shot('suivi')
+  await open('/staff/suivi'); await page.getByText('Son sommeil').first().click(); await page.getByText('Son alimentation').first().click(); await page.waitForTimeout(600); heights.suivi = await page.evaluate(() => document.documentElement.scrollHeight); await shot('suivi')
 } else if (only === 'medical') {
   await open('/staff/medical')
   for (const v of ['suivi', 'plan', 'preparation', 'epidemio']) {

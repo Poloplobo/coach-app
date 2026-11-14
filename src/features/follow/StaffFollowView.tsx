@@ -8,6 +8,7 @@ import { formatDay, parisDate } from '../../lib/week'
 import { useIsAdmin } from '../staff/useStaff'
 import { GoalForm } from './FollowSection'
 import { SleepModule } from './SleepModule'
+import { NutritionModule } from './NutritionModule'
 import { useFeatureQuery } from './feature'
 import {
   GOAL_LABEL, OPEN_REQUEST, STATUS_LABEL, useActivateModule, useEnrollments, useFollowPlayers, useGoals, useHandleRequest, useModules,
@@ -159,10 +160,12 @@ function EnrollmentCard({ enrollment: e, player, module, goals }: { enrollment: 
         </div>
       ))}
       {setStatus.isError && <p role="alert" className="text-sm text-rnr">Action impossible, réessaie.</p>}
-      {e.module_code === 'sommeil' && e.consented_at && (
+      {e.consented_at && (
         <details className="rounded-xl bg-field px-3 py-2">
-          <summary className="flex min-h-11 cursor-pointer items-center text-sm font-semibold">Son sommeil</summary>
-          <div className="pt-2"><SleepModule playerId={e.player_id} today={parisDate()} staff /></div>
+          <summary className="flex min-h-11 cursor-pointer items-center text-sm font-semibold">{e.module_code === 'sommeil' ? 'Son sommeil' : 'Son alimentation'}</summary>
+          <div className="pt-2">{e.module_code === 'sommeil'
+            ? <SleepModule playerId={e.player_id} today={parisDate()} staff />
+            : <NutritionModule playerId={e.player_id} today={parisDate()} staff />}</div>
         </details>
       )}
       {adding

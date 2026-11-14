@@ -11,6 +11,7 @@ import {
   type Enrollment, type Goal, type GoalInput, type Request,
 } from './useFollow'
 import { SleepModule } from './SleepModule'
+import { NutritionModule } from './NutritionModule'
 
 const field = 'rounded-lg border border-line bg-field px-3 py-2.5 text-base'
 // Heure de Paris, première lettre en capitale (« Mercredi 18 novembre à 18:00 »)
@@ -130,7 +131,7 @@ function RequestCard({ request: r, title }: { request: Request; title: string })
   )
 }
 
-// Module actif : consentement, puis objectif, puis le module (sommeil et nutrition arrivent dans les incréments suivants)
+// Module actif : consentement, puis objectif, puis le module (sommeil ou nutrition)
 function ModuleCard({ enrollment: e, title, goals, today }: { enrollment: Enrollment; title: string; goals: Goal[]; today: string }) {
   const consent = useConsent()
   const [agreed, setAgreed] = useState(false)
@@ -158,7 +159,7 @@ function ModuleCard({ enrollment: e, title, goals, today }: { enrollment: Enroll
           : <GoalForm enrollment={e} intro="Avant de commencer, fixe ton objectif. Le staff le valide avec toi." />}
       {current && (e.module_code === 'sommeil'
         ? <div className="border-t border-line/60 pt-3"><SleepModule playerId={e.player_id} today={today} /></div>
-        : <p className="rounded-lg bg-field px-3 py-2.5 text-sm text-ink/75">Tes saisies {title.toLowerCase()} arrivent bientôt ici.</p>)}
+        : <div className="border-t border-line/60 pt-3"><NutritionModule playerId={e.player_id} today={today} /></div>)}
       {past.length > 0 && (
         <details className="text-sm">
           <summary className="min-h-11 cursor-pointer py-2.5 text-ink/60">Mes objectifs passés · {past.length}</summary>

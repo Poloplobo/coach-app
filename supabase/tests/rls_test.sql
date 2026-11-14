@@ -3,7 +3,7 @@
 -- Utilisateurs : A et B joueurs, C coach, M admin.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(267);
+select plan(312);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@test.fr'),
@@ -858,6 +858,98 @@ select is_empty($$select 1 from public.sleep_entries$$, 'drapeau refermé pour A
 reset role;
 insert into public.feature_testers (feature, profile_id) values ('suivi_individuel', '00000000-0000-0000-0000-00000000000a');
 
+-- ---------- Suivi individuel, nutrition (0052) ----------
+reset role;
+insert into public.foods (id, ciqual_code, name, category) values ('00000000-0000-0000-0000-0000000000a1', 999001, 'Pâtes cuites (test)', 'feculent');
+insert into public.food_nutrients (food_id, kcal, protein_g, carbs_g, fat_g) values ('00000000-0000-0000-0000-0000000000a1', 130, 4, 26, 1);
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000d","role":"authenticated"}', true);
+set local role authenticated;
+select lives_ok($$insert into public.follow_enrollments (player_id, module_code) values ('00000000-0000-0000-0000-00000000000a', 'nutrition')$$, 'l''admin active la nutrition pour A');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+set local role authenticated;
+select throws_ok($$insert into public.meal_items (player_id, day, meal, food_id, quantity, unit, grams) values ('00000000-0000-0000-0000-00000000000a', public.paris_today(), 'dejeuner', '00000000-0000-0000-0000-0000000000a1', 1, 'portion moyenne', 200)$$, '42501', null, 'pas de saisie nutrition avant l''accord du joueur');
+select lives_ok($$select public.accept_follow_consent('nutrition', 'v1')$$, 'A donne son accord pour la nutrition');
+select lives_ok($$insert into public.meal_items (player_id, day, meal, food_id, quantity, unit, grams) values ('00000000-0000-0000-0000-00000000000a', public.paris_today(), 'dejeuner', '00000000-0000-0000-0000-0000000000a1', 1, 'portion moyenne', 200)$$, 'A saisit un aliment à son déjeuner');
+select throws_ok($$insert into public.meal_items (player_id, day, meal, food_id, quantity, unit, grams) values ('00000000-0000-0000-0000-00000000000a', public.paris_today() - 5, 'dejeuner', '00000000-0000-0000-0000-0000000000a1', 1, 'portion moyenne', 200)$$, '42501', null, 'A ne saisit pas un repas d''il y a 5 jours');
+select lives_ok($$insert into public.hydration_entries (player_id, day, ml) values ('00000000-0000-0000-0000-00000000000a', public.paris_today(), 250)$$, 'A note un verre d''eau');
+select is_empty($$select 1 from public.food_nutrients$$, 'A ne lit aucune valeur nutritionnelle');
+select is((select name from public.search_foods('pates') limit 1), 'Pâtes cuites (test)', 'recherche sans accents');
+select isnt_empty($$select 1 from public.search_foods('patez cuite')$$, 'recherche tolérante aux fautes');
+select is_empty($$select 1 from public.search_foods('p')$$, 'recherche : au moins 2 lettres');
+select lives_ok($$insert into public.foods (id, name, category, owner_id) values ('00000000-0000-0000-0000-0000000000a2', 'Gâteau de mamie', 'sucre', '00000000-0000-0000-0000-00000000000a')$$, 'A ajoute un aliment personnel');
+select throws_ok($$insert into public.foods (name, category) values ('Faux aliment commun', 'autre')$$, '42501', null, 'A n''ajoute pas un aliment visible de tous');
+select is_empty($$update public.foods set name = 'Piraté' where ciqual_code = 999001 returning 1$$, 'A ne modifie pas un aliment Ciqual');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}', true);
+set local role authenticated;
+select throws_ok($$insert into public.meal_items (player_id, day, meal, food_id, quantity, unit, grams) values ('00000000-0000-0000-0000-00000000000b', public.paris_today(), 'dejeuner', '00000000-0000-0000-0000-0000000000a1', 1, 'portion moyenne', 200)$$, '42501', null, 'B sans suivi nutrition ne saisit rien');
+select is_empty($$select 1 from public.meal_items$$, 'B ne lit pas le journal de A');
+select is_empty($$select 1 from public.hydration_entries$$, 'B ne lit pas l''hydratation de A');
+select is_empty($$select 1 from public.foods where id = '00000000-0000-0000-0000-0000000000a2'$$, 'B ne voit pas l''aliment personnel de A');
+select is_empty($$select 1 from public.search_foods('gateau de mamie') where personal$$, 'la recherche de B ne remonte pas l''aliment personnel de A');
+select is_empty($$delete from public.meal_items returning 1$$, 'B ne supprime pas le journal de A');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000c","role":"authenticated"}', true);
+set local role authenticated;
+select is_empty($$select 1 from public.meal_items$$, 'un coach non admin ne lit pas le journal');
+select is_empty($$select 1 from public.food_nutrients$$, 'un coach non admin ne lit pas les valeurs nutritionnelles');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000d","role":"authenticated"}', true);
+set local role authenticated;
+select is((select count(*)::int from public.meal_items), 1, 'l''admin lit le journal');
+select is((select kcal::int from public.food_nutrients where food_id = '00000000-0000-0000-0000-0000000000a1'), 130, 'l''admin lit les valeurs nutritionnelles');
+select is_empty($$update public.meal_items set grams = 1 returning 1$$, 'l''admin ne modifie pas le journal d''un joueur');
+reset role;
+delete from public.feature_testers where profile_id = '00000000-0000-0000-0000-00000000000a';
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+set local role authenticated;
+select is_empty($$select 1 from public.meal_items$$, 'drapeau refermé pour A : son journal n''est plus lisible');
+select is_empty($$select 1 from public.search_foods('pates')$$, 'drapeau refermé : plus de recherche d''aliments');
+reset role;
+insert into public.feature_testers (feature, profile_id) values ('suivi_individuel', '00000000-0000-0000-0000-00000000000a');
+
+-- Nutrition, après relecture : écrire pour un autre, changer de joueur ou de jour, aliment personnel d'un autre
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+set local role authenticated;
+select throws_ok($$insert into public.meal_items (player_id, day, meal, food_id, quantity, unit, grams) values ('00000000-0000-0000-0000-00000000000b', public.paris_today(), 'dejeuner', '00000000-0000-0000-0000-0000000000a1', 1, 'portion moyenne', 200)$$, '42501', null, 'A n''écrit pas dans le journal de B');
+select throws_ok($$insert into public.hydration_entries (player_id, day, ml) values ('00000000-0000-0000-0000-00000000000b', public.paris_today(), 250)$$, '42501', null, 'A n''écrit pas l''hydratation de B');
+select throws_ok($$insert into public.foods (name, category, owner_id) values ('Pour un autre', 'autre', '00000000-0000-0000-0000-00000000000b')$$, '42501', null, 'A ne crée pas un aliment au nom de B');
+select throws_ok($$insert into public.foods (name, category, owner_id, ciqual_code) values ('Faux Ciqual', 'autre', '00000000-0000-0000-0000-00000000000a', 999002)$$, null, null, 'A ne crée pas un aliment Ciqual');
+select throws_ok($$update public.meal_items set player_id = '00000000-0000-0000-0000-00000000000b'$$, '42501', null, 'A ne passe pas son repas à B');
+select throws_ok($$update public.meal_items set day = public.paris_today() - 5$$, '42501', null, 'A ne déplace pas un repas à il y a 5 jours');
+select lives_ok($$insert into public.meal_items (player_id, day, meal, food_id, quantity, unit, grams) values ('00000000-0000-0000-0000-00000000000a', public.paris_today(), 'gouter', '00000000-0000-0000-0000-0000000000a2', 0.33, 'L', 330)$$, 'A saisit son aliment personnel, quantité à deux décimales');
+select is((select quantity from public.meal_items where food_id = '00000000-0000-0000-0000-0000000000a2'), 0.33, 'la quantité garde ses deux décimales');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}', true);
+set local role authenticated;
+select lives_ok($$select public.accept_follow_consent('sommeil', 'v1')$$, 'B donne son accord (sommeil)');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000c","role":"authenticated"}', true);
+set local role authenticated;
+select is_empty($$select 1 from public.foods where owner_id is not null$$, 'un coach non admin ne voit pas les aliments personnels');
+select is_empty($$select 1 from public.hydration_entries$$, 'un coach non admin ne lit pas l''hydratation');
+reset role;
+insert into public.follow_enrollments (player_id, module_code, activated_by, consented_at, consent_version) values ('00000000-0000-0000-0000-00000000000b', 'nutrition', '00000000-0000-0000-0000-00000000000d', now(), 'v1');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}', true);
+set local role authenticated;
+select throws_ok($$insert into public.meal_items (player_id, day, meal, food_id, quantity, unit, grams) values ('00000000-0000-0000-0000-00000000000b', public.paris_today(), 'dejeuner', '00000000-0000-0000-0000-0000000000a2', 1, 'portion moyenne', 200)$$, '42501', null, 'B, en suivi nutrition, ne vise pas l''aliment personnel de A');
+select lives_ok($$insert into public.meal_items (player_id, day, meal, food_id, quantity, unit, grams) values ('00000000-0000-0000-0000-00000000000b', public.paris_today(), 'dejeuner', '00000000-0000-0000-0000-0000000000a1', 1, 'portion moyenne', 200)$$, 'B saisit un aliment commun');
+reset role;
+delete from public.feature_testers where profile_id = '00000000-0000-0000-0000-00000000000a';
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+set local role authenticated;
+select is_empty($$select 1 from public.foods$$, 'drapeau refermé : aliments illisibles');
+select is_empty($$select 1 from public.hydration_entries$$, 'drapeau refermé : hydratation illisible');
+select throws_ok($$insert into public.hydration_entries (player_id, day, ml) values ('00000000-0000-0000-0000-00000000000a', public.paris_today(), 250)$$, '42501', null, 'drapeau refermé : plus de saisie');
+reset role;
+insert into public.feature_testers (feature, profile_id) values ('suivi_individuel', '00000000-0000-0000-0000-00000000000a');
+
 -- ---------- Visiteur non connecté ----------
 reset role;
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
@@ -868,6 +960,9 @@ select throws_ok($$select 1 from public.gps_reference$$, '42501', null, 'anonyme
 select throws_ok($$select 1 from public.gps_positions$$, '42501', null, 'anonyme : gps_positions inaccessible');
 select throws_ok($$select 1 from public.gps_records$$, '42501', null, 'anonyme : gps_records inaccessible');
 select throws_ok($$select 1 from public.match_ratings$$, '42501', null, 'anonyme : match_ratings inaccessible');
+select throws_ok($$select 1 from public.foods$$, '42501', null, 'anonyme : foods inaccessible');
+select throws_ok($$select 1 from public.meal_items$$, '42501', null, 'anonyme : meal_items inaccessible');
+select throws_ok($$select 1 from public.sleep_entries$$, '42501', null, 'anonyme : sleep_entries inaccessible');
 
 select * from finish();
 rollback;

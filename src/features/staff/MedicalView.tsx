@@ -115,7 +115,7 @@ export function MedicalView() {
               </Fold>
             </> : <p className="text-sm text-ink/60">Pas de fiche blessure ouverte pour ce joueur.</p>}
             {/* Séances de réhab et membres sains : mêmes fiches que Programmation (« Lundi RÉHAB : », « Lundi MEMBRES SAINS : ») */}
-            <Fold title="Séances de réhab et membres sains" summary="Import des fiches du cycle, comme dans Programmation (« Lundi RÉHAB : », « Lundi MEMBRES SAINS : »)">
+            <Fold title="Séances de réhab et membres sains" summary="Import des fiches du cycle, comme dans Musculation (« Lundi RÉHAB : », « Lundi MEMBRES SAINS : »)">
               <ImportPanel />
             </Fold>
             {injury && (

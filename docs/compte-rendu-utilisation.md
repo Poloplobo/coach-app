@@ -189,7 +189,7 @@ Le staff voit les oublis : liste des RPE non déclarés, taux de déclaration de
 **Staff : gestes clés**
 - Relancer un joueur : Aujourd'hui › À relancer.
 - Dupliquer une semaine : Programmation › Semaines et duplication.
-- Importer un cycle : Programmation › Import d'un cycle.
+- Importer un cycle : Musculation › Importer un cycle.
 - Déclarer un blessé : fiche Joueur › Gestion (admin). Le joueur sort de la semaine du groupe, une fiche blessure et un plan de retour sont créés.
 - Importer un plan de réhab : Médical › Préparer.
 - Importer des tests : Performance › Test › Importer les maxi et objectifs.

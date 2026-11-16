@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState, type ReactNode } from 'react'
 import { Apple, ChevronRight, HeartPulse, Moon } from 'lucide-react'
-import { addDays } from '../../lib/week'
+import { addDays, formatDay } from '../../lib/week'
 import { useEnrollments, useGoals } from './useFollow'
 import { useSleepEntries } from './useSleep'
 import { useHydration, useMealItems } from './useNutrition'
@@ -140,7 +140,7 @@ function SleepReport({ playerId, today }: { playerId: string; today: string }) {
         <span className="text-xs text-ink/60">Cette nuit</span>
         <span className="font-display text-3xl font-semibold leading-tight tabular-nums">{night ? hm(night.duration_min) : '—'}</span>
         <span className={`text-xs ${gap === null ? 'text-ink/60' : gap >= 0 ? 'font-semibold text-ok' : 'text-ink/70'}`}>
-          {gap === null ? 'pas encore saisie' : gap >= 0 ? 'repère de 8 h atteint' : `${hm(-gap)} sous le repère de 8 h`}
+          {gap === null ? 'pas encore saisie' : gap >= 0 ? 'repère de 8 h atteint' : `${-gap < 60 ? `${-gap} min` : hm(-gap)} sous le repère de 8 h`}
         </span>
       </div>
       <div className="flex flex-col rounded-2xl bg-surface p-4 ring-1 ring-line/60">
@@ -164,7 +164,7 @@ function NutritionReport({ playerId, today }: { playerId: string; today: string 
       {/* Une colonne par jour : trois points pour les repas (plein si saisi), la barre d'eau face au repère de 2 L */}
       <ol className="grid grid-cols-7 gap-1.5" aria-label="Mes 7 derniers jours">
         {w.days.map(d => (
-          <li key={d.day} className="flex flex-col items-center gap-1" aria-label={`${d.day} : ${d.mainMeals} repas sur 3, ${d.complete} complets, ${litres(d.ml)} d'eau`}>
+          <li key={d.day} className="flex flex-col items-center gap-1" aria-label={`${formatDay(d.day)} : ${d.mainMeals} repas sur 3, ${d.complete} complets, ${litres(d.ml)} d'eau`}>
             <span aria-hidden="true" className="flex gap-0.5">
               {[0, 1, 2].map(i => <span key={i} className={`h-1.5 w-1.5 rounded-full ${i < d.mainMeals ? 'bg-ok' : 'bg-ink/20'}`} />)}
             </span>

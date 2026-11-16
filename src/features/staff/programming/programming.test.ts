@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { moveRow, newRow, nextWeek, planByDay, progressedLoad, progressedLoads, rowsErrors, rowsFromSession, toPayload, weekErrors } from './programming'
 
 const weeks = [{ code: 'S1', start_date: '2026-09-14' }, { code: 'S8', start_date: '2026-11-02' }]
-const form = (over = {}) => ({ code: 'S9', label: '', start_date: '2026-11-09', week_type_code: 'DEV', cycle: '', phase_note: '', is_off: false, ...over })
+const form = (over = {}) => ({ code: 'S9', label: '', start_date: '2026-11-09', week_type_code: 'DEV', cycle: '', phase_note: '', is_off: false, block: null, ...over })
 
 it('nextWeek : S<n+1>, lundi suivant la dernière semaine', () => {
   expect(nextWeek(weeks, '2026-10-25')).toEqual({ code: 'S9', start_date: '2026-11-09' })
@@ -11,6 +11,10 @@ it('nextWeek : S<n+1>, lundi suivant la dernière semaine', () => {
 
 describe('weekErrors', () => {
   it('semaine valide', () => expect(weekErrors(form(), weeks)).toEqual([]))
+  it('bloc : entier de 1 à 99', () => {
+    expect(weekErrors(form({ block: 3 }), weeks)).toEqual([])
+    for (const block of [0, 100, 1.5]) expect(weekErrors(form({ block }), weeks)).toEqual(['Bloc : un nombre entier de 1 à 99.'])
+  })
   it('code et lundi déjà pris, jour qui n\'est pas un lundi, type manquant', () => {
     expect(weekErrors(form({ code: 'S8' }), weeks)).toEqual(['S8 existe déjà.'])
     expect(weekErrors(form({ start_date: '2026-11-02' }), weeks)).toEqual(['Une autre semaine commence déjà ce lundi.'])

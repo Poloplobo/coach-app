@@ -23,18 +23,19 @@ export function WeeksPanel() {
   if (group.isError || weeks.isError || ref.isError) return <p>Impossible de charger le calendrier.</p>
 
   const today = parisDate()
-  const startNew = () => setEditing({ form: { ...nextWeek(weeks.data, today), label: '', week_type_code: 'DEV', cycle: weeks.data.at(-1)?.cycle ?? '', phase_note: '', is_off: false } })
+  const startNew = () => setEditing({ form: { ...nextWeek(weeks.data, today), label: '', week_type_code: 'DEV', cycle: weeks.data.at(-1)?.cycle ?? '', phase_note: '', is_off: false,
+    block: weeks.data.at(-1)?.block != null ? weeks.data.at(-1)!.block! + (weeks.data.at(-1)!.week_type_code === 'REG' ? 1 : 0) : null } })
 
   return (
     <>
       {editing && <WeekEditor key={editing.previousCode ?? 'new'} groupId={group.data.id} weeks={weeks.data} {...editing}
         weekTypes={ref.data.weekTypes} onDone={() => setEditing(null)} />}
       <DuplicateWeek groupId={group.data.id} weeks={weeks.data} today={today} />
-      <Card title="Calendrier de la saison" help="Les semaines de la saison, la plus récente en haut : type, plage de charge visée et cycle. Une semaine terminée n'est plus modifiable." aside={<Button size="sm" onClick={startNew}>Nouvelle semaine</Button>}>
+      <Card title="Calendrier de la saison" help="Les semaines de la saison, la plus récente en haut : type, plage de charge visée, cycle et bloc (un bloc = les semaines résumées ensemble, par exemple 3 de match et 1 de repos). Une semaine terminée n'est plus modifiable, sauf son bloc." aside={<Button size="sm" onClick={startNew}>Nouvelle semaine</Button>}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-left text-ink/60">
-              <tr>{['Code', 'Libellé', 'Lundi', 'Type', 'Cycle', 'Note', ''].map(h => <th key={h} className="py-2 pr-3 font-normal">{h}</th>)}</tr>
+              <tr>{['Code', 'Libellé', 'Lundi', 'Type', 'Cycle', 'Bloc', 'Note', ''].map(h => <th key={h} className="py-2 pr-3 font-normal">{h}</th>)}</tr>
             </thead>
             <tbody>
               {[...weeks.data].reverse().map(w => {
@@ -46,10 +47,13 @@ export function WeeksPanel() {
                     <td className="pr-3">{new Date(w.start_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' })}</td>
                     <td className="pr-3">{w.is_off ? <Badge tone="neutral">OFF</Badge> : <>{w.week_type_code}{wt && <span className="text-ink/60"> · {rangeLabel(wt)}</span>}</>}</td>
                     <td className="pr-3">{w.cycle}</td>
+                    <td className="pr-3 tabular-nums">{addDays(w.start_date, 6) < today
+                      ? <BlockCell key={w.block ?? 'none'} groupId={group.data.id} week={w} />
+                      : w.block ?? '—'}</td>
                     <td className="pr-3 text-ink/70">{w.phase_note}</td>
                     <td>{addDays(w.start_date, 6) >= today && <Button variant="ghost" size="sm" onClick={() => setEditing({
                       previousCode: w.code,
-                      form: { code: w.code, label: w.label ?? '', start_date: w.start_date, week_type_code: w.week_type_code, cycle: w.cycle ?? '', phase_note: w.phase_note ?? '', is_off: w.is_off },
+                      form: { code: w.code, label: w.label ?? '', start_date: w.start_date, week_type_code: w.week_type_code, cycle: w.cycle ?? '', phase_note: w.phase_note ?? '', is_off: w.is_off, block: w.block },
                     })}>Modifier</Button>}</td>
                   </tr>
                 )
@@ -96,6 +100,7 @@ function WeekEditor({ groupId, weeks, form: initial, previousCode, weekTypes, on
           </select>
         </label>
         <label className="flex flex-col gap-1 text-sm">Cycle<input value={form.cycle} onChange={e => set({ cycle: e.target.value })} placeholder="ex. Cycle 2" className={field} /></label>
+        <label className="flex flex-col gap-1 text-sm">Bloc<input type="number" inputMode="numeric" min={1} max={99} value={form.block ?? ''} onChange={e => set({ block: e.target.value ? Number(e.target.value) : null })} placeholder="ex. 3" className={field} /></label>
         <label className="flex flex-col gap-1 text-sm">Note / phase<input value={form.phase_note} onChange={e => set({ phase_note: e.target.value })} className={field} /></label>
       </div>
       <label className="flex items-center gap-2 text-sm">
@@ -203,5 +208,24 @@ function DuplicateWeek({ groupId, weeks, today }: { groupId: string; weeks: { co
       )}
       {duplicate.isError && <p role="alert" className="rounded-lg border border-rnr bg-rnr/15 px-3 py-2 text-sm">{errorText}</p>}
     </Card>
+  )
+}
+
+// Bloc d'une semaine terminée : seul champ encore modifiable (les résumés portent surtout sur des semaines passées).
+// Enregistré en quittant le champ ; le reste de la semaine est renvoyé tel quel.
+function BlockCell({ groupId, week }: { groupId: string; week: NonNullable<ReturnType<typeof useWeeksFull>['data']>[number] }) {
+  const save = useSaveWeek()
+  const [value, setValue] = useState(week.block === null ? '' : String(week.block))
+  const block = value === '' ? null : Number(value)
+  const valid = block === null || (Number.isInteger(block) && block >= 1 && block <= 99)
+  return (
+    <>
+      <input type="number" inputMode="numeric" min={1} max={99} value={value} aria-label={`Bloc de ${week.code}`} aria-invalid={!valid || save.isError}
+        onChange={e => setValue(e.target.value)} disabled={save.isPending}
+        onBlur={() => { if (valid && block !== week.block) save.mutate({ groupId, previousCode: week.code, week: {
+          code: week.code, label: week.label ?? '', start_date: week.start_date, week_type_code: week.week_type_code, cycle: week.cycle ?? '', phase_note: week.phase_note ?? '', is_off: week.is_off, block } }) }}
+        className="w-16 rounded-lg border border-line bg-field px-2 py-1 text-center text-base tabular-nums aria-[invalid=true]:border-rnr" />
+      {(!valid || save.isError) && <span role="alert" className="ml-2 text-xs text-rnr">{valid ? 'Non enregistré, réessaie.' : 'De 1 à 99.'}</span>}
+    </>
   )
 }

@@ -91,6 +91,8 @@ export function WeekView() {
           <Button variant="ghost" size="sm" disabled={!!exporting} onClick={() => run('xlsx', () => downloadWeek(week, wt, players, weekLogs, types))}>
             {exporting === 'xlsx' ? 'Préparation…' : `Tableaux ${week.code} (Excel)`}
           </Button>
+          <Link to={`/resume?vue=coach&sur=bloc&${`bloc=${week?.block ?? ''}&cycle=${encodeURIComponent(week?.cycle ?? '')}`}`} className="rounded-lg border border-line px-3 py-1.5 font-display text-sm font-semibold leading-none tracking-wide text-ink hover:border-ink/40 [@media(pointer:coarse)]:flex [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:items-center">Résumé coach du bloc{week.block != null ? ` ${week.block}` : ''} (PDF)</Link>
+          {week?.cycle && <Link to={`/resume?vue=coach&sur=cycle&${`bloc=${week?.block ?? ''}&cycle=${encodeURIComponent(week?.cycle ?? '')}`}`} className="rounded-lg border border-line px-3 py-1.5 font-display text-sm font-semibold leading-none tracking-wide text-ink hover:border-ink/40 [@media(pointer:coarse)]:flex [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:items-center">Résumé coach du cycle (PDF)</Link>}
           {exportFailed && <p role="alert" className="w-full text-sm text-rnr">Création du fichier impossible : recharge la page et réessaie.</p>}
         </div>
       </div>

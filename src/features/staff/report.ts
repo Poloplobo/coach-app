@@ -1,7 +1,8 @@
 // Contenu des extractions PowerPoint (étape 9). Fonctions pures, testées : mêmes calculs que l'écran (load.ts, muscu.ts).
 import { addDays, parisDate } from '../../lib/week'
-import { fullName, loadStatus, weekMatrix, type Log, type Player, type Status, type WeekType } from './load'
+import { fullName, weekMatrix, type Log, type Player, type Status, type WeekType } from './load'
 import { muscuSummary, parseDoneLoad, type StaffMuscuSession } from './muscu'
+import { weeklyLoad } from './summary'
 
 type Week = { code: string; label: string | null; start_date: string; week_type_code: string; cycle: string | null }
 export type CycleTarget = { test: string; value: number; label: string | null; exercise: string | null }
@@ -79,15 +80,9 @@ export function cycleReport(input: {
   const heaviest = [...byExercise.values()].sort((a, b) => b.best - a.best).slice(0, 5)
     .map(v => ({ name: v.name, best: v.best, rpe: v.rpes.length ? round(mean(v.rpes)!, 1) : null }))
 
-  // Charge hebdo (sRPE) du joueur vs cible de chaque semaine
-  const weekly = weeks.map(w => {
-    const wt = weekTypes.find(t => t.code === w.week_type_code) ?? null
-    const total = logs.filter(l => l.session_date >= w.start_date && l.session_date <= addDays(w.start_date, 6))
-      .reduce((s, l) => s + Number(l.srpe ?? 0), 0)
-    // Semaine pas terminée : pas de statut (un mercredi, tout le monde serait en sous-charge), comme dans la vue Semaine
-    const inProgress = addDays(w.start_date, 6) >= today
-    return { code: inProgress ? `${w.code} (en cours)` : w.code, total, target: wt?.target_srpe ?? 0, status: inProgress ? null : loadStatus(total, wt) }
-  })
+  // Charge hebdo (sRPE) du joueur vs cible de chaque semaine : même calcul que les résumés bloc / cycle (summary.ts)
+  const weekly = weeklyLoad(weeks, weekTypes, logs, today)
+    .map(w => ({ code: w.inProgress || w.future ? `${w.code} (en cours)` : w.code, total: w.total, target: w.target, status: w.status }))
 
   return {
     title: `Bilan de cycle — ${player.first_name} ${player.last_name}`,

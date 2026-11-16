@@ -923,6 +923,7 @@ export type Database = {
       }
       season_weeks: {
         Row: {
+          block: number | null
           code: string
           cycle: string | null
           group_id: string
@@ -934,6 +935,7 @@ export type Database = {
           week_type_code: string
         }
         Insert: {
+          block?: number | null
           code: string
           cycle?: string | null
           group_id: string
@@ -945,6 +947,7 @@ export type Database = {
           week_type_code: string
         }
         Update: {
+          block?: number | null
           code?: string
           cycle?: string | null
           group_id?: string

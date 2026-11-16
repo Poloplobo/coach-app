@@ -33,7 +33,7 @@ export function useReference() {
     types: check(await supabase.from('activity_types').select('id, name, pillar, requires_rpe, default_duration_min').order('name')) as ActivityType[],
     weekTypes: check(await supabase.from('week_types')
       .select('code, name, target_srpe, srpe_min, srpe_max, volume_min, physique_min, rugby_min, accompagnement_min, ppid_min')) as WeekType[],
-    weeks: check(await supabase.from('season_weeks').select('code, label, start_date, week_type_code, cycle, phase_note').order('start_date')),
+    weeks: check(await supabase.from('season_weeks').select('code, label, start_date, week_type_code, cycle, block, phase_note').order('start_date')),
   }), Infinity))
 }
 

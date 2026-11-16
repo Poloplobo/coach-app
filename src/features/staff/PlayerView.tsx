@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Bar, CartesianGrid, Cell, ComposedChart, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Badge } from '../../components/ui/Badge'
 import { Card } from '../../components/ui/Card'
@@ -86,6 +86,11 @@ export function PlayerView() {
           <option value="gestion">Gestion (statut, corrections, tests)</option>
         </ViewSelect>
         <span className="text-sm text-ink/60">{player.position ?? ''}{player.injured && <> · <Badge tone="warn">blessé</Badge></>}</span>
+      </div>
+      {/* Résumés PDF du bloc et du cycle de la semaine choisie (charge, GPS, matchs, musculation, état de forme, blessures) */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Link to={`/resume?vue=joueur&sur=bloc&joueur=${player.id}&${`bloc=${week?.block ?? ''}&cycle=${encodeURIComponent(week?.cycle ?? '')}`}`} className="rounded-lg border border-line px-3 py-1.5 font-display text-sm font-semibold leading-none tracking-wide text-ink hover:border-ink/40 [@media(pointer:coarse)]:flex [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:items-center">Résumé du bloc{week?.block != null ? ` ${week.block}` : ''} (PDF)</Link>
+        {week?.cycle && <Link to={`/resume?vue=joueur&sur=cycle&joueur=${player.id}&${`bloc=${week?.block ?? ''}&cycle=${encodeURIComponent(week?.cycle ?? '')}`}`} className="rounded-lg border border-line px-3 py-1.5 font-display text-sm font-semibold leading-none tracking-wide text-ink hover:border-ink/40 [@media(pointer:coarse)]:flex [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:items-center">Résumé du cycle (PDF)</Link>}
       </div>
 
       {row && week && (

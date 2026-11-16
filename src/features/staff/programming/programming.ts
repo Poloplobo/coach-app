@@ -20,6 +20,7 @@ export function weekErrors(form: WeekForm, weeks: Week[], previousCode?: string)
   if (!form.start_date || isoWeekStart(form.start_date) !== form.start_date) errors.push('La semaine doit commencer un lundi.')
   else if (others.some(w => w.start_date === form.start_date)) errors.push('Une autre semaine commence déjà ce lundi.')
   if (!form.week_type_code) errors.push('Choisis le type de semaine.')
+  if (form.block !== null && (!Number.isInteger(form.block) || form.block < 1 || form.block > 99)) errors.push('Bloc : un nombre entier de 1 à 99.')
   return errors
 }
 

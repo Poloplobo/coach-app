@@ -31,13 +31,14 @@ export function useGroup() {
 
 export type WeekForm = {
   code: string; label: string; start_date: string; week_type_code: string; cycle: string; phase_note: string; is_off: boolean
+  block: number | null // bloc de la saison (résumés bloc / cycle / coach)
 }
 
 export function useWeeksFull() {
   return useQuery({
     queryKey: ['staff', 'weeks-full'],
     queryFn: async () => rows(await supabase.from('season_weeks')
-      .select('code, label, start_date, week_type_code, cycle, phase_note, is_off').order('start_date')),
+      .select('code, label, start_date, week_type_code, cycle, block, phase_note, is_off').order('start_date')),
   })
 }
 

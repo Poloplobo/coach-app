@@ -18,6 +18,7 @@ const MedicalView = lazy(() => import('./features/staff/MedicalView').then(m => 
 const PlayerView = lazy(() => import('./features/staff/PlayerView').then(m => ({ default: m.PlayerView })))
 const ProgrammingView = lazy(() => import('./features/staff/programming/ProgrammingView').then(m => ({ default: m.ProgrammingView })))
 const StaffFollowView = lazy(() => import('./features/follow/StaffFollowView'))
+const SummaryPage = lazy(() => import('./features/staff/SummaryPage'))
 const StaffPerformanceView = lazy(() => import('./features/performance/StaffPerformanceView').then(m => ({ default: m.StaffPerformanceView })))
 
 export default function App() {
@@ -43,6 +44,8 @@ export default function App() {
         <Route path="joueur/:playerId?" element={<PlayerView />} />
         <Route path="reglages" element={<div className="max-w-md flex flex-col gap-4"><SettingsTab /></div>} />
       </Route>
+      {/* Résumés bloc / cycle / coach : feuille A4 hors de la mise en page staff, pour l'impression en PDF */}
+      <Route path="/resume" element={<RequireRole roles={['coach', 'admin']}><Suspense fallback={<div className="p-4"><Loading /></div>}><SummaryPage /></Suspense></RequireRole>} />
       {/* « / » et toute autre adresse : chacun est renvoyé vers son espace */}
       <Route path="*" element={<RequireRole />} />
     </Routes>

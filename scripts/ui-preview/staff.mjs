@@ -305,7 +305,7 @@ if (only === 'perf') {
   }
   await open('/resume?vue=joueur&sur=bloc&semaines=S2,S3,S5&joueur=p1'); await shot('resume-ecran')
   // Vrais PDF A4 (Chromium sans écran), comme « Enregistrer au format PDF » : pagination à contrôler
-  if (process.env.PDF) for (const [name, q] of [['bloc', 'vue=joueur&sur=bloc&bloc=1&joueur=p1'], ['coach', 'vue=coach&sur=bloc&bloc=1']]) {
+  if (process.env.PDF) for (const [name, q] of [['bloc', 'vue=joueur&sur=bloc&bloc=1&joueur=p1'], ['cycle', 'vue=joueur&sur=cycle&joueur=p1'], ['coach', 'vue=coach&sur=bloc&bloc=1']]) {
     await open(`/resume?${q}`); await page.emulateMedia({ media: 'print' }); await page.pdf({ path: `${out}/resume-${name}.pdf`, preferCSSPageSize: true, printBackground: true })
   }
 } else if (only === 'suivi') {

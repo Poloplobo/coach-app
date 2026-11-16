@@ -3,7 +3,9 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { Loading } from '../../components/ui/Loading'
 import { BRAND } from '../../lib/brand'
 import { addDays, parisDate } from '../../lib/week'
-import { RATING_LABEL } from '../performance/gps'
+import { RATING_LABEL, type RatingColor } from '../performance/gps'
+import { Coq } from '../performance/MatchColor'
+import { Avatar } from '../photos/PlayerPhoto'
 import { useGpsRecords, useGpsReference, useMatches, useRatings } from '../performance/usePerformance'
 import { MUSCULATION } from '../rpe/activities'
 import { fullName, type PlanItem, type Skip, type Status } from './load'
@@ -24,34 +26,54 @@ const STATUS_FILL: Record<Status, string> = { conforme: BRAND.ok, 'sous-charge':
 const STATUS_WORD: Record<Status, string> = { conforme: 'dans la plage', 'sous-charge': 'sous-charge', surcharge: 'surcharge' }
 const signed = (v: number | null) => (v === null ? NR : `${v > 0 ? '+' : ''}${v} %`)
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+// Rubrique : titre en capitales précédé d'un liseré rouge club
+function Section({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
   return (
-    <section>
-      <h2 className="mb-1.5 break-after-avoid border-b border-neutral-300 pb-0.5 font-display text-base font-semibold uppercase tracking-wide text-[#C8102E]">{title}</h2>
+    <section className="min-w-0">
+      <h2 className="mb-1.5 flex break-after-avoid items-baseline gap-2 font-display text-[13px] font-semibold uppercase tracking-wider text-neutral-900">
+        <span aria-hidden="true" className="h-3 w-1 shrink-0 self-center rounded-full bg-[#C8102E] [print-color-adjust:exact]" />{title}
+        {note && <span className="font-sans text-[10px] font-normal normal-case tracking-normal text-neutral-500">{note}</span>}
+      </h2>
       {children}
     </section>
   )
 }
 const Empty = ({ children = NR }: { children?: ReactNode }) => <p className="text-neutral-500">{children}</p>
-function Figures({ items }: { items: [label: string, value: string, hint?: string][] }) {
+// Chiffres en cartes ; big : les chiffres clés en tête de feuille (liseré rouge en haut)
+function Figures({ items, cols = 4, big = false }: { items: [label: string, value: string, hint?: string][]; cols?: 2 | 4; big?: boolean }) {
   return (
-    <dl className="mb-2 grid break-inside-avoid grid-cols-4 gap-x-4 gap-y-2">
+    <dl className={`mb-2 grid break-inside-avoid gap-2 ${cols === 2 ? 'grid-cols-2' : 'grid-cols-4'}`}>
       {items.map(([label, value, hint]) => (
-        <div key={label} className="border-l-2 border-neutral-300 pl-2">
-          <dt className="text-[10px] uppercase tracking-wide text-neutral-500">{label}</dt>
-          <dd className={`font-display font-semibold leading-tight tabular-nums ${value === NR ? 'text-sm text-neutral-500' : 'text-xl'}`}>{value}</dd>
-          {hint && <dd className="text-[10px] text-neutral-500">{hint}</dd>}
+        <div key={label} className={big ? 'rounded-lg border border-neutral-200 border-t-[3px] border-t-[#C8102E] px-2.5 py-2 [print-color-adjust:exact]' : 'rounded-md bg-neutral-100 px-2 py-1.5 [print-color-adjust:exact]'}>
+          <dt className="text-[9px] font-semibold uppercase tracking-wide text-neutral-500">{label}</dt>
+          <dd className={`font-display font-semibold leading-tight tabular-nums ${value === NR ? 'text-sm text-neutral-500' : big ? 'text-2xl' : 'text-lg'}`}>{value}</dd>
+          {hint && <dd className="text-[9.5px] leading-snug text-neutral-600">{hint}</dd>}
         </div>
       ))}
     </dl>
   )
 }
+// L'essentiel en tête de feuille : quelques phrases, sur deux colonnes, dans un encadré
+function Highlights({ items }: { items: string[] }) {
+  if (!items.length) return null
+  return (
+    <section aria-label="À retenir" className="break-inside-avoid rounded-lg bg-neutral-100 px-3 py-2 [print-color-adjust:exact]">
+      <p className="mb-1 font-display text-[13px] font-semibold uppercase tracking-wider text-[#C8102E]">À retenir</p>
+      <ul className="grid grid-cols-2 gap-x-5 gap-y-0.5">
+        {items.map(h => <li key={h} className="flex gap-1.5"><span aria-hidden="true" className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#C8102E] [print-color-adjust:exact]" />{h}</li>)}
+      </ul>
+    </section>
+  )
+}
+// Note de match : le coq de sa couleur et son libellé
+const Note = ({ color }: { color: RatingColor | null | undefined }) => color
+  ? <span className="inline-flex items-center gap-1"><Coq color={color} className="h-3.5 w-3.5 [print-color-adjust:exact]" />{RATING_LABEL[color]}</span> : <>{NR}</>
 // left : colonnes de texte, alignées à gauche (les chiffres restent à droite)
 function Table({ head, rows, left = [0] }: { head: string[]; rows: ReactNode[][]; left?: number[] }) {
   return (
-    <table className="w-full border-collapse text-[11px]">
-      <thead><tr>{head.map((h, i) => <th key={h} scope="col" className={`border-b border-neutral-400 py-1 pr-2 font-semibold ${left.includes(i) ? 'text-left' : 'text-right'}`}>{h}</th>)}</tr></thead>
-      <tbody>{rows.map((r, i) => <tr key={i} className="break-inside-avoid border-b border-neutral-200">{r.map((c, j) => <td key={j} className={`py-1 pr-2 align-top ${left.includes(j) ? '' : 'whitespace-nowrap text-right tabular-nums'}`}>{c}</td>)}</tr>)}</tbody>
+    <table className="w-full border-collapse text-[10.5px]">
+      <thead><tr>{head.map((h, i) => <th key={h} scope="col" className={`border-b border-neutral-400 py-1 pr-2 text-[10px] font-semibold uppercase tracking-wide text-neutral-600 ${left.includes(i) ? 'text-left' : 'text-right'}`}>{h}</th>)}</tr></thead>
+      <tbody>{rows.map((r, i) => <tr key={i} className="break-inside-avoid border-b border-neutral-200">{r.map((c, j) => <td key={j} className={`py-[3px] pr-2 align-top ${left.includes(j) ? '' : 'whitespace-nowrap text-right tabular-nums'}`}>{c}</td>)}</tr>)}</tbody>
     </table>
   )
 }
@@ -59,8 +81,8 @@ const Cell = ({ tone, children }: { tone: Tone; children: ReactNode }) => <span 
 
 // Barres dessinées en SVG (net à l'impression, sans dépendre de la largeur de l'écran) : valeur au-dessus, repère de la
 // cible en trait, plage visée en fond. Une barre sans valeur (semaine à venir) reste vide.
-function Bars({ items, unit = '' }: { items: { label: string; value: number | null; fill?: string; target?: number | null; min?: number | null; max?: number | null; note?: string }[]; unit?: string }) {
-  const W = 680, H = 150, top = 16, bottom = 30, slot = W / Math.max(items.length, 1), bar = Math.min(64, slot * 0.6)
+function Bars({ items, unit = '', W = 680, H = 150 }: { items: { label: string; value: number | null; fill?: string; target?: number | null; min?: number | null; max?: number | null; note?: string }[]; unit?: string; W?: number; H?: number }) {
+  const top = 16, bottom = 30, slot = W / Math.max(items.length, 1), bar = Math.min(64, slot * 0.6)
   const peak = Math.max(1, ...items.flatMap(i => [i.value ?? 0, i.target ?? 0, i.max ?? 0])) * 1.08
   const y = (v: number) => top + (H - top - bottom) * (1 - v / peak)
   return (
@@ -71,7 +93,7 @@ function Bars({ items, unit = '' }: { items: { label: string; value: number | nu
         return (
           <g key={i.label}>
             {i.min != null && <rect x={k * slot + 6} width={slot - 12} y={y(i.max ?? peak / 1.08)} height={y(i.min) - y(i.max ?? peak / 1.08)} fill="#e5e5e5" />}
-            {i.value != null && <rect x={x} width={bar} y={y(i.value)} height={H - bottom - y(i.value)} rx="2" fill={i.fill ?? '#404040'} />}
+            {i.value != null && <rect x={x} width={bar} y={y(i.value)} height={H - bottom - y(i.value)} rx="3" fill={i.fill ?? '#3f3f46'} />}
             {i.target != null && i.target > 0 && <line x1={k * slot + 6} x2={(k + 1) * slot - 6} y1={y(i.target)} y2={y(i.target)} stroke="#171717" strokeDasharray="4 3" />}
             <text x={x + bar / 2} y={(i.value != null ? y(i.value) : H - bottom) - 4} textAnchor="middle" fontSize="11" fontWeight="600" fill="#171717">{i.value != null ? `${i.value.toLocaleString('fr-FR')}${unit}` : '—'}</text>
             <text x={x + bar / 2} y={H - bottom + 12} textAnchor="middle" fontSize="11" fill="#171717">{i.label}</text>
@@ -88,7 +110,7 @@ const weekBars = (weekly: { code: string; type: string; total: number; target: n
 const LOAD_LEGEND = 'Barre : charge de la semaine (RPE × durée, en UA). Fond gris : plage visée du type de semaine. Pointillé : cible. Vert : dans la plage, orange : sous-charge, rouge : surcharge.'
 
 // La feuille : barre d'outils à l'écran seulement, puis la page A4
-function Sheet({ fileName, title, subtitle, toolbar, children }: { fileName: string; title: string; subtitle: string; toolbar: ReactNode; children: ReactNode }) {
+function Sheet({ fileName, kicker, title, subtitle, badge, toolbar, children }: { fileName: string; kicker?: string; title: string; subtitle: string; badge?: ReactNode; toolbar: ReactNode; children: ReactNode }) {
   // Le titre de l'onglet donne le nom du fichier (bouton ou Cmd+P) ; il est remis en quittant la feuille
   useEffect(() => { const before = document.title; document.title = fileName; return () => { document.title = before } }, [fileName])
   return (
@@ -102,12 +124,20 @@ function Sheet({ fileName, title, subtitle, toolbar, children }: { fileName: str
           className="ml-auto min-h-11 rounded-lg bg-[#C8102E] px-4 font-display font-semibold text-white">Enregistrer en PDF</button>
         <p className="w-full text-xs text-neutral-600">Dans la fenêtre d'impression, choisis « Enregistrer au format PDF ». Fichier proposé : {fileName}.pdf. Ce document contient des données de santé : ne le partage qu'avec le staff.</p>
       </div>
-      <main className="mx-auto my-4 flex w-[210mm] max-w-full flex-col gap-3 bg-white p-[12mm] font-sans text-xs leading-snug shadow print:m-0 print:w-auto print:p-0 print:shadow-none">
-        <header className="flex items-end justify-between gap-4 border-b-2 border-[#C8102E] pb-2">
-          <div><h1 className="font-display text-2xl font-semibold leading-tight">{title}</h1><p className="text-neutral-600">{subtitle}</p></div>
-          <p className="shrink-0 text-right text-[10px] text-neutral-500">Pôle Espoir · Rouen Normandie Rugby<br />édité le {day(parisDate())}</p>
+      <main className="mx-auto my-4 flex min-h-[297mm] w-[210mm] max-w-full flex-col gap-3 bg-white print:min-h-0 p-[12mm] font-sans text-xs leading-snug shadow print:m-0 print:w-auto print:p-0 print:shadow-none">
+        {/* Bandeau aux couleurs du club : blason, photo du joueur, de quoi parle la feuille */}
+        <header className="flex break-inside-avoid items-center gap-3 rounded-xl bg-[#C8102E] px-4 py-3 text-white [print-color-adjust:exact]">
+          <img src="/logo-rnr.svg" alt="" className="h-12 w-12 shrink-0 rounded-full bg-white p-1 [print-color-adjust:exact]" />
+          {badge}
+          <div className="min-w-0 flex-1">
+            {kicker && <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/80">{kicker}</p>}
+            <h1 className="font-display text-[26px] font-semibold leading-none">{title}</h1>
+            <p className="mt-1 text-white/90">{subtitle}</p>
+          </div>
+          <p className="shrink-0 self-start text-right text-[9.5px] leading-snug text-white/80">Pôle Espoir<br />Rouen Normandie Rugby<br />édité le {day(parisDate())}</p>
         </header>
         {children}
+        <footer className="mt-auto break-inside-avoid border-t border-neutral-200 pt-1.5 text-[9px] text-neutral-500">Pôle Espoir · Rouen Normandie Rugby · document confidentiel : il contient des données de santé.</footer>
       </main>
     </div>
   )
@@ -207,9 +237,10 @@ function PlayerSheet({ playerId, blocks, allBlocks, previous, scope, label, date
   const ratings = useRatings(playerId)
   const gpsRef = useGpsReference()
   const player = roster.data?.find(p => p.id === playerId)
-  const title = `Résumé du ${scope} — ${player ? `${player.first_name} ${player.last_name}` : ''}`
+  const title = player ? `${player.first_name} ${player.last_name}` : ''
   const subtitle = `${player?.position ?? 'Poste non renseigné'} · ${label} · ${dates}`
-  const wrap = (children: ReactNode) => <Sheet fileName={fileName} title={title} subtitle={subtitle} toolbar={toolbar}>{children}</Sheet>
+  const badge = player && <Avatar id={player.id} name={title} className="h-14 w-14 shrink-0 text-base ring-2 ring-white" />
+  const wrap = (children: ReactNode) => <Sheet fileName={fileName} kicker={`Bilan du ${scope}`} title={title} subtitle={subtitle} badge={badge} toolbar={toolbar}>{children}</Sheet>
   // La charge suffit à ouvrir la feuille : une autre donnée qui ne se charge pas s'affiche « Non renseigné », l'export ne plante pas
   if (logs.isError || !ref.data || !player) return wrap(<p role="alert">Impossible de charger les données de ce joueur.</p>)
   if ([logs, wellness, muscu, injuries, matches, gps, ratings, gpsRef].some(q => q.isPending)) return wrap(<Loading />)
@@ -230,19 +261,22 @@ function PlayerSheet({ playerId, blocks, allBlocks, previous, scope, label, date
     return wrap(
       <>
         {warning}
-        <Section title="Synthèse"><ul className="list-disc pl-4">{cycleHighlights(all).map(h => <li key={h}>{h}</li>)}</ul></Section>
-        <Section title="Charge moyenne par semaine, bloc par bloc (RPE × durée)">
-          <Bars unit=" UA" items={all.map(b => ({ label: `Bloc ${b.block.block}`, value: b.perWeek, note: `${b.block.weeks[0].code} → ${b.block.weeks.at(-1)!.code}${b.inProgress ? ' · en cours' : ''}` }))} />
-        </Section>
-        <Section title="Charge totale, bloc par bloc">
-          <Bars unit=" UA" items={all.map(b => ({ label: `Bloc ${b.block.block}`, value: b.total, note: `${b.block.weeks.length} semaine${b.block.weeks.length > 1 ? 's' : ''}${b.inProgress ? ' · en cours' : ''}` }))} />
-        </Section>
+        <Highlights items={cycleHighlights(all)} />
+        {/* Trois graphiques bloc par bloc, côte à côte */}
+        <div className="grid break-inside-avoid grid-cols-3 gap-4">
+          <Section title="Charge moyenne" note="par semaine">
+            <Bars W={240} H={140} unit=" UA" items={all.map(b => ({ label: `Bloc ${b.block.block}`, value: b.perWeek, note: `${b.block.weeks[0].code} → ${b.block.weeks.at(-1)!.code}${b.inProgress ? ' · en cours' : ''}` }))} />
+          </Section>
+          <Section title="Charge totale" note="par bloc">
+            <Bars W={240} H={140} unit=" UA" items={all.map(b => ({ label: `Bloc ${b.block.block}`, value: b.total, note: `${b.block.weeks.length} semaine${b.block.weeks.length > 1 ? 's' : ''}${b.inProgress ? ' · en cours' : ''}` }))} />
+          </Section>
+          <Section title="Fatigue moyenne" note="état de forme">
+            {all.some(b => b.wellness.fatigue !== null) ? <Bars W={240} H={140} unit=" %" items={all.map(b => ({ label: `Bloc ${b.block.block}`, value: b.wellness.fatigue, note: `${b.wellness.alerts.length} alerte${b.wellness.alerts.length > 1 ? 's' : ''}` }))} /> : <Empty />}
+          </Section>
+        </div>
         <Section title="Charge semaine par semaine">
-          <Bars items={weekBars(all.flatMap(b => b.weekly))} />
-          <p className="text-[10px] text-neutral-500">{LOAD_LEGEND}</p>
-        </Section>
-        <Section title="Fatigue moyenne par bloc (état de forme)">
-          {all.some(b => b.wellness.fatigue !== null) ? <Bars unit=" %" items={all.map(b => ({ label: `Bloc ${b.block.block}`, value: b.wellness.fatigue, note: `${b.wellness.alerts.length} alerte${b.wellness.alerts.length > 1 ? 's' : ''}` }))} /> : <Empty />}
+          <Bars H={130} items={weekBars(all.flatMap(b => b.weekly))} />
+          <p className="text-[9.5px] text-neutral-500">{LOAD_LEGEND}</p>
         </Section>
         <Section title="Évolution bloc par bloc">
           <Table head={['', ...all.map(b => `Bloc ${b.block.block}`)]} rows={[
@@ -271,18 +305,48 @@ function PlayerSheet({ playerId, blocks, allBlocks, previous, scope, label, date
     <>
       {warning}
       {b.inProgress && <p className="text-neutral-600">Bloc en cours : chiffres arrêtés au {day(today)}</p>}
-      <Section title="Synthèse"><ul className="list-disc pl-4">{b.highlights.map(h => <li key={h}>{h}</li>)}</ul></Section>
-      <Section title="Charge (RPE × durée)">
-        <Figures items={[
-          ['Total du bloc', n(b.total, ' UA'), previous ? `${signed(b.totalChangePct)} face à ${previous.label ?? blockName(previous)} (${n(b.previousTotal)} UA)` : 'pas de période précédente'],
-          ['Moyenne par semaine', n(b.perWeek, ' UA'), // semaines terminées
-          previous ? `${signed(b.changePct)} face à ${previous.label ?? blockName(previous)} (${n(b.previousPerWeek)} UA)` : 'pas de période précédente'],
-          ['Semaines de match', n(b.work, ' UA'), 'moyenne par semaine terminée'],
-          ['Semaine de repos', n(b.rest, ' UA'), b.rest !== null && b.work ? `${Math.round((100 * b.rest) / b.work)} % d'une semaine de match` : undefined],
-        ]} />
-        <Bars items={weekBars(b.weekly)} />
-        <p className="text-[10px] text-neutral-500">{LOAD_LEGEND}</p>
-      </Section>
+      <Highlights items={b.highlights} />
+      {/* Les chiffres clés du bloc, en grand */}
+      <Figures big items={[
+        ['Charge par semaine', n(b.perWeek, ' UA'), previous ? `${signed(b.changePct)} face à ${previous.label ?? blockName(previous)} (${n(b.previousPerWeek)} UA)` : 'pas de période précédente'],
+        ['Charge totale du bloc', n(b.total, ' UA'), previous ? `${signed(b.totalChangePct)} face à ${previous.label ?? blockName(previous)} (${n(b.previousTotal)} UA)` : 'pas de période précédente'],
+        ['Musculation', b.muscu.rate === null ? NR : `${b.muscu.rate} %`, b.muscu.planned ? `${b.muscu.attended} séance${b.muscu.attended > 1 ? 's' : ''} faite${b.muscu.attended > 1 ? 's' : ''} sur ${b.muscu.planned}` : 'aucune séance échue'],
+        ['Fatigue moyenne', n(b.wellness.fatigue, ' %'), b.wellness.entries ? `${b.wellness.alerts.length} alerte${b.wellness.alerts.length > 1 ? 's' : ''} d'état de forme` : undefined],
+      ]} />
+      <div className="grid grid-cols-[1.4fr_1fr] gap-4">
+        <Section title="Charge semaine par semaine" note="RPE × durée">
+          <Bars W={440} H={160} items={weekBars(b.weekly)} />
+          <Figures cols={2} items={[
+            ['Semaines de match', n(b.work, ' UA'), 'moyenne par semaine terminée'],
+            ['Semaine de repos', n(b.rest, ' UA'), b.rest !== null && b.work ? `${Math.round((100 * b.rest) / b.work)} % d'une semaine de match` : undefined],
+          ]} />
+          <p className="text-[9.5px] leading-snug text-neutral-500">{LOAD_LEGEND}</p>
+        </Section>
+        <div className="flex flex-col gap-3">
+          <Section title="Musculation">
+            {!b.muscu.planned ? <Empty>Aucune séance de musculation échue sur ce bloc.</Empty> : (
+              <Figures cols={2} items={[
+                ['Présences', b.muscu.rate === null ? NR : `${b.muscu.rate} %`, `${b.muscu.attended} séance${b.muscu.attended > 1 ? 's' : ''} faite${b.muscu.attended > 1 ? 's' : ''} sur ${b.muscu.planned} prévue${b.muscu.planned > 1 ? 's' : ''}`],
+                ['Exercices faits', `${b.muscu.completionPct} %`, `${b.muscu.exercises} exercices prévus`],
+                ['Charges validées', `${b.muscu.respected}`, `respectées · ${b.muscu.partial} partielles · ${b.muscu.notRespected} non respectées`],
+                ['RPE moyen de séance', n(b.muscu.sessionRpe), b.muscu.hardest ? `le plus dur : ${b.muscu.hardest.name} (RPE ${b.muscu.hardest.rpe})` : undefined],
+              ]} />
+            )}
+          </Section>
+          <Section title="État de forme">
+            {!b.wellness.entries ? <Empty /> : (
+              <>
+                <Figures cols={2} items={[
+                  ['Fatigue moyenne', n(b.wellness.fatigue, ' %'), `${b.wellness.entries} jour${b.wellness.entries > 1 ? 's' : ''} rempli${b.wellness.entries > 1 ? 's' : ''}`],
+                  ['Alertes', String(b.wellness.alerts.length), 'score sous 16/30 ou un item à 1'],
+                ]} />
+                {b.wellness.zones.length > 0 && <p>Zones concernées : {b.wellness.zones.map(z => `${z.label.toLowerCase()} × ${z.count}`).join(', ')}.</p>}
+                {b.wellness.alerts.length > 0 && <p className="text-neutral-600">{b.wellness.alerts.map(a => `${day(a.date)} (${a.reasons.join(', ')})`).join(' · ')}</p>}
+              </>
+            )}
+          </Section>
+        </div>
+      </div>
       <Section title="Matchs et GPS">
         {!b.notes.length ? <Empty>Aucun match sur ce bloc.</Empty> : (
           <>
@@ -290,31 +354,9 @@ function PlayerSheet({ playerId, blocks, allBlocks, previous, scope, label, date
               rows={[...b.notes.map(m => {
                 const h = b.gps.history.find(x => x.match.id === m.match.id)
                 return [`${day(m.match.match_date)} · ${m.match.label ? `${m.match.label} ` : ''}${m.match.opponent}`, n(m.minutes, ' min'), n(h?.record?.distance_m), n(h?.record?.hi_distance_m),
-                  n(h?.record?.accelerations), n(h?.record?.vmax), h?.analysis ? `${h.analysis.filled} / 3` : NR, m.staff ? RATING_LABEL[m.staff] : NR, m.player ? RATING_LABEL[m.player] : NR]
+                  n(h?.record?.accelerations), n(h?.record?.vmax), h?.analysis ? `${h.analysis.filled} / 3` : NR, <Note key="s" color={m.staff} />, <Note key="p" color={m.player} />]
               }), ...(b.gps.played ? [[<b key="m">Moyenne du bloc</b>, n(b.gps.minutes, ' min'), n(b.gps.distance), n(b.gps.hi), n(b.gps.accelerations), n(b.gps.vmaxMax), n(b.gps.meanFilled), '', '']] : [])]} />
             {b.gps.axis && <p className="mt-1 text-neutral-600">Axe de travail : {b.gps.axis.toLowerCase()}, l'attendu le moins atteint. Vmax : la meilleure du bloc.</p>}
-          </>
-        )}
-      </Section>
-      <Section title="Musculation">
-        {!b.muscu.planned ? <Empty>Aucune séance de musculation échue sur ce bloc.</Empty> : (
-          <Figures items={[
-            ['Présences', b.muscu.rate === null ? NR : `${b.muscu.rate} %`, `${b.muscu.attended} séance${b.muscu.attended > 1 ? 's' : ''} faite${b.muscu.attended > 1 ? 's' : ''} sur ${b.muscu.planned} prévue${b.muscu.planned > 1 ? 's' : ''}`],
-            ['Exercices faits', `${b.muscu.completionPct} %`, `${b.muscu.exercises} exercices prévus`],
-            ['Charges validées', `${b.muscu.respected}`, `respectées · ${b.muscu.partial} partielles · ${b.muscu.notRespected} non respectées`],
-            ['RPE moyen de séance', n(b.muscu.sessionRpe), b.muscu.hardest ? `le plus dur : ${b.muscu.hardest.name} (RPE ${b.muscu.hardest.rpe})` : undefined],
-          ]} />
-        )}
-      </Section>
-      <Section title="État de forme">
-        {!b.wellness.entries ? <Empty /> : (
-          <>
-            <Figures items={[
-              ['Fatigue moyenne', n(b.wellness.fatigue, ' %'), `${b.wellness.entries} jour${b.wellness.entries > 1 ? 's' : ''} rempli${b.wellness.entries > 1 ? 's' : ''}`],
-              ['Alertes', String(b.wellness.alerts.length), 'score sous 16/30 ou un item à 1'],
-            ]} />
-            {b.wellness.zones.length > 0 && <p>Zones concernées : {b.wellness.zones.map(z => `${z.label.toLowerCase()} × ${z.count}`).join(', ')}.</p>}
-            {b.wellness.alerts.length > 0 && <p className="text-neutral-600">{b.wellness.alerts.map(a => `${day(a.date)} (${a.reasons.join(', ')})`).join(' · ')}</p>}
           </>
         )}
       </Section>
@@ -342,8 +384,7 @@ function CoachSheet({ blocks, label, dates, fileName, toolbar }: SheetProps) {
   const skips = useAllSkips(from, to)
   const muscu = useStaffMuscu(from, to)
   const injuries = useInjuryRecords()
-  const title = 'Résumé coach'
-  const wrap = (children: ReactNode) => <Sheet fileName={fileName} title={title} subtitle={`${label} · ${dates}`} toolbar={toolbar}>{children}</Sheet>
+  const wrap = (children: ReactNode) => <Sheet fileName={fileName} kicker="Résumé coach · collectif" title="Groupe PER" subtitle={`${label} · ${dates}`} toolbar={toolbar}>{children}</Sheet>
   if (logs.isError || !ref.data || !roster.data) return wrap(<p role="alert">Impossible de charger les données du groupe.</p>)
   if ([logs, wellness, plan, skips, muscu, injuries].some(q => q.isPending)) return wrap(<Loading />)
   const missing = ([[wellness, 'état de forme'], [plan, 'planning'], [muscu, 'musculation'], [injuries, 'blessures']] as const).filter(([q]) => q.isError).map(([, l]) => l)
@@ -360,7 +401,7 @@ function CoachSheet({ blocks, label, dates, fileName, toolbar }: SheetProps) {
       {missing.length > 0 && <p role="alert" className="rounded bg-amber-100 px-2 py-1 text-amber-900 [print-color-adjust:exact]">Données non chargées : {missing.join(', ')}. Elles apparaissent « {NR} ».</p>}
       {r.inProgress && <p className="text-neutral-600">Période en cours : chiffres arrêtés au {day(today)}</p>}
       <Section title="En un coup d'œil">
-        <Figures items={[
+        <Figures big items={[
           ['Semaines dans la plage', r.team.some(w => w.status) ? `${r.team.filter(w => w.status === 'conforme').length} / ${r.team.filter(w => w.status).length}` : NR, 'charge moyenne de l\'équipe'],
           ['Présences équipe', n(r.attendance, ' %'), 'activités prévues et déclarées'],
           ['Présences musculation', n(r.muscu, ' %'), 'séances prévues et faites'],

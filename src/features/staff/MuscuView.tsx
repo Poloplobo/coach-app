@@ -13,13 +13,38 @@ import { useAllLogs, useReference, useRoster, useStaffMuscu } from './useStaff'
 import { Loading } from '../../components/ui/Loading'
 import { Avatar } from '../photos/PlayerPhoto'
 import { CycleReport } from './CycleReport'
+import { SpaceTabs } from '../../components/ui/SpaceTabs'
+import { ImportPanel } from './programming/ImportPanel'
+import { MuscuEditor } from './programming/MuscuEditor'
 
 const RESPECT: Record<Exclude<Respect, null>, { tone: 'ok' | 'warn' | 'bad'; label: string }> = {
   oui: { tone: 'ok', label: 'respectée' }, partiel: { tone: 'warn', label: 'partielle' }, non: { tone: 'bad', label: 'non respectée' },
 }
 const STATUS_LABEL: Record<string, string> = { fait: 'Fait', partiel: 'Partiel', 'non fait': 'Non fait' }
 
+const VIEWS = [
+  { id: 'suivi', label: 'Suivi de la semaine' },
+  { id: 'seance', label: 'Créer une séance' },
+  { id: 'import', label: "Importer un cycle" },
+] as const
+type ViewId = (typeof VIEWS)[number]['id']
+
+// Musculation : le suivi de la semaine, et la préparation des séances (créateur, import des fiches d'un cycle)
 export function MuscuView() {
+  const [view, setView] = useState<ViewId>('suivi')
+  return (
+    <>
+      <SpaceTabs label="Musculation" value={view} onChange={setView} options={VIEWS} />
+      <div role="tabpanel" className="flex flex-col gap-6">
+        {view === 'suivi' && <MuscuWeekView />}
+        {view === 'seance' && <MuscuEditor />}
+        {view === 'import' && <ImportPanel />}
+      </div>
+    </>
+  )
+}
+
+function MuscuWeekView() {
   const today = parisDate()
   const ref = useReference()
   const roster = useRoster()

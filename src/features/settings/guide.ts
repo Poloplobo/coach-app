@@ -65,8 +65,8 @@ export const STAFF_GUIDE: GuideSection[] = [
       "Aujourd'hui : forme de l'effectif, alertes (score < 16/30 ou un item à 1), à relancer, RPE non déclarés sur 7 jours et « déclarées non faites » avec leur raison.",
       "Semaine : charge de chacun (RPE × minutes), statut REG 500-1500, COMP 1500-2500, DEV > 2500 UA, RPE moyen face au RPE visé, exports PowerPoint et Excel. Les blessés sont suivis dans Médical.",
       "Joueur : fiche individuelle, taux de déclaration de la saison, ratio aigu/chronique (4 jours d'entraînement), tests, gestion.",
-      "Musculation : séances et retours exercice par exercice, bilan de cycle.",
-      "Programmation : semaines et duplication (+2,5 % si validée avec RPE < 5, +1,25 % si RPE ≥ 5, −2,5 % si non validée avec RPE ≥ 7 ; options « Musculation seulement » et « Charges identiques »), planning du groupe, séance de musculation et son intitulé, import d'un cycle, RPE visés et seuils.",
+      "Musculation : suivi de la semaine (séances et retours exercice par exercice, bilan de cycle), création d'une séance et son intitulé, import des fiches d'un cycle.",
+      "Programmation : semaines et duplication (+2,5 % si validée avec RPE < 5, +1,25 % si RPE ≥ 5, −2,5 % si non validée avec RPE ≥ 7 ; options « Musculation seulement » et « Charges identiques »), planning du groupe, RPE visés et seuils.",
       "Performance : GPS, notes de match et consignes, tests et coqs FFR du groupe, import des maxi et objectifs, barème FFR.",
       "Médical : suivi du joueur blessé (douleur, RPE, séances), plan de retour, préparation (import du plan, créateur, import des séances, fiche blessure), épidémiologie.",
     ],
@@ -84,7 +84,7 @@ export const STAFF_GUIDE: GuideSection[] = [
   {
     title: 'Gestes clés',
     items: [
-      "Relancer : Aujourd'hui › À relancer. Dupliquer : Programmation › Semaines et duplication. Importer un cycle : Programmation › Import d'un cycle.",
+      "Relancer : Aujourd'hui › À relancer. Dupliquer : Programmation › Semaines et duplication. Importer un cycle : Musculation › Importer un cycle.",
       "Déclarer un blessé : fiche Joueur › Gestion (admin) ; une fiche blessure et un plan de retour sont créés. Plan de réhab : Médical › Préparer. Tests : Performance › Test.",
       "Commotion : Médical › « Déclarer une commotion » (joueur, J0, moins de 18 ans). Le protocole FFR est choisi selon les commotions des 12 derniers mois, le joueur passe blessé ; chaque palier se valide dans Médical › Plan de retour (« Valider l'étape »), jamais le contact avant la date indiquée.",
     ],

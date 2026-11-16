@@ -285,10 +285,14 @@ if (only === 'perf') {
   await page.getByRole('button', { name: /Voir et modifier|Noter/ }).first().click(); await cap('perf-noter')
   await page.getByRole('tab', { name: 'Test' }).click(); await cap('perf-tests')
 } else if (only === 'prog') {
-  await open('/staff/programmation')
-  for (const v of ['semaines', 'planning', 'muscu', 'import']) {
-    await page.getByLabel('Afficher').selectOption(v); await page.waitForTimeout(1200)
-    heights[`prog-${v}`] = await page.evaluate(() => document.documentElement.scrollHeight); await shot(`prog-${v}`)
+  // Programmation et Musculation : parties choisies par boutons (role tab)
+  for (const [path, tabs] of [['/staff/programmation', ['Semaines et duplication', 'Planning du groupe', 'RPE visés et seuils']], ['/staff/musculation', ['Créer une séance', 'Importer un cycle']]]) {
+    await open(path)
+    for (const t of tabs) {
+      await page.getByRole('tab', { name: t }).click(); await page.waitForTimeout(1200)
+      const key = `prog-${t.split(' ')[0].toLowerCase()}`
+      heights[key] = await page.evaluate(() => document.documentElement.scrollHeight); await shot(key)
+    }
   }
 } else if (only === 'suivi') {
   await open('/staff/suivi'); await page.getByText('Son sommeil').first().click(); await page.getByText('Son alimentation').first().click(); await page.waitForTimeout(600); heights.suivi = await page.evaluate(() => document.documentElement.scrollHeight); await shot('suivi')

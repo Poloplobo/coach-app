@@ -23,7 +23,8 @@ const daysBetween = (from: string, to: string) => Math.round((Date.parse(`${to}T
 
 // Onglet « Suivi » du joueur (étape 14) : pour chaque module, où il en est. Sans module actif, une seule action :
 // demander un entretien. Ensuite : consentement, objectif (validé par le staff), puis le module lui-même.
-export default function FollowSection({ playerId, today }: { playerId: string; today: string }) {
+// only : le volet d'un module (sa carte seule) ; except : les modules qui ont leur propre volet (ni carte ici, le reste oui)
+export default function FollowSection({ playerId, today, only, except = [] }: { playerId: string; today: string; only?: string; except?: string[] }) {
   const modules = useModules()
   const requests = useRequests(playerId)
   const enrollments = useEnrollments(playerId)
@@ -32,6 +33,7 @@ export default function FollowSection({ playerId, today }: { playerId: string; t
   if (modules.isError || requests.isError || enrollments.isError || goals.isError) return <Card boxed title="Mon suivi individuel"><p role="alert" className="text-sm">Impossible de charger ton suivi. Vérifie ta connexion, puis rouvre l'onglet.</p></Card>
 
   const active = enrollments.data.filter(e => e.status === 'actif')
+  const shown = active.filter(e => (only ? e.module_code === only : !except.includes(e.module_code)))
   const open = requests.data.filter(r => OPEN_REQUEST.includes(r.status))
   const free = modules.data.filter(m => !active.some(e => e.module_code === m.code) && !open.some(r => r.module_code === m.code))
   const label = (code: string) => modules.data.find(m => m.code === code)?.label ?? code
@@ -40,11 +42,11 @@ export default function FollowSection({ playerId, today }: { playerId: string; t
 
   return (
     <>
-      {active.map(e => <ModuleCard key={e.id} enrollment={e} title={label(e.module_code)} today={today}
+      {shown.map(e => <ModuleCard key={e.id} enrollment={e} title={label(e.module_code)} today={today}
         goals={goals.data.filter(g => g.enrollment_id === e.id)} />)}
-      {open.map(r => <RequestCard key={r.id} request={r} title={label(r.module_code)} />)}
+      {!only && open.map(r => <RequestCard key={r.id} request={r} title={label(r.module_code)} />)}
       {/* key : le formulaire repart à zéro quand la liste des sujets change (sinon l'ancien sujet restait choisi) */}
-      {free.length > 0 && <AskInterview key={free.map(m => m.code).join()} playerId={playerId} modules={free} first={!active.length && !open.length}
+      {!only && free.length > 0 && <AskInterview key={free.map(m => m.code).join()} playerId={playerId} modules={free} first={!active.length && !open.length}
         refused={refused ? label(refused.module_code) : undefined} />}
     </>
   )

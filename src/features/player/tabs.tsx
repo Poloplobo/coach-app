@@ -11,8 +11,7 @@ import { usePlayerDay } from './playerDay'
 import { useFeature } from '../follow/feature'
 
 // Suivi individuel (étape 14) : chargé à part, jamais téléchargé tant que le drapeau est fermé
-const FollowSection = lazy(() => import('../follow/FollowSection'))
-const SleepToday = lazy(() => import('../follow/SleepModule'))
+const FormeSpaces = lazy(() => import('../follow/FormeSpaces'))
 
 export function SeanceTab() {
   const { playerId, today } = usePlayerDay()
@@ -43,12 +42,8 @@ export function FormeTab() {
   const { playerId, today } = usePlayerDay()
   const follow = useFeature()
   const filled = !!useWellnessDay(playerId, today).data // même requête que la mise en page : servie par le cache
-  return (
-    <>
-      {/* Suivi sommeil : la saisie de la nuit s'enchaîne juste après l'état de forme, sans repasser par un menu */}
-      {follow && filled && <Suspense fallback={null}><SleepToday playerId={playerId} today={today} /></Suspense>}
-      <WellnessCard playerId={playerId} date={today} />
-      {follow && <Suspense fallback={null}><FollowSection playerId={playerId} today={today} /></Suspense>}
-    </>
-  )
+  const wellness = <WellnessCard playerId={playerId} date={today} />
+  // Drapeau fermé : l'onglet Forme tel quel, rien du suivi téléchargé ; ouvert : volets Forme / Sommeil / Nutrition
+  if (!follow) return wellness
+  return <Suspense fallback={wellness}><FormeSpaces playerId={playerId} today={today} filled={filled} wellness={wellness} /></Suspense>
 }

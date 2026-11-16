@@ -71,9 +71,23 @@ table { font-variant-numeric: tabular-nums; }
 .mv-a { animation: mv-a 1.8s ease-in-out infinite; }
 .mv-b { opacity: 0; animation: mv-b 1.8s ease-in-out infinite; }
 
+/* Volets immersifs du suivi (FormeSpaces) : le thème redéfini dans le volet, sombre dans les deux modes pour l'ambiance */
+.ambiance-nuit { color-scheme: dark; --app: 11 18 42; --surface: 22 33 68; --line: 48 63 110; --ink: 233 238 255; --gold: 255 215 0;
+  background-image: radial-gradient(120% 60% at 80% 0%, rgb(59 130 246 / 0.25), transparent 60%); }
+.ambiance-nutrition { color-scheme: dark; --app: 9 34 25; --surface: 17 54 40; --line: 40 88 66; --ink: 236 253 245; --gold: 255 215 0;
+  background-image: radial-gradient(120% 60% at 80% 0%, rgb(16 185 129 / 0.28), transparent 60%); }
+/* Logos animés : deux passages à l'ouverture du volet, puis immobiles (pas de boucle pendant la saisie) */
+@keyframes amb-rise { from { transform: translateY(6px); opacity: 0 } to { transform: none; opacity: 1 } }
+@keyframes amb-twinkle { 0%, 100% { opacity: 1 } 50% { opacity: 0.25 } }
+@keyframes amb-steam { 0% { transform: translateY(4px); opacity: 0 } 40% { opacity: 0.9 } 100% { transform: translateY(-6px); opacity: 0 } }
+.amb-logo { animation: amb-rise 600ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.amb-star { animation: amb-twinkle 1.4s ease-in-out 2; }
+.amb-steam { opacity: 0.8; animation: amb-steam 1.6s ease-out 2; }
+
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
   .rise { animation: none; }
   .mv-a { animation: none; }
   .mv-b { animation: none; display: none; }
+  .amb-logo, .amb-star, .amb-steam { animation: none; }
 }

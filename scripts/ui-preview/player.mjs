@@ -191,11 +191,17 @@ await ctx.route(/supabase\.co\//, async route => {
   return route.fulfill({ json: (req.headers()['accept'] ?? '').includes('vnd.pgrst.object') ? (rows[0] ?? null) : rows })
 })
 const page = await ctx.newPage()
-const pages = scenario === 'vide' || followOn ? ['forme'] : scenario === 'blesse' ? ['accueil'] : ['accueil', 'seance', 'rugby', 'performance', 'performance-tests', 'forme', 'reglages']
+// Suivi : l'onglet Forme et ses volets Sommeil / Nutrition (boutons), capturés quand ils existent
+const pages = scenario === 'vide' ? ['forme'] : followOn ? ['forme', 'forme-sommeil', 'forme-nutrition'] : scenario === 'blesse' ? ['accueil'] : ['accueil', 'seance', 'rugby', 'performance', 'performance-tests', 'forme', 'reglages']
 for (const p of pages) {
-  await page.goto(`http://localhost:5199${p === 'accueil' ? '/joueur' : `/joueur/${p.replace('-tests', '')}`}`)
+  await page.goto(`http://localhost:5199${p === 'accueil' ? '/joueur' : `/joueur/${p.replace('-tests', '').replace(/^forme-.*/, 'forme')}`}`)
   await page.waitForLoadState('networkidle'); await page.waitForTimeout(1500)
-  if (scenario === 'suivi-nutrition-ajout') { // formulaire d'ajout : recherche, puis quantité au dîner
+  if (p.startsWith('forme-')) {
+    const tab = page.getByRole('tab', { name: new RegExp(p.slice(6), 'i') })
+    if (!(await tab.count())) continue // pas de volet pour ce module dans ce scénario
+    await tab.click(); await page.waitForTimeout(900)
+  }
+  if (scenario === 'suivi-nutrition-ajout' && p === 'forme-nutrition') { // formulaire d'ajout : recherche, puis quantité au dîner
     await page.getByRole('button', { name: 'Ajouter un aliment : Dîner' }).click(); await page.getByLabel('Chercher un aliment').fill('pou'); await page.waitForTimeout(700)
     await page.screenshot({ path: `${out}/player-${theme}-${scenario}-recherche.png`, fullPage: true })
     await page.getByRole('button', { name: /^Poulet/ }).click(); await page.waitForTimeout(300)

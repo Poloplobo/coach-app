@@ -11,7 +11,9 @@ import { muscuSummary, type StaffMuscuSession } from './muscu'
 import { SUMMARY, toneHigh, toneLow, type Tone } from './summaryConfig'
 
 export type Week = { code: string; label: string | null; start_date: string; week_type_code: string; cycle: string | null; block?: number | null }
-export type Block = { block: number; cycle: string | null; rank: number; weeks: Week[]; from: string; to: string }
+// label : bloc fait de semaines choisies à la main (résumé du bloc), sans numéro : « S6 → S9 »
+export type Block = { block: number; cycle: string | null; rank: number; weeks: Week[]; from: string; to: string; label?: string }
+export const blockName = (b: Block) => b.label ?? `bloc ${b.block}`
 export type Wellness = WellnessScores & { player_id: string; entry_date: string }
 type Match = { id: string; match_date: string; opponent: string; label: string | null }
 type Rating = { match_id: string; player_id: string; rater: 'player' | 'staff'; color: RatingColor; minutes?: number | null }
@@ -35,6 +37,26 @@ export function blocksOf(weeks: Week[]): Block[] {
     blocks.push({ block: n, cycle, rank: blocks.filter(b => b.cycle === cycle).length + 1, weeks: own, from: own[0].start_date, to: addDays(own.at(-1)!.start_date, 6) })
   }
   return blocks
+}
+
+// Bloc fait des semaines choisies par le staff (pas forcément contiguës). S'il correspond exactement à un bloc numéroté
+// de la saison, c'est ce bloc ; sinon un bloc sans numéro, nommé par ses semaines.
+export function chosenBlock(weeks: Week[], numbered: Block[]): Block {
+  const own = [...weeks].sort((a, b) => a.start_date.localeCompare(b.start_date))
+  const codes = own.map(w => w.code).join()
+  const contiguous = own.every((w, i) => i === 0 || w.start_date === addDays(own[i - 1].start_date, 7))
+  return numbered.find(b => b.weeks.map(w => w.code).join() === codes) ?? {
+    block: 0, cycle: own[0].cycle, rank: 0, weeks: own, from: own[0].start_date, to: addDays(own.at(-1)!.start_date, 6),
+    label: own.length === 1 ? own[0].code : contiguous ? `${own[0].code} → ${own.at(-1)!.code}` : own.map(w => w.code).join(', '),
+  }
+}
+
+// Point de comparaison d'un bloc : le bloc numéroté d'avant, ou, pour des semaines choisies, autant de semaines juste avant
+export function comparisonBlock(block: Block, numbered: Block[], allWeeks: Week[]): Block | null {
+  if (!block.label) return previousBlock(numbered, block)
+  const before = allWeeks.filter(w => w.start_date < block.from).sort((a, b) => a.start_date.localeCompare(b.start_date)).slice(-block.weeks.length)
+  // moins de semaines disponibles avant : pas de comparaison (3 semaines face à 1 ne voudrait rien dire)
+  return before.length === block.weeks.length ? { ...chosenBlock(before, []), label: before.length === 1 ? before[0].code : `${before[0].code} → ${before.at(-1)!.code}` } : null
 }
 
 // Charge (sRPE = RPE × durée) de chaque semaine face à sa cible. Semaine en cours : pas de statut (un mercredi, tout le
@@ -140,7 +162,7 @@ function highlights(r: {
   const out: string[] = []
   const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`
   if (r.changePct !== null && Math.abs(r.changePct) >= SUMMARY.loadChangePct)
-    out.push(`Charge moyenne par semaine en ${r.changePct > 0 ? 'hausse' : 'baisse'} de ${Math.abs(r.changePct)} % par rapport au bloc ${previous!.block}.`)
+    out.push(`Charge moyenne par semaine en ${r.changePct > 0 ? 'hausse' : 'baisse'} de ${Math.abs(r.changePct)} % par rapport ${previous!.label ? `à la période ${previous!.label}` : `au bloc ${previous!.block}`}.`)
   const off = r.weekly.filter(w => w.status && w.status !== 'conforme')
   if (off.length) out.push(`${plural(off.length, 'semaine')} hors de la plage de charge : ${off.map(w => `${w.code} en ${w.status}`).join(', ')}.`)
   else if (r.weekly.some(w => w.status)) out.push('Charge dans la plage visée sur toutes les semaines terminées.')

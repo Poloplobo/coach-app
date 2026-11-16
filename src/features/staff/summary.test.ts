@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Log, Player, WeekType } from './load'
-import { blockSummary, blocksOf, coachSummary, injuriesIn, previousBlock, weeklyLoad, wellnessSummary, type Week } from './summary'
+import { blockSummary, blocksOf, chosenBlock, coachSummary, comparisonBlock, injuriesIn, previousBlock, weeklyLoad, wellnessSummary, type Week } from './summary'
 
 const wt = (code: string, target: number, min: number | null, max: number | null): WeekType =>
   ({ code, name: code, target_srpe: target, srpe_min: min, srpe_max: max, volume_min: 0, physique_min: 0, rugby_min: 0, accompagnement_min: 0, ppid_min: 0 })
@@ -55,6 +55,27 @@ describe('blockSummary', () => {
     const r = blockSummary({ ...EMPTY, player: player('a'), logs: [log('a', '2026-10-06', 2000)], block: b1, today: '2026-10-14' })
     expect(r.inProgress).toBe(true)
     expect(r.weekly[1].status).toBeNull()
+  })
+})
+
+describe('semaines choisies à la main', () => {
+  const numbered = blocksOf(WEEKS)
+  it("les semaines d'un bloc numéroté redonnent ce bloc ; sinon un bloc nommé par ses semaines", () => {
+    expect(chosenBlock([WEEKS[1], WEEKS[0]], numbered).block).toBe(1)
+    expect(chosenBlock([WEEKS[2], WEEKS[1]], numbered)).toMatchObject({ label: 'S2 → S3', from: '2026-10-12', to: '2026-10-25' })
+    expect(chosenBlock([WEEKS[0], WEEKS[2]], numbered).label).toBe('S1, S3')
+  })
+  it('comparaison : autant de semaines juste avant, et seules les semaines choisies comptent', () => {
+    const block = chosenBlock([WEEKS[2], WEEKS[3]], numbered)
+    const previous = comparisonBlock(block, numbered, WEEKS)
+    expect(previous).toMatchObject({ label: 'S1 → S2', from: '2026-10-05', to: '2026-10-18' })
+    expect(comparisonBlock(chosenBlock([WEEKS[0], WEEKS[2]], numbered), numbered, WEEKS)).toBeNull()
+    expect(comparisonBlock(chosenBlock([WEEKS[1], WEEKS[2], WEEKS[3]], []), [], WEEKS)).toBeNull() // une seule semaine avant, pour trois choisies
+    const logs = [log('a', '2026-10-06', 1000), log('a', '2026-10-13', 1000), log('a', '2026-10-20', 3000), log('a', '2026-10-27', 3000)]
+    const r = blockSummary({ ...EMPTY, player: player('a'), logs, block, previous, today: '2026-11-10' })
+    expect([r.total, r.previousTotal, r.totalChangePct]).toEqual([6000, 2000, 200])
+    expect(r.highlights[0]).toBe('Charge moyenne par semaine en hausse de 200 % par rapport à la période S1 → S2.')
+    expect(blockSummary({ ...EMPTY, player: player('a'), logs, block: chosenBlock([WEEKS[0], WEEKS[2]], numbered), today: '2026-11-10' }).total).toBe(4000)
   })
 })
 

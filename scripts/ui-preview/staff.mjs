@@ -298,11 +298,12 @@ if (only === 'perf') {
 } else if (only === 'resume') {
   // Résumés PDF : bloc complet, joueur blessé, bloc en cours, cycle, coach (bloc et cycle) ; papier A4 comme à l'impression
   for (const [name, q] of [['bloc', 'vue=joueur&sur=bloc&bloc=1&joueur=p1'], ['bloc-blesse', 'vue=joueur&sur=bloc&bloc=1&joueur=p5'], ['bloc-en-cours', 'vue=joueur&sur=bloc&bloc=3&joueur=p1'],
+['bloc-semaines', 'vue=joueur&sur=bloc&semaines=S2,S3,S5&joueur=p1'], ['coach-semaines', 'vue=coach&sur=bloc&semaines=S5,S6'],
     ['cycle', 'vue=joueur&sur=cycle&cycle=Cycle%201&joueur=p1'], ['coach-bloc', 'vue=coach&sur=bloc&bloc=1'], ['coach-cycle', 'vue=coach&sur=cycle&cycle=Cycle%202']]) {
     await open(`/resume?${q}`); await page.emulateMedia({ media: 'print' }); heights[`resume-${name}`] = await page.evaluate(() => document.documentElement.scrollHeight)
     await shot(`resume-${name}`); await page.emulateMedia({ media: 'screen' })
   }
-  await open('/resume?vue=joueur&sur=bloc&bloc=1&joueur=p1'); await shot('resume-ecran')
+  await open('/resume?vue=joueur&sur=bloc&semaines=S2,S3,S5&joueur=p1'); await shot('resume-ecran')
   // Vrais PDF A4 (Chromium sans écran), comme « Enregistrer au format PDF » : pagination à contrôler
   if (process.env.PDF) for (const [name, q] of [['bloc', 'vue=joueur&sur=bloc&bloc=1&joueur=p1'], ['coach', 'vue=coach&sur=bloc&bloc=1']]) {
     await open(`/resume?${q}`); await page.emulateMedia({ media: 'print' }); await page.pdf({ path: `${out}/resume-${name}.pdf`, preferCSSPageSize: true, printBackground: true })

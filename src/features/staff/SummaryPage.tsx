@@ -7,7 +7,7 @@ import { RATING_LABEL } from '../performance/gps'
 import { useGpsRecords, useGpsReference, useMatches, useRatings } from '../performance/usePerformance'
 import { MUSCULATION } from '../rpe/activities'
 import { fullName, type PlanItem, type Skip, type Status } from './load'
-import { blocksOf, coachSummary, cycleHighlights, cycleSummary, previousBlock, type Block, type Wellness } from './summary'
+import { blockName, blockSummary, blocksOf, chosenBlock, coachSummary, comparisonBlock, cycleHighlights, cycleSummary, type Block, type Wellness } from './summary'
 import { SUMMARY, type Tone } from './summaryConfig'
 import { useAllLogs, useAllPlan, useAllSkips, useAllWellness, useInjuryRecords, useIsAdmin, useReference, useRoster, useStaffMuscu } from './useStaff'
 
@@ -122,48 +122,82 @@ export default function SummaryPage() {
   if (ref.isPending || roster.isPending) return <Message><Loading /></Message>
   if (ref.isError || roster.isError) return <Message>Impossible de préparer le résumé.</Message>
   const today = parisDate()
-  const blocks = blocksOf(ref.data.weeks).filter(b => b.from <= today)
-  if (!blocks.length) return <Message>Aucun bloc commencé : donne un numéro de bloc aux semaines dans Programmation › Semaines.</Message>
+  const allBlocks = blocksOf(ref.data.weeks)
+  const blocks = allBlocks.filter(b => b.from <= today)
+  const started = ref.data.weeks.filter(w => w.start_date <= today) // semaines commencées : les seules qu'on peut résumer
+  if (!started.length) return <Message>Aucune semaine commencée au calendrier.</Message>
+  const isStarted = (w: { code: string }) => started.some(x => x.code === w.code)
 
   const view = params.get('vue') === 'coach' ? 'coach' : 'joueur'
   const scope = params.get('sur') === 'cycle' ? 'cycle' : 'bloc'
-  const current = blocks.find(b => b.block === Number(params.get('bloc'))) ?? blocks.find(b => b.to >= today) ?? blocks.at(-1)!
+  const current = blocks.find(b => b.block === Number(params.get('bloc'))) ?? blocks.find(b => b.to >= today) ?? blocks.at(-1)
   const cycles = [...new Set(blocks.map(b => b.cycle).filter((c): c is string => !!c))]
-  const cycle = cycles.includes(params.get('cycle') ?? '') ? params.get('cycle')! : current.cycle ?? cycles.at(-1) ?? null
-  const chosen = scope === 'bloc' ? [current] : blocks.filter(b => b.cycle === cycle)
+  const cycle = cycles.includes(params.get('cycle') ?? '') ? params.get('cycle')! : current?.cycle ?? cycles.at(-1) ?? null
+  // Résumé du bloc : les semaines sont choisies ici (décision du 16/11/2026). Au départ, celles du bloc numéroté de la
+  // semaine d'où l'on vient ; sans bloc numéroté, les 4 dernières semaines commencées.
+  const asked = (params.get('semaines') ?? '').split(',')
+  const picked = started.filter(w => asked.includes(w.code))
+  const weeks = picked.length ? picked : current ? current.weeks.filter(w => isStarted(w)) : started.slice(-4)
+  const block = chosenBlock(weeks, allBlocks)
+  const chosen = scope === 'bloc' ? [block] : blocks.filter(b => b.cycle === cycle)
   const player = roster.data.find(p => p.id === params.get('joueur')) ?? roster.data[0]
   const set = (k: string, v: string) => { const p = new URLSearchParams(params); p.set(k, v); setParams(p, { replace: true }) }
+  const setWeeks = (codes: string[]) => set('semaines', codes.join(','))
 
   const toolbar = (
     <>
       <select aria-label="Résumé" value={view} onChange={e => set('vue', e.target.value)} className={select}><option value="joueur">Résumé d'un joueur</option><option value="coach">Résumé coach (collectif)</option></select>
-      <select aria-label="Période" value={scope} onChange={e => set('sur', e.target.value)} className={select}><option value="bloc">Sur un bloc</option><option value="cycle" disabled={!cycles.length}>Sur un cycle</option></select>
-      {scope === 'bloc'
-        ? <select aria-label="Bloc" value={current.block} onChange={e => set('bloc', e.target.value)} className={select}>{blocks.map(b => <option key={b.block} value={b.block}>Bloc {b.block} · {b.weeks[0].code} → {b.weeks.at(-1)!.code}</option>)}</select>
-        : <select aria-label="Cycle" value={cycle ?? ''} onChange={e => set('cycle', e.target.value)} className={select}>{cycles.map(c => <option key={c} value={c}>{c}</option>)}</select>}
+      <select aria-label="Période" value={scope} onChange={e => set('sur', e.target.value)} className={select}><option value="bloc">Sur un bloc (semaines au choix)</option><option value="cycle" disabled={!cycles.length}>Sur un cycle</option></select>
+      {scope === 'cycle' && <select aria-label="Cycle" value={cycle ?? ''} onChange={e => set('cycle', e.target.value)} className={select}>{cycles.map(c => <option key={c} value={c}>{c}</option>)}</select>}
       {view === 'joueur' && <select aria-label="Joueur" value={player?.id ?? ''} onChange={e => set('joueur', e.target.value)} className={select}>{roster.data.map(p => <option key={p.id} value={p.id}>{fullName(p)}</option>)}</select>}
+      {scope === 'bloc' && (
+        <fieldset className="flex w-full flex-wrap items-center gap-x-1 gap-y-1">
+          <legend className="float-left mr-2 font-semibold">Semaines du bloc</legend>
+          {started.map(w => {
+            const on = weeks.includes(w)
+            return (
+              <label key={w.code} title={w.label ?? undefined} className="flex min-h-11 cursor-pointer items-center gap-1.5 rounded-lg border border-neutral-300 px-2 has-[:checked]:border-neutral-900 has-[:checked]:bg-neutral-900 has-[:checked]:text-white has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-neutral-900">
+                {/* la dernière semaine cochée ne se décoche pas : un résumé a toujours au moins une semaine */}
+                <input type="checkbox" className="sr-only" checked={on} disabled={on && weeks.length === 1}
+                  onChange={() => setWeeks((on ? weeks.filter(x => x !== w) : [...weeks, w]).map(x => x.code))} />
+                {w.code}<span className="text-[10px] opacity-70">{w.week_type_code}</span>
+              </label>
+            )
+          })}
+          {blocks.length > 0 && (
+            <select aria-label="Reprendre les semaines d'un bloc numéroté" value={block.label ? '' : block.block} className={`${select} ml-2`}
+              onChange={e => { const b = blocks.find(x => x.block === Number(e.target.value)); if (b) setWeeks(b.weeks.filter(w => isStarted(w)).map(w => w.code)) }}>
+              <option value="" disabled>Semaines choisies à la main</option>
+              {blocks.map(b => <option key={b.block} value={b.block}>Reprendre le bloc {b.block} ({b.weeks[0].code} → {b.weeks.at(-1)!.code})</option>)}
+            </select>
+          )}
+        </fieldset>
+      )}
     </>
   )
-  if (!chosen.length) return <Message>Aucun bloc dans ce cycle.</Message>
+  if (!chosen.length) return <Message>Aucun bloc dans ce cycle : donne un numéro de bloc aux semaines dans Programmation › Semaines.</Message>
   const safe = (text: string) => text.replace(/[^\p{L}\p{N}]+/gu, '-') // lettres accentuées gardées, rien d'interdit dans un nom de fichier
-  const name = scope === 'bloc' ? `Bloc${current.block}` : safe(cycle ?? 'Sans-cycle').replace(/-/g, '')
-  const label = scope === 'bloc' ? `Bloc ${current.block}${current.cycle ? ` · bloc ${current.rank} du ${current.cycle}` : ''}` : `${cycle ?? 'Sans cycle'} · ${chosen.length} bloc${chosen.length > 1 ? 's' : ''}`
+  const name = scope === 'cycle' ? safe(cycle ?? 'Sans-cycle').replace(/-/g, '') : block.label ? `Bloc_${safe(block.label.replace(' → ', '-'))}` : `Bloc${block.block}`
+  const count = `${weeks.length} semaine${weeks.length > 1 ? 's' : ''}`
+  const label = scope === 'cycle' ? `${cycle ?? 'Sans cycle'} · ${chosen.length} bloc${chosen.length > 1 ? 's' : ''}`
+    : block.label ? `Semaines ${block.label} · ${count}` : `Bloc ${block.block}${block.cycle ? ` · bloc ${block.rank} du ${block.cycle}` : ''} · ${count}`
   const dates = period(chosen[0].from, chosen.at(-1)!.to)
   if (view === 'coach') return <CoachSheet key={name} blocks={chosen} label={label} dates={dates} fileName={`Coach_${name}_${chosen.at(-1)!.to.slice(0, 7)}`} toolbar={toolbar} />
   if (!player) return <Message>Aucun joueur.</Message>
-  return <PlayerSheet key={`${name}-${player.id}`} playerId={player.id} blocks={chosen} allBlocks={blocksOf(ref.data.weeks)} scope={scope} label={label} dates={dates}
-    fileName={`${name}_${safe(`${player.last_name} ${player.first_name}`)}_${chosen.at(-1)!.to.slice(0, 7)}`} toolbar={toolbar} />
+  return <PlayerSheet key={`${name}-${player.id}`} playerId={player.id} blocks={chosen} allBlocks={allBlocks} previous={comparisonBlock(chosen[0], allBlocks, ref.data.weeks)}
+    scope={scope} label={label} dates={dates} fileName={`${name}_${safe(`${player.last_name} ${player.first_name}`)}_${chosen.at(-1)!.to.slice(0, 7)}`} toolbar={toolbar} />
 }
 
 type SheetProps = { blocks: Block[]; label: string; dates: string; fileName: string; toolbar: ReactNode }
 
-function PlayerSheet({ playerId, blocks, allBlocks, scope, label, dates, fileName, toolbar }: SheetProps & { playerId: string; allBlocks: Block[]; scope: 'bloc' | 'cycle' }) {
+// previous : le point de comparaison du premier bloc (bloc numéroté d'avant, ou les semaines juste avant des semaines choisies)
+function PlayerSheet({ playerId, blocks, allBlocks, previous, scope, label, dates, fileName, toolbar }: SheetProps & { playerId: string; allBlocks: Block[]; previous: Block | null; scope: 'bloc' | 'cycle' }) {
   const today = parisDate()
   const ref = useReference()
   const roster = useRoster()
-  const previous = previousBlock(allBlocks, blocks[0])
-  const from = previous?.from ?? blocks[0].from
-  const to = blocks.at(-1)!.to
+  // semaines choisies pas forcément dans l'ordre du calendrier des blocs : on charge de la plus ancienne date à la plus récente
+  const from = [previous?.from, ...blocks.map(b => b.from)].filter((d): d is string => !!d).sort()[0]
+  const to = blocks.map(b => b.to).sort().at(-1)!
   const logs = useAllLogs(from, to, playerId)
   const wellness = useAllWellness(from, to, playerId)
   const muscu = useStaffMuscu(from, to, playerId)
@@ -188,7 +222,7 @@ function PlayerSheet({ playerId, blocks, allBlocks, scope, label, dates, fileNam
   const failed = [[wellness, 'état de forme'], [muscu, 'musculation'], [injuries, 'blessures'], [matches, 'matchs'], [gps, 'GPS'], [ratings, 'notes de match']] as const
   const missing = failed.filter(([q]) => q.isError).map(([, l]) => l)
   const warning = missing.length > 0 && <p role="alert" className="rounded bg-amber-100 px-2 py-1 text-amber-900 [print-color-adjust:exact]">Données non chargées : {missing.join(', ')}. Elles apparaissent « {NR} ».</p>
-  const all = cycleSummary({ ...input, blocks, allBlocks })
+  const all = scope === 'cycle' ? cycleSummary({ ...input, blocks, allBlocks }) : [blockSummary({ ...input, block: blocks[0], previous })]
 
   if (scope === 'cycle') {
     const injuriesAll = [...new Map(all.flatMap(b => b.injuries).map(i => [i.occurred_on, i])).values()]
@@ -240,9 +274,9 @@ function PlayerSheet({ playerId, blocks, allBlocks, scope, label, dates, fileNam
       <Section title="Synthèse"><ul className="list-disc pl-4">{b.highlights.map(h => <li key={h}>{h}</li>)}</ul></Section>
       <Section title="Charge (RPE × durée)">
         <Figures items={[
-          ['Total du bloc', n(b.total, ' UA'), previous ? `${signed(b.totalChangePct)} face au bloc ${previous.block} (${n(b.previousTotal)} UA)` : 'pas de bloc précédent'],
+          ['Total du bloc', n(b.total, ' UA'), previous ? `${signed(b.totalChangePct)} face à ${previous.label ?? blockName(previous)} (${n(b.previousTotal)} UA)` : 'pas de période précédente'],
           ['Moyenne par semaine', n(b.perWeek, ' UA'), // semaines terminées
-          previous ? `${signed(b.changePct)} face au bloc ${previous.block} (${n(b.previousPerWeek)} UA)` : 'pas de bloc précédent'],
+          previous ? `${signed(b.changePct)} face à ${previous.label ?? blockName(previous)} (${n(b.previousPerWeek)} UA)` : 'pas de période précédente'],
           ['Semaines de match', n(b.work, ' UA'), 'moyenne par semaine terminée'],
           ['Semaine de repos', n(b.rest, ' UA'), b.rest !== null && b.work ? `${Math.round((100 * b.rest) / b.work)} % d'une semaine de match` : undefined],
         ]} />
